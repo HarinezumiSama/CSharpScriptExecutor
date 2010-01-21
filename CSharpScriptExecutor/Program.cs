@@ -76,6 +76,7 @@ namespace CSharpScriptExecutor
 
         #region Public Methods
 
+        [LoaderOptimization(LoaderOptimization.MultiDomain)]
         public static int Main(string[] arguments)
         {
             Console.CancelKeyPress += Console_CancelKeyPress;
