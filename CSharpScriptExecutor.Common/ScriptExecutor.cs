@@ -25,6 +25,8 @@ namespace CSharpScriptExecutor.Common
         private const string c_predefinedMethodName = "Main";
         private const BindingFlags c_predefinedMethodBindingFlags = BindingFlags.Static | BindingFlags.Public |
             BindingFlags.NonPublic;
+        private const string c_predefinedMethodParameterName = "arguments";
+
         private const string c_bracingStyle = "C";
         private const string c_indentString = "    ";
 
@@ -60,7 +62,7 @@ namespace CSharpScriptExecutor.Common
         private static readonly string[] s_predefinedReferences = new string[]
         {
             "System.dll",
-            Assembly.GetAssembly(typeof(Enumerable)).Location,
+            Assembly.GetAssembly(typeof(System.Linq.Enumerable)).Location,  // System.Linq.dll
             "System.Data.dll",
             "System.Web.dll",
             "System.Xml.dll"
@@ -74,6 +76,7 @@ namespace CSharpScriptExecutor.Common
         private readonly AppDomain m_domain;
         private readonly string m_scriptFilePath;
         private readonly string[] m_arguments;
+        private readonly bool m_isDebugMode;
         private readonly ScriptType m_scriptType;
         private readonly List<string> m_scriptLines;
 
@@ -88,9 +91,10 @@ namespace CSharpScriptExecutor.Common
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptExecutor"/> class.
         /// </summary>
-        private ScriptExecutor(Guid scriptId, AppDomain domain, string scriptFilePath, string[] arguments)
+        private ScriptExecutor(Guid scriptId, AppDomain domain, ScriptExecutorParameters parameters)
         {
             #region Argument Check
+
             if (Guid.Empty.Equals(scriptId))
             {
                 throw new ArgumentException("Script ID cannot be empty.", "scriptId");
@@ -99,20 +103,18 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentNullException("domain");
             }
-            if (scriptFilePath == null)
+            if (parameters == null)
             {
-                throw new ArgumentNullException("scriptFilePath");
+                throw new ArgumentNullException("parameters");
             }
-            if (arguments == null)
-            {
-                throw new ArgumentNullException("arguments");
-            }
+
             #endregion
 
             m_scriptId = scriptId;
             m_domain = domain;
-            m_scriptFilePath = scriptFilePath;
-            m_arguments = arguments;
+            m_scriptFilePath = parameters.ScriptFilePath;
+            m_arguments = parameters.ScriptArguments.ToArray();
+            m_isDebugMode = parameters.IsDebugMode;
 
             LoadData(out m_scriptType, out m_scriptLines);
         }
@@ -188,7 +190,7 @@ namespace CSharpScriptExecutor.Common
 
         private void ExecuteCodeScript()
         {
-            bool isDebuggable = Debugger.IsAttached;
+            bool isDebuggable = Debugger.IsAttached || m_isDebugMode;
 
             CompilerParameters compilerParameters = new CompilerParameters()
             {
@@ -201,7 +203,11 @@ namespace CSharpScriptExecutor.Common
             {
                 compilerParameters.OutputAssembly = Path.Combine(
                     Path.GetTempPath(),
-                    string.Format("{0}_{1:N}.dll", typeof(ScriptExecutor).Name, m_scriptId));
+                    string.Format(
+                        "{0}__{1:yyyy'-'MM'-'dd__HH'-'mm'-'ss}__{2}.dll",
+                        typeof(ScriptExecutor).Name,
+                        DateTime.Now,
+                        m_scriptId.GetHashCode().ToString("X8").ToLowerInvariant()));
             }
             compilerParameters.ReferencedAssemblies.AddRange(s_predefinedReferences);
 
@@ -214,6 +220,14 @@ namespace CSharpScriptExecutor.Common
                 Name = c_predefinedMethodName,
                 ReturnType = new CodeTypeReference(typeof(void))
             };
+            wrapperMethod.Parameters.Add(
+                new CodeParameterDeclarationExpression(typeof(string[]), c_predefinedMethodParameterName)
+                {
+                    CustomAttributes =
+                    {
+                        new CodeAttributeDeclaration(new CodeTypeReference(typeof(ParamArrayAttribute)))
+                    }
+                });
             wrapperMethod.Statements.Add(mainMethodBody);
 
             CodeTypeDeclaration rootType = new CodeTypeDeclaration(c_predefinedTypeName);
@@ -222,16 +236,54 @@ namespace CSharpScriptExecutor.Common
             rootType.Members.Add(wrapperMethod);
 
             CodeNamespace rootNamespace = new CodeNamespace(string.Empty);
-            rootNamespace.Imports.AddRange(s_predefinedImports
-                .Select(import => new CodeNamespaceImport(import))
-                .ToArray());
+            rootNamespace.Imports.AddRange(
+                s_predefinedImports.Select(item => new CodeNamespaceImport(item)).ToArray());
             rootNamespace.Types.Add(rootType);
 
             CodeCompileUnit compileUnit = new CodeCompileUnit();
             compileUnit.Namespaces.Add(rootNamespace);
 
             CSharpCodeProvider codeProvider = new CSharpCodeProvider();
-            CompilerResults compilerResults = codeProvider.CompileAssemblyFromDom(compilerParameters, compileUnit);
+
+            string sourceContent = null;
+            Func<string> getSourceContent =
+                () =>
+                {
+                    if (!string.IsNullOrWhiteSpace(sourceContent))
+                    {
+                        return sourceContent;
+                    }
+
+                    StringBuilder sourceBuilder = new StringBuilder();
+                    using (StringWriter sw = new StringWriter(sourceBuilder))
+                    {
+                        CodeGeneratorOptions options = new CodeGeneratorOptions()
+                        {
+                            BlankLinesBetweenMembers = true,
+                            BracingStyle = c_bracingStyle,
+                            ElseOnClosing = false,
+                            IndentString = c_indentString,
+                            VerbatimOrder = true
+                        };
+                        codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
+                    }
+
+                    sourceContent = sourceBuilder.ToString();
+                    return sourceContent;
+                };
+
+            CompilerResults compilerResults;
+            if (isDebuggable)
+            {
+                string filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, ".cs");
+                File.WriteAllText(filePath, getSourceContent(), Encoding.UTF8);
+
+                compilerResults = codeProvider.CompileAssemblyFromFile(compilerParameters, filePath);
+            }
+            else
+            {
+                compilerResults = codeProvider.CompileAssemblyFromDom(compilerParameters, compileUnit);
+            }
 
             if (compilerResults.Errors.HasErrors)
             {
@@ -248,18 +300,7 @@ namespace CSharpScriptExecutor.Common
                     sb.AppendLine(string.Format("  {0}", error));
                 }
                 sb.AppendLine("Source:");
-                using (StringWriter sw = new StringWriter(sb))
-                {
-                    CodeGeneratorOptions options = new CodeGeneratorOptions()
-                    {
-                        BlankLinesBetweenMembers = true,
-                        BracingStyle = c_bracingStyle,
-                        ElseOnClosing = false,
-                        IndentString = c_indentString,
-                        VerbatimOrder = true
-                    };
-                    codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
-                }
+                sb.Append(getSourceContent());
                 sb.AppendLine();
 
                 m_executionResult = new ScriptExecutionResult(ScriptExecutionResultType.CompileError, sb.ToString());
@@ -287,7 +328,7 @@ namespace CSharpScriptExecutor.Common
                     c_predefinedTypeName));
             }
 
-            MethodInfo compiledMethod = compiledType.GetMethod(
+            var compiledMethod = compiledType.GetMethod(
                 c_predefinedMethodName,
                 c_predefinedMethodBindingFlags);
             if (compiledMethod == null)
@@ -298,7 +339,10 @@ namespace CSharpScriptExecutor.Common
                     c_predefinedTypeName));
             }
 
-            Action methodDelegate = (Action)Delegate.CreateDelegate(typeof(Action), compiledMethod, true);
+            var methodDelegate = (Action<string[]>)Delegate.CreateDelegate(
+                typeof(Action<string[]>),
+                compiledMethod,
+                true);
             if (methodDelegate == null)
             {
                 throw new ScriptExecutorException(string.Format(
@@ -310,7 +354,7 @@ namespace CSharpScriptExecutor.Common
 
             try
             {
-                methodDelegate();
+                methodDelegate(m_arguments);
             }
             catch (Exception ex)
             {
@@ -343,10 +387,10 @@ namespace CSharpScriptExecutor.Common
         internal static ScriptExecutor Create(
             Guid scriptId,
             AppDomain domain,
-            string scriptFilePath,
-            string[] arguments)
+            ScriptExecutorParameters parameters)
         {
             #region Argument Check
+
             if (Guid.Empty.Equals(scriptId))
             {
                 throw new ArgumentException("Script ID cannot be empty.", "scriptId");
@@ -355,14 +399,11 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentNullException("domain");
             }
-            if (scriptFilePath == null)
+            if (parameters == null)
             {
-                throw new ArgumentNullException("scriptFilePath");
+                throw new ArgumentNullException("parameters");
             }
-            if (arguments == null)
-            {
-                throw new ArgumentNullException("arguments");
-            }
+
             #endregion
 
             Type scriptExecutorType = typeof(ScriptExecutor);
@@ -372,7 +413,7 @@ namespace CSharpScriptExecutor.Common
                 false,
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 Type.DefaultBinder,
-                new object[] { scriptId, domain, scriptFilePath, arguments },
+                new object[] { scriptId, domain, parameters },
                 null,
                 null);
             return result;
@@ -393,9 +434,10 @@ namespace CSharpScriptExecutor.Common
                         ExecuteClassScript();
                         break;
                     default:
-                        throw new NotImplementedException(string.Format(
-                            "Support of the script type '{0}' is not implemented yet.",
-                            m_scriptType.ToString()));
+                        throw new NotImplementedException(
+                            string.Format(
+                                "Support of the script type '{0}' is not implemented yet.",
+                                m_scriptType.ToString()));
                 }
             }
             catch (Exception ex)
@@ -425,6 +467,7 @@ namespace CSharpScriptExecutor.Common
         [MethodImpl(MethodImplOptions.Synchronized)]
         public ScriptExecutionResult Execute()
         {
+            // This method must not be called
             throw new NotSupportedException();
         }
 

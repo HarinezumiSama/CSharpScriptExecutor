@@ -5,13 +5,22 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows.Forms;
 using CSharpScriptExecutor.Common;
 
 namespace CSharpScriptExecutor
 {
     internal static class Program
     {
+        #region Constants
+
+        private const string c_debugParameter = "/Debug";
+        private const string c_guiParameter = "/GUI";
+
+        #endregion
+
         #region Fields
 
         private static readonly string s_programName = GetSoleAssemblyAttribute<AssemblyProductAttribute>().Product;
@@ -19,10 +28,17 @@ namespace CSharpScriptExecutor
             GetSoleAssemblyAttribute<AssemblyFileVersionAttribute>().Version;
         private static readonly string s_programCopyright =
             GetSoleAssemblyAttribute<AssemblyCopyrightAttribute>().Copyright;
+        private static readonly string s_fullProgramName = string.Format(
+            "{0} {1}",
+            s_programName,
+            s_programVersion);
 
         #endregion
 
         #region Private Methods
+
+        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
+        private static extern bool FreeConsole();
 
         private static TAttribute GetSoleAssemblyAttribute<TAttribute>()
             where TAttribute : Attribute
@@ -41,9 +57,9 @@ namespace CSharpScriptExecutor
 
         private static void ShowHelp()
         {
-            Console.WriteLine("{0} {1}. {2}", s_programName, s_programVersion, s_programCopyright);
+            Console.WriteLine("{0}. {1}", s_fullProgramName, s_programCopyright);
             Console.WriteLine("Usage:");
-            Console.WriteLine("  {0} <Script> [ScriptParameters...]", s_programName);
+            Console.WriteLine("  {0} [/Debug | /GUI] <Script> [ScriptParameters...]", s_programName);
             Console.WriteLine();
         }
 
@@ -53,6 +69,40 @@ namespace CSharpScriptExecutor
             {
                 e.Cancel = true;
             }
+        }
+
+        private static int RunInGuiMode()
+        {
+            if (!FreeConsole())
+            {
+                MessageBox.Show(
+                    "Unable to switch to GUI mode.",
+                    s_fullProgramName,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Exclamation);
+                return 255;
+            }
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+            return 0;
+        }
+
+        #endregion
+
+        #region Internal Properties
+
+        internal static string ProgramName
+        {
+            [DebuggerStepThrough]
+            get { return s_programName; }
+        }
+
+        internal static string FullProgramName
+        {
+            [DebuggerStepThrough]
+            get { return s_fullProgramName; }
         }
 
         #endregion
@@ -76,26 +126,50 @@ namespace CSharpScriptExecutor
 
         #region Public Methods
 
-        [LoaderOptimization(LoaderOptimization.MultiDomain)]
-        public static int Main(string[] arguments)
+        [STAThread]
+        [LoaderOptimization(LoaderOptimization.MultiDomainHost)]
+        internal static int Main(string[] arguments)
         {
-            Console.CancelKeyPress += Console_CancelKeyPress;
-            Console.WriteLine();
+            #region Argument Check
+
+            if (arguments == null)
+            {
+                throw new ArgumentNullException("arguments");
+            }
+
+            #endregion
 
             try
             {
-                if ((arguments == null) || (arguments.Length <= 0))
+                if (arguments.Length <= 0)
                 {
+                    Console.WriteLine();
                     ShowHelp();
                     return 1;
                 }
 
-                string scriptFilePath = Path.GetFullPath(arguments[0]);
-                string[] actualArguments = new string[arguments.Length - 1];
-                Array.Copy(arguments, 1, actualArguments, 0, actualArguments.Length);
+                if (StringComparer.OrdinalIgnoreCase.Equals(arguments.First(), c_guiParameter))
+                {
+                    return RunInGuiMode();
+                }
+
+                Console.CancelKeyPress += Console_CancelKeyPress;
+                Console.WriteLine();
+
+                bool isDebugMode = false;
+
+                int argumentOffset = 0;
+                if (StringComparer.OrdinalIgnoreCase.Equals(arguments.First(), c_debugParameter))
+                {
+                    isDebugMode = true;
+                    argumentOffset++;
+                }
+                string scriptFilePath = Path.GetFullPath(arguments[argumentOffset]);
+                var actualArguments = arguments.Skip(argumentOffset + 1).ToArray();
+                var executorParameters = new ScriptExecutorParameters(scriptFilePath, actualArguments, isDebugMode);
 
                 ScriptExecutionResult executionResult;
-                using (IScriptExecutor scriptExecutor = ScriptExecutorProxy.Create(scriptFilePath, actualArguments))
+                using (IScriptExecutor scriptExecutor = ScriptExecutorProxy.Create(executorParameters))
                 {
                     executionResult = scriptExecutor.Execute();
                 }
@@ -121,9 +195,10 @@ namespace CSharpScriptExecutor
                         break;
 
                     default:
-                        throw new NotImplementedException(string.Format(
-                            "Not implemented script execution result type ({0}).",
-                            executionResult.Type.ToString()));
+                        throw new NotImplementedException(
+                            string.Format(
+                                "Not implemented script execution result type ({0}).",
+                                executionResult.Type.ToString()));
                 }
             }
             catch (Exception ex)

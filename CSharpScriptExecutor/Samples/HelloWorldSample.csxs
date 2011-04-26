@@ -9,8 +9,18 @@
 //
 Console.WriteLine("[1] Hello, world!");
 
+Debugger.Break();
 
 Console.WriteLine("[2] Hello, world!");
 //
+
+if (arguments.Length != 0)
+{
+    Console.WriteLine("Arguments:");
+    foreach (var argument in arguments)
+    {
+        Console.WriteLine("  {0}", argument);
+    }
+}
 
 

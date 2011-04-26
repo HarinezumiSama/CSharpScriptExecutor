@@ -81,8 +81,17 @@ namespace CSharpScriptExecutor.Common
 
         #region Public Methods
 
-        public static IScriptExecutor Create(string scriptFilePath, string[] arguments)
+        public static IScriptExecutor Create(ScriptExecutorParameters parameters)
         {
+            #region Argument Check
+
+            if (parameters == null)
+            {
+                throw new ArgumentNullException("parameters");
+            }
+
+            #endregion
+
             ScriptExecutorProxy result;
 
             Guid scriptId = Guid.NewGuid();
@@ -92,7 +101,7 @@ namespace CSharpScriptExecutor.Common
                 scriptId));
             try
             {
-                ScriptExecutor scriptExecutor = ScriptExecutor.Create(scriptId, domain, scriptFilePath, arguments);
+                ScriptExecutor scriptExecutor = ScriptExecutor.Create(scriptId, domain, parameters);
                 result = new ScriptExecutorProxy(scriptId, domain, scriptExecutor);
             }
             catch (Exception)

@@ -59,6 +59,8 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
@@ -68,6 +70,7 @@
     <Compile Include="ScriptExecutionResult.cs" />
     <Compile Include="ScriptExecutionResultType.cs" />
     <Compile Include="ScriptExecutor.cs" />
+    <Compile Include="ScriptExecutorParameters.cs" />
     <Compile Include="ScriptExecutorProxy.cs" />
     <Compile Include="ScriptType.cs" />
   </ItemGroup>
