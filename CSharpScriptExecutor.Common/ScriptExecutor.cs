@@ -205,9 +205,8 @@ namespace CSharpScriptExecutor.Common
             }
             compilerParameters.ReferencedAssemblies.AddRange(s_predefinedReferences);
 
-            CodeSnippetStatement mainMethodBody = new CodeSnippetStatement(string.Join(
-                Environment.NewLine,
-                m_scriptLines.Select(line => "        " + line).ToArray()));
+            CodeSnippetStatement mainMethodBody = new CodeSnippetStatement(
+                string.Join(Environment.NewLine, m_scriptLines.Select(line => "        " + line).ToArray()));
 
             CodeMemberMethod wrapperMethod = new CodeMemberMethod()
             {
@@ -239,7 +238,8 @@ namespace CSharpScriptExecutor.Common
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine("*** Error compiling script ***");
                 sb.AppendLine("Errors:");
-                IEnumerable<CompilerError> onlyErrors = compilerResults.Errors
+                IEnumerable<CompilerError> onlyErrors = compilerResults
+                    .Errors
                     .Cast<CompilerError>()
                     .Where(error => !error.IsWarning);
 
@@ -373,7 +373,6 @@ namespace CSharpScriptExecutor.Common
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 Type.DefaultBinder,
                 new object[] { scriptId, domain, scriptFilePath, arguments },
-                null,
                 null,
                 null);
             return result;
