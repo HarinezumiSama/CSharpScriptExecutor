@@ -15,15 +15,15 @@ namespace CSharpScriptExecutor.Common
         ///     Initializes a new instance of the <see cref="ScriptExecutorParameters"/> class.
         /// </summary>
         public ScriptExecutorParameters(
-            string scriptFilePath,
+            string script,
             IEnumerable<string> scriptArguments,
             bool isDebugMode)
         {
             #region Argument Check
 
-            if (string.IsNullOrEmpty(scriptFilePath))
+            if (string.IsNullOrWhiteSpace(script))
             {
-                throw new ArgumentException("The value can be neither empty string nor null.", "scriptFilePath");
+                throw new ArgumentException("The value can be neither empty string nor null.", "script");
             }
             if (scriptArguments == null)
             {
@@ -36,7 +36,7 @@ namespace CSharpScriptExecutor.Common
 
             #endregion
 
-            this.ScriptFilePath = scriptFilePath;
+            this.Script = script;
             this.ScriptArguments = new List<string>(scriptArguments).AsReadOnly();
             this.IsDebugMode = isDebugMode;
         }
@@ -45,7 +45,7 @@ namespace CSharpScriptExecutor.Common
 
         #region Public Properties
 
-        public string ScriptFilePath
+        public string Script
         {
             get;
             private set;

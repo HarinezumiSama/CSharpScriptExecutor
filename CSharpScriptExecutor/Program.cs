@@ -166,7 +166,8 @@ namespace CSharpScriptExecutor
                 }
                 string scriptFilePath = Path.GetFullPath(arguments[argumentOffset]);
                 var actualArguments = arguments.Skip(argumentOffset + 1).ToArray();
-                var executorParameters = new ScriptExecutorParameters(scriptFilePath, actualArguments, isDebugMode);
+                var script = File.ReadAllText(scriptFilePath);
+                var executorParameters = new ScriptExecutorParameters(script, actualArguments, isDebugMode);
 
                 ScriptExecutionResult executionResult;
                 using (IScriptExecutor scriptExecutor = ScriptExecutorProxy.Create(executorParameters))
@@ -204,7 +205,7 @@ namespace CSharpScriptExecutor
             catch (Exception ex)
             {
                 Console.WriteLine();
-                Console.WriteLine("*** INTERNAL ERROR ***");
+                Console.WriteLine("*** ERROR ***");
                 Console.WriteLine(ex.ToString());
                 Console.WriteLine();
 

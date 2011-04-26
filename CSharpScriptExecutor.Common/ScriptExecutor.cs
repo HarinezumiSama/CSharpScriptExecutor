@@ -74,7 +74,7 @@ namespace CSharpScriptExecutor.Common
 
         private readonly Guid m_scriptId;
         private readonly AppDomain m_domain;
-        private readonly string m_scriptFilePath;
+        private readonly string m_script;
         private readonly string[] m_arguments;
         private readonly bool m_isDebugMode;
         private readonly ScriptType m_scriptType;
@@ -112,7 +112,7 @@ namespace CSharpScriptExecutor.Common
 
             m_scriptId = scriptId;
             m_domain = domain;
-            m_scriptFilePath = parameters.ScriptFilePath;
+            m_script = parameters.Script;
             m_arguments = parameters.ScriptArguments.ToArray();
             m_isDebugMode = parameters.IsDebugMode;
 
@@ -125,17 +125,25 @@ namespace CSharpScriptExecutor.Common
 
         private void LoadData(out ScriptType outputScriptType, out List<string> outputScriptLines)
         {
-            FileInfo scriptFileInfo = new FileInfo(m_scriptFilePath);
-            if (!scriptFileInfo.Exists)
-            {
-                throw new FileNotFoundException("Script file is not found.", scriptFileInfo.FullName);
-            }
-
             outputScriptType = ScriptType.Default;
 
-            string[] scriptLines = File.ReadAllLines(scriptFileInfo.FullName);
+            List<string> scriptLines = new List<string>();
+            using (var sr = new StringReader(m_script))
+            {
+                while (true)
+                {
+                    var line = sr.ReadLine();
+                    if (line == null)
+                    {
+                        break;
+                    }
+
+                    scriptLines.Add(line);
+                }
+            }
+
             int startLineIndex = 0;
-            for (int lineIndex = 0; lineIndex < scriptLines.Length; lineIndex++)
+            for (int lineIndex = 0; lineIndex < scriptLines.Count; lineIndex++)
             {
                 string scriptLine = scriptLines[lineIndex];
 
@@ -164,9 +172,9 @@ namespace CSharpScriptExecutor.Common
                 }
             }
 
-            outputScriptLines = new List<string>(scriptLines.Length - startLineIndex);
+            outputScriptLines = new List<string>(scriptLines.Count - startLineIndex);
             bool hasFirstNotEmptyLine = false;
-            for (int index = startLineIndex; index < scriptLines.Length; index++)
+            for (int index = startLineIndex; index < scriptLines.Count; index++)
             {
                 if (!hasFirstNotEmptyLine && string.IsNullOrEmpty(scriptLines[index].Trim()))
                 {
@@ -192,7 +200,7 @@ namespace CSharpScriptExecutor.Common
         {
             bool isDebuggable = Debugger.IsAttached || m_isDebugMode;
 
-            CompilerParameters compilerParameters = new CompilerParameters()
+            var compilerParameters = new CompilerParameters()
             {
                 GenerateExecutable = false,
                 GenerateInMemory = !isDebuggable,
@@ -211,39 +219,71 @@ namespace CSharpScriptExecutor.Common
             }
             compilerParameters.ReferencedAssemblies.AddRange(s_predefinedReferences);
 
-            CodeSnippetStatement mainMethodBody = new CodeSnippetStatement(
+            var mainMethodBody = new CodeSnippetStatement(
                 string.Join(Environment.NewLine, m_scriptLines.Select(line => "        " + line).ToArray()));
 
-            CodeMemberMethod wrapperMethod = new CodeMemberMethod()
+            var wrapperMethod = new CodeMemberMethod
             {
-                Attributes = MemberAttributes.Public | MemberAttributes.Static,
+                Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
                 Name = c_predefinedMethodName,
-                ReturnType = new CodeTypeReference(typeof(void))
-            };
-            wrapperMethod.Parameters.Add(
-                new CodeParameterDeclarationExpression(typeof(string[]), c_predefinedMethodParameterName)
+                ReturnType = new CodeTypeReference(typeof(void)),
+                Parameters =
                 {
-                    CustomAttributes =
+                    new CodeParameterDeclarationExpression(typeof(string[]), c_predefinedMethodParameterName)
                     {
-                        new CodeAttributeDeclaration(new CodeTypeReference(typeof(ParamArrayAttribute)))
+                        CustomAttributes =
+                        {
+                            new CodeAttributeDeclaration(new CodeTypeReference(typeof(ParamArrayAttribute)))
+                        }
                     }
-                });
+                }
+            };
+
+            if (m_isDebugMode)
+            {
+                wrapperMethod.Statements.Add(
+                    new CodeSnippetStatement()
+                    {
+                        StartDirectives =
+                        {
+                            new CodeRegionDirective(
+                                CodeRegionMode.Start,
+                                string.Format(
+                                    "This statement is generated by {0} since the debug mode is active.",
+                                    this.GetType().Name))
+                        }
+                    });
+                wrapperMethod.Statements.Add(
+                    new CodeMethodInvokeExpression(
+                        new CodeMethodReferenceExpression(
+                            new CodeTypeReferenceExpression(typeof(Debugger)),
+                            new Action(Debugger.Break).Method.Name)));
+                wrapperMethod.Statements.Add(
+                    new CodeSnippetStatement()
+                    {
+                        EndDirectives =
+                        {
+                            new CodeRegionDirective(CodeRegionMode.End, string.Empty)
+                        }
+                    });
+                wrapperMethod.Statements.Add(new CodeSnippetStatement(Environment.NewLine));
+            }
             wrapperMethod.Statements.Add(mainMethodBody);
 
-            CodeTypeDeclaration rootType = new CodeTypeDeclaration(c_predefinedTypeName);
+            var rootType = new CodeTypeDeclaration(c_predefinedTypeName);
             rootType.Attributes = MemberAttributes.Public;
             rootType.TypeAttributes = TypeAttributes.Class | TypeAttributes.Sealed;
             rootType.Members.Add(wrapperMethod);
 
-            CodeNamespace rootNamespace = new CodeNamespace(string.Empty);
+            var rootNamespace = new CodeNamespace(string.Empty);
             rootNamespace.Imports.AddRange(
                 s_predefinedImports.Select(item => new CodeNamespaceImport(item)).ToArray());
             rootNamespace.Types.Add(rootType);
 
-            CodeCompileUnit compileUnit = new CodeCompileUnit();
+            var compileUnit = new CodeCompileUnit();
             compileUnit.Namespaces.Add(rootNamespace);
 
-            CSharpCodeProvider codeProvider = new CSharpCodeProvider();
+            var codeProvider = new CSharpCodeProvider();
 
             string sourceContent = null;
             Func<string> getSourceContent =
@@ -254,10 +294,10 @@ namespace CSharpScriptExecutor.Common
                         return sourceContent;
                     }
 
-                    StringBuilder sourceBuilder = new StringBuilder();
-                    using (StringWriter sw = new StringWriter(sourceBuilder))
+                    var sourceBuilder = new StringBuilder();
+                    using (var sw = new StringWriter(sourceBuilder))
                     {
-                        CodeGeneratorOptions options = new CodeGeneratorOptions()
+                        var options = new CodeGeneratorOptions()
                         {
                             BlankLinesBetweenMembers = true,
                             BracingStyle = c_bracingStyle,
@@ -275,7 +315,7 @@ namespace CSharpScriptExecutor.Common
             CompilerResults compilerResults;
             if (isDebuggable)
             {
-                string filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, ".cs");
+                var filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, ".cs");
                 File.WriteAllText(filePath, getSourceContent(), Encoding.UTF8);
 
                 compilerResults = codeProvider.CompileAssemblyFromFile(compilerParameters, filePath);
@@ -287,13 +327,14 @@ namespace CSharpScriptExecutor.Common
 
             if (compilerResults.Errors.HasErrors)
             {
-                StringBuilder sb = new StringBuilder();
+                var sb = new StringBuilder();
                 sb.AppendLine("*** Error compiling script ***");
                 sb.AppendLine("Errors:");
-                IEnumerable<CompilerError> onlyErrors = compilerResults
+                var onlyErrors = compilerResults
                     .Errors
                     .Cast<CompilerError>()
-                    .Where(error => !error.IsWarning);
+                    .Where(error => !error.IsWarning)
+                    .ToList();
 
                 foreach (CompilerError error in onlyErrors)
                 {
@@ -310,7 +351,7 @@ namespace CSharpScriptExecutor.Common
             string outputAssembly = compilerParameters.OutputAssembly;
             if (!string.IsNullOrEmpty(outputAssembly))
             {
-                string[] files = Directory.GetFiles(
+                var files = Directory.GetFiles(
                     Path.GetDirectoryName(outputAssembly),
                     Path.ChangeExtension(Path.GetFileName(outputAssembly), ".*"),
                     SearchOption.TopDirectoryOnly);
@@ -320,7 +361,7 @@ namespace CSharpScriptExecutor.Common
                 }
             }
 
-            Type compiledType = compilerResults.CompiledAssembly.GetType(c_predefinedTypeName);
+            var compiledType = compilerResults.CompiledAssembly.GetType(c_predefinedTypeName);
             if (compiledType == null)
             {
                 throw new ScriptExecutorException(string.Format(

@@ -9,7 +9,7 @@
 //
 Console.WriteLine("[1] Hello, world!");
 
-Debugger.Break();
+//Debugger.Break();
 
 Console.WriteLine("[2] Hello, world!");
 //

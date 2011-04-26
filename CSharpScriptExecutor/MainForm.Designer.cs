@@ -56,24 +56,24 @@
             this.toolStripSeparator1,
             this.tsmiExit});
             this.cmsTrayIconMenu.Name = "TrayIconMenu";
-            this.cmsTrayIconMenu.Size = new System.Drawing.Size(153, 104);
+            this.cmsTrayIconMenu.Size = new System.Drawing.Size(108, 82);
             // 
             // tsmiAbout
             // 
             this.tsmiAbout.Name = "tsmiAbout";
-            this.tsmiAbout.Size = new System.Drawing.Size(152, 22);
+            this.tsmiAbout.Size = new System.Drawing.Size(107, 22);
             this.tsmiAbout.Text = "&About";
             this.tsmiAbout.Click += new System.EventHandler(this.tsmiAbout_Click);
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(149, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(104, 6);
             // 
             // tsmiExit
             // 
             this.tsmiExit.Name = "tsmiExit";
-            this.tsmiExit.Size = new System.Drawing.Size(152, 22);
+            this.tsmiExit.Size = new System.Drawing.Size(107, 22);
             this.tsmiExit.Text = "E&xit";
             this.tsmiExit.Click += new System.EventHandler(this.tsmiExit_Click);
             // 
@@ -103,13 +103,13 @@
             // toolStripSeparator2
             // 
             this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(149, 6);
+            this.toolStripSeparator2.Size = new System.Drawing.Size(104, 6);
             // 
             // tsmiRun
             // 
             this.tsmiRun.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.tsmiRun.Name = "tsmiRun";
-            this.tsmiRun.Size = new System.Drawing.Size(152, 22);
+            this.tsmiRun.Size = new System.Drawing.Size(107, 22);
             this.tsmiRun.Text = "&Run";
             this.tsmiRun.Click += new System.EventHandler(this.tsmiRun_Click);
             // 

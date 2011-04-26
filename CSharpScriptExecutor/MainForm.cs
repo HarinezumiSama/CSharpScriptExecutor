@@ -44,7 +44,14 @@ namespace CSharpScriptExecutor
 
         private void DoRun()
         {
-            MessageBox.Show(this, new NotImplementedException().Message, this.Text, MessageBoxButtons.OK);
+            var workingArea = Screen.FromControl(this).WorkingArea;
+            using (var form = new ScriptForm())
+            {
+                form.Size = new Size(workingArea.Width / 4, workingArea.Height / 5);
+                form.Location = new Point(workingArea.Width - form.Size.Width, workingArea.Height - form.Size.Height);
+
+                form.ShowDialog(this);
+            }
         }
 
         #endregion
