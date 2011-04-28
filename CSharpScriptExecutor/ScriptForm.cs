@@ -26,6 +26,12 @@ namespace CSharpScriptExecutor
 
         #region Private Methods
 
+        private void DoCancel()
+        {
+            this.DialogResult = DialogResult.Cancel;
+            Close();
+        }
+
         private void DoRun(bool enableDebugging)
         {
             string errorMessage;
@@ -109,7 +115,7 @@ namespace CSharpScriptExecutor
 
         private void btnCancel_Click(object sender, EventArgs e)
         {
-            Close();
+            DoCancel();
         }
 
         private void ScriptForm_Shown(object sender, EventArgs e)
@@ -145,6 +151,14 @@ namespace CSharpScriptExecutor
                 DoRun(true);
                 return;
             }
+
+            //if (e.KeyData == Keys.Escape)
+            //{
+            //    e.Handled = true;
+            //    e.SuppressKeyPress = true;
+            //    DoCancel();
+            //    return;
+            //}
         }
 
         private void rtbScript_TextChanged(object sender, EventArgs e)
