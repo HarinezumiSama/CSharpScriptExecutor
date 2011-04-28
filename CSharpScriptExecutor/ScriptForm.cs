@@ -88,6 +88,13 @@ namespace CSharpScriptExecutor
             MessageBox.Show(this, errorMessage, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         }
 
+        private void SetControlStates()
+        {
+            var canRun = !string.IsNullOrWhiteSpace(this.Script);
+            btnExecute.Enabled = canRun;
+            btnDebug.Enabled = canRun;
+        }
+
         #endregion
 
         #region Protected Methods
@@ -122,6 +129,8 @@ namespace CSharpScriptExecutor
         {
             rtbScript.SelectAll();
             rtbScript.Focus();
+
+            SetControlStates();
         }
 
         private void btnExecute_Click(object sender, EventArgs e)
@@ -178,6 +187,8 @@ namespace CSharpScriptExecutor
                 rtbScript.SelectionStart = selectionStart;
                 rtbScript.SelectionLength = selectionLength;
             }
+
+            SetControlStates();
         }
 
         #endregion
