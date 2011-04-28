@@ -30,8 +30,9 @@
         {
             this.labScript = new System.Windows.Forms.Label();
             this.rtbScript = new System.Windows.Forms.RichTextBox();
-            this.btnRun = new System.Windows.Forms.Button();
+            this.btnExecute = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.btnDebug = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // labScript
@@ -57,17 +58,18 @@
             this.rtbScript.TabIndex = 1;
             this.rtbScript.Text = "";
             this.rtbScript.WordWrap = false;
+            this.rtbScript.TextChanged += new System.EventHandler(this.rtbScript_TextChanged);
             // 
-            // btnRun
+            // btnExecute
             // 
-            this.btnRun.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnRun.Location = new System.Drawing.Point(216, 227);
-            this.btnRun.Name = "btnRun";
-            this.btnRun.Size = new System.Drawing.Size(75, 23);
-            this.btnRun.TabIndex = 2;
-            this.btnRun.Text = "&Run";
-            this.btnRun.UseVisualStyleBackColor = true;
-            this.btnRun.Click += new System.EventHandler(this.btnRun_Click);
+            this.btnExecute.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnExecute.Location = new System.Drawing.Point(135, 227);
+            this.btnExecute.Name = "btnExecute";
+            this.btnExecute.Size = new System.Drawing.Size(75, 23);
+            this.btnExecute.TabIndex = 2;
+            this.btnExecute.Text = "E&xecute (F5)";
+            this.btnExecute.UseVisualStyleBackColor = true;
+            this.btnExecute.Click += new System.EventHandler(this.btnExecute_Click);
             // 
             // btnCancel
             // 
@@ -76,10 +78,21 @@
             this.btnCancel.Location = new System.Drawing.Point(297, 227);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(75, 23);
-            this.btnCancel.TabIndex = 3;
+            this.btnCancel.TabIndex = 4;
             this.btnCancel.Text = "Cancel";
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
+            // 
+            // btnDebug
+            // 
+            this.btnDebug.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnDebug.Location = new System.Drawing.Point(216, 227);
+            this.btnDebug.Name = "btnDebug";
+            this.btnDebug.Size = new System.Drawing.Size(75, 23);
+            this.btnDebug.TabIndex = 3;
+            this.btnDebug.Text = "&Debug (F8)";
+            this.btnDebug.UseVisualStyleBackColor = true;
+            this.btnDebug.Click += new System.EventHandler(this.btnDebug_Click);
             // 
             // ScriptForm
             // 
@@ -88,8 +101,9 @@
             this.CancelButton = this.btnCancel;
             this.ClientSize = new System.Drawing.Size(384, 262);
             this.ControlBox = false;
+            this.Controls.Add(this.btnDebug);
             this.Controls.Add(this.btnCancel);
-            this.Controls.Add(this.btnRun);
+            this.Controls.Add(this.btnExecute);
             this.Controls.Add(this.rtbScript);
             this.Controls.Add(this.labScript);
             this.KeyPreview = true;
@@ -107,7 +121,8 @@
 
         private System.Windows.Forms.Label labScript;
         private System.Windows.Forms.RichTextBox rtbScript;
-        private System.Windows.Forms.Button btnRun;
+        private System.Windows.Forms.Button btnExecute;
         private System.Windows.Forms.Button btnCancel;
+        private System.Windows.Forms.Button btnDebug;
     }
 }

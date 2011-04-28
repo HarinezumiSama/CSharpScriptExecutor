@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -11,6 +12,13 @@ namespace CSharpScriptExecutor
 {
     public partial class MainForm : Form
     {
+        #region Fields
+
+        private Size m_lastScriptFormSize;
+        private string m_lastScriptFormScript;
+
+        #endregion
+
         #region Constructors
 
         public MainForm()
@@ -45,12 +53,29 @@ namespace CSharpScriptExecutor
         private void DoRun()
         {
             var workingArea = Screen.FromControl(this).WorkingArea;
-            using (var form = new ScriptForm())
+            using (var scriptForm = new ScriptForm())
             {
-                form.Size = new Size(workingArea.Width / 4, workingArea.Height / 5);
-                form.Location = new Point(workingArea.Width - form.Size.Width, workingArea.Height - form.Size.Height);
+                scriptForm.Size = m_lastScriptFormSize.IsEmpty
+                    ? new Size(workingArea.Width / 2, workingArea.Height / 3)
+                    : m_lastScriptFormSize;
+                scriptForm.Location = new Point(
+                    workingArea.Width - scriptForm.Size.Width,
+                    workingArea.Height - scriptForm.Size.Height);
+                scriptForm.Script = m_lastScriptFormScript;
 
-                form.ShowDialog(this);
+                scriptForm.ShowDialog(this);
+
+                m_lastScriptFormSize = scriptForm.Size;
+                m_lastScriptFormScript = scriptForm.Script;
+            }
+        }
+
+        [DebuggerStepThrough]
+        private void DoAttachDebuggerNow()
+        {
+            if (!Debugger.IsAttached)
+            {
+                Debugger.Launch();
             }
         }
 
@@ -93,6 +118,17 @@ namespace CSharpScriptExecutor
         private void tsmiRun_Click(object sender, EventArgs e)
         {
             DoRun();
+        }
+
+        [DebuggerStepThrough]
+        private void tsmiAttachDebuggerNow_Click(object sender, EventArgs e)
+        {
+            DoAttachDebuggerNow();
+        }
+
+        private void cmsTrayIconMenu_Opening(object sender, CancelEventArgs e)
+        {
+            tsmiAttachDebuggerNow.Enabled = !Debugger.IsAttached;
         }
 
         #endregion

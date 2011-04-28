@@ -31,13 +31,14 @@
             this.components = new System.ComponentModel.Container();
             this.niTrayIcon = new System.Windows.Forms.NotifyIcon(this.components);
             this.cmsTrayIconMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.tsmiRun = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiExit = new System.Windows.Forms.ToolStripMenuItem();
             this.labAbout = new System.Windows.Forms.Label();
             this.btnOK = new System.Windows.Forms.Button();
-            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
-            this.tsmiRun = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmiAttachDebuggerNow = new System.Windows.Forms.ToolStripMenuItem();
             this.cmsTrayIconMenu.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -51,29 +52,44 @@
             // 
             this.cmsTrayIconMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsmiRun,
+            this.tsmiAttachDebuggerNow,
             this.toolStripSeparator2,
             this.tsmiAbout,
             this.toolStripSeparator1,
             this.tsmiExit});
             this.cmsTrayIconMenu.Name = "TrayIconMenu";
-            this.cmsTrayIconMenu.Size = new System.Drawing.Size(108, 82);
+            this.cmsTrayIconMenu.Size = new System.Drawing.Size(199, 126);
+            this.cmsTrayIconMenu.Opening += new System.ComponentModel.CancelEventHandler(this.cmsTrayIconMenu_Opening);
+            // 
+            // tsmiRun
+            // 
+            this.tsmiRun.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.tsmiRun.Name = "tsmiRun";
+            this.tsmiRun.Size = new System.Drawing.Size(198, 22);
+            this.tsmiRun.Text = "&Run...";
+            this.tsmiRun.Click += new System.EventHandler(this.tsmiRun_Click);
+            // 
+            // toolStripSeparator2
+            // 
+            this.toolStripSeparator2.Name = "toolStripSeparator2";
+            this.toolStripSeparator2.Size = new System.Drawing.Size(195, 6);
             // 
             // tsmiAbout
             // 
             this.tsmiAbout.Name = "tsmiAbout";
-            this.tsmiAbout.Size = new System.Drawing.Size(107, 22);
+            this.tsmiAbout.Size = new System.Drawing.Size(198, 22);
             this.tsmiAbout.Text = "&About";
             this.tsmiAbout.Click += new System.EventHandler(this.tsmiAbout_Click);
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(104, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(195, 6);
             // 
             // tsmiExit
             // 
             this.tsmiExit.Name = "tsmiExit";
-            this.tsmiExit.Size = new System.Drawing.Size(107, 22);
+            this.tsmiExit.Size = new System.Drawing.Size(198, 22);
             this.tsmiExit.Text = "E&xit";
             this.tsmiExit.Click += new System.EventHandler(this.tsmiExit_Click);
             // 
@@ -100,18 +116,12 @@
             this.btnOK.UseVisualStyleBackColor = true;
             this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
             // 
-            // toolStripSeparator2
+            // tsmiAttachDebuggerNow
             // 
-            this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(104, 6);
-            // 
-            // tsmiRun
-            // 
-            this.tsmiRun.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.tsmiRun.Name = "tsmiRun";
-            this.tsmiRun.Size = new System.Drawing.Size(107, 22);
-            this.tsmiRun.Text = "&Run";
-            this.tsmiRun.Click += new System.EventHandler(this.tsmiRun_Click);
+            this.tsmiAttachDebuggerNow.Name = "tsmiAttachDebuggerNow";
+            this.tsmiAttachDebuggerNow.Size = new System.Drawing.Size(198, 22);
+            this.tsmiAttachDebuggerNow.Text = "Attach &debugger now...";
+            this.tsmiAttachDebuggerNow.Click += new System.EventHandler(this.tsmiAttachDebuggerNow_Click);
             // 
             // MainForm
             // 
@@ -144,5 +154,6 @@
         private System.Windows.Forms.Button btnOK;
         private System.Windows.Forms.ToolStripMenuItem tsmiRun;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
+        private System.Windows.Forms.ToolStripMenuItem tsmiAttachDebuggerNow;
     }
 }

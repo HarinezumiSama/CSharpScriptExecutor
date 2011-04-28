@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -25,13 +26,13 @@ namespace CSharpScriptExecutor
 
         #region Private Methods
 
-        private void DoRun()
+        private void DoRun(bool enableDebugging)
         {
             string errorMessage;
 
             try
             {
-                var script = rtbScript.Text;
+                var script = this.Script;
                 if (string.IsNullOrWhiteSpace(script))
                 {
                     MessageBox.Show(
@@ -43,7 +44,7 @@ namespace CSharpScriptExecutor
                     return;
                 }
 
-                var parameters = new ScriptExecutorParameters(script, new string[0], false);
+                var parameters = new ScriptExecutorParameters(script, new string[0], enableDebugging);
 
                 var executor = ScriptExecutorProxy.Create(parameters);
                 var executionResult = executor.Execute();
@@ -77,6 +78,7 @@ namespace CSharpScriptExecutor
                 return;
             }
 
+            // TODO: use more convenient dialog box (with vertical scrolling)
             MessageBox.Show(this, errorMessage, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         }
 
@@ -91,6 +93,18 @@ namespace CSharpScriptExecutor
 
         #endregion
 
+        #region Public Properties
+
+        public string Script
+        {
+            [DebuggerNonUserCode]
+            get { return rtbScript.Text; }
+            [DebuggerNonUserCode]
+            set { rtbScript.Text = value; }
+        }
+
+        #endregion
+
         #region Event Handlers
 
         private void btnCancel_Click(object sender, EventArgs e)
@@ -98,25 +112,57 @@ namespace CSharpScriptExecutor
             Close();
         }
 
-        private void btnRun_Click(object sender, EventArgs e)
-        {
-            DoRun();
-        }
-
         private void ScriptForm_Shown(object sender, EventArgs e)
         {
-            rtbScript.Clear();
+            rtbScript.SelectAll();
             rtbScript.Focus();
+        }
+
+        private void btnExecute_Click(object sender, EventArgs e)
+        {
+            DoRun(false);
+        }
+
+        private void btnDebug_Click(object sender, EventArgs e)
+        {
+            DoRun(true);
         }
 
         private void ScriptForm_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyData == (Keys.Control | Keys.Enter))
+            if (e.KeyData == Keys.F5)
             {
                 e.Handled = true;
                 e.SuppressKeyPress = true;
-                DoRun();
+                DoRun(false);
                 return;
+            }
+
+            if (e.KeyData == Keys.F8)
+            {
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                DoRun(true);
+                return;
+            }
+        }
+
+        private void rtbScript_TextChanged(object sender, EventArgs e)
+        {
+            var selectionStart = rtbScript.SelectionStart;
+            var selectionLength = rtbScript.SelectionLength;
+
+            try
+            {
+                rtbScript.SelectAll();
+                rtbScript.SelectionBackColor = rtbScript.BackColor;
+                rtbScript.SelectionColor = rtbScript.ForeColor;
+                rtbScript.Font = rtbScript.Font;
+            }
+            finally
+            {
+                rtbScript.SelectionStart = selectionStart;
+                rtbScript.SelectionLength = selectionLength;
             }
         }
 
