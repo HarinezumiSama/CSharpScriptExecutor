@@ -134,7 +134,11 @@ namespace CSharpScriptExecutor.Common
             }
             catch (Exception ex)
             {
-                m_executionResult = ScriptExecutionResult.Create(ScriptExecutionResultType.InternalError, ex);
+                m_executionResult = ScriptExecutionResult.CreateError(
+                    ScriptExecutionResultType.InternalError,
+                    ex,
+                    string.Empty,
+                    string.Empty);
             }
 
             if (m_executionResult == null)

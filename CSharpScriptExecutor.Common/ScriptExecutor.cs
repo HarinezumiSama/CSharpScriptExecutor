@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.CSharp;
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace CSharpScriptExecutor.Common
 {
@@ -24,9 +25,11 @@ namespace CSharpScriptExecutor.Common
 
         private const string c_predefinedTypeName = "ScriptExecutorWrapper";
         private const string c_predefinedMethodName = "Main";
-        private const BindingFlags c_predefinedMethodBindingFlags = BindingFlags.Static | BindingFlags.Public |
-            BindingFlags.NonPublic;
+        private const BindingFlags c_predefinedMethodBindingFlags = BindingFlags.Static | BindingFlags.Public
+            | BindingFlags.NonPublic;
         private const string c_predefinedMethodParameterName = "arguments";
+        private const BindingFlags c_allDecalredMemberBindingFlags = BindingFlags.DeclaredOnly | BindingFlags.Static
+            | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
         private const string c_bracingStyle = "C";
         private const string c_indentString = "    ";
@@ -43,6 +46,8 @@ namespace CSharpScriptExecutor.Common
         private static readonly string s_predefinedMainClass = c_predefinedTypeName + Type.Delimiter +
             c_predefinedMethodName;
 
+        private static readonly char[] s_specialNameChars = new[] { '<', '>' };
+
         private static readonly string[] s_predefinedImports = new string[]
         {
             "System",
@@ -58,15 +63,18 @@ namespace CSharpScriptExecutor.Common
             "System.Text",
             "System.Text.RegularExpressions",
             "System.Web",
+            "System.Windows.Forms",
             "System.Xml"
         };
 
         private static readonly string[] s_predefinedReferences = new string[]
         {
             "System.dll",
-            Assembly.GetAssembly(typeof(System.Linq.Enumerable)).Location,  // System.Linq.dll
+            Assembly.GetAssembly(typeof(Enumerable)).Location,  // System.Linq.dll
+            Assembly.GetAssembly(typeof(RuntimeBinderException)).Location,  // Microsoft.CSharp.dll
             "System.Data.dll",
             "System.Web.dll",
+            "System.Windows.Forms.dll",
             "System.Xml.dll"
         };
 
@@ -207,7 +215,8 @@ namespace CSharpScriptExecutor.Common
                 GenerateExecutable = false,
                 GenerateInMemory = !isDebuggable,
                 IncludeDebugInformation = isDebuggable,
-                TreatWarningsAsErrors = false
+                TreatWarningsAsErrors = false,
+                CompilerOptions = string.Format("/unsafe+ /optimize{0}", isDebuggable ? "-" : "+")
             };
             if (isDebuggable)
             {
@@ -222,7 +231,8 @@ namespace CSharpScriptExecutor.Common
             compilerParameters.ReferencedAssemblies.AddRange(s_predefinedReferences);
 
             var mainMethodBody = new CodeSnippetStatement(
-                string.Join(Environment.NewLine, m_scriptLines.Select(line => "        " + line).ToArray()))
+                string.Join(Environment.NewLine, m_scriptLines.Select(line => "        " + line).ToArray())
+                    + Environment.NewLine + ";")
             {
                 //StartDirectives = { new CodeRegionDirective(CodeRegionMode.Start, "User's code snippet") },
                 //EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
@@ -289,7 +299,8 @@ namespace CSharpScriptExecutor.Common
             {
                 CustomAttributes =
                 {
-                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(DebuggerStepThroughAttribute)))
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(DebuggerStepThroughAttribute))),
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(CompilerGeneratedAttribute)))
                 },
                 Statements = { new CodeCommentStatement("Nothing to do") },
                 StartDirectives =
@@ -375,7 +386,11 @@ namespace CSharpScriptExecutor.Common
                 sb.Append(getSourceContent());
                 sb.AppendLine();
 
-                m_executionResult = new ScriptExecutionResult(ScriptExecutionResultType.CompileError, sb.ToString());
+                m_executionResult = new ScriptExecutionResult(
+                    ScriptExecutionResultType.CompileError,
+                    sb.ToString(),
+                    string.Empty,
+                    string.Empty);
                 return;
             }
 
@@ -424,13 +439,13 @@ namespace CSharpScriptExecutor.Common
                         c_predefinedTypeName));
             }
 
-            var hasUnexpectedMembers = compiledType
-                .GetMembers(
-                    BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public
-                        | BindingFlags.NonPublic)
-                .Where(item => item != compiledMethod && item != compiledPredefinedConstructor)
-                .Any();
-            if (hasUnexpectedMembers)
+            var allDeclaredMembers = compiledType.GetMembers(c_allDecalredMemberBindingFlags).ToList();
+            var unexpectedMembers = allDeclaredMembers
+                .Where(
+                    item => item != compiledMethod && item != compiledPredefinedConstructor
+                        && item.Name.IndexOfAny(s_specialNameChars) < 0)
+                .ToList();
+            if (unexpectedMembers.Any())
             {
                 throw new ScriptExecutorException(
                     "The script must not contain any members and must be just a code snippet.");
@@ -450,17 +465,51 @@ namespace CSharpScriptExecutor.Common
                         compiledMethod.Name));
             }
 
+            var consoleOutBuilder = new StringBuilder();
+            var consoleErrorBuilder = new StringBuilder();
+            var originalConsoleOut = Console.Out;
+            var originalConsoleError = Console.Error;
             try
             {
-                methodDelegate(m_arguments);
+                using (StringWriter outWriter = new StringWriter(consoleOutBuilder),
+                    errorWriter = new StringWriter(consoleErrorBuilder))
+                {
+                    Console.SetOut(outWriter);
+                    Console.SetError(errorWriter);
+
+                    try
+                    {
+                        methodDelegate(m_arguments);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_executionResult = ScriptExecutionResult.CreateError(
+                            ScriptExecutionResultType.ExecutionError,
+                            ex,
+                            consoleOutBuilder.ToString(),
+                            consoleErrorBuilder.ToString());
+                        return;
+                    }
+                }
             }
             catch (Exception ex)
             {
-                m_executionResult = ScriptExecutionResult.Create(ScriptExecutionResultType.ExecutionError, ex);
+                m_executionResult = ScriptExecutionResult.CreateError(
+                    ScriptExecutionResultType.InternalError,
+                    ex,
+                    string.Empty,
+                    string.Empty);
                 return;
             }
+            finally
+            {
+                Console.SetOut(originalConsoleOut);
+                Console.SetError(originalConsoleError);
+            }
 
-            m_executionResult = ScriptExecutionResult.Success;
+            m_executionResult = ScriptExecutionResult.CreateSuccess(
+                consoleOutBuilder.ToString(),
+                consoleErrorBuilder.ToString());
         }
 
         private void ExecuteClassScript()
@@ -540,7 +589,11 @@ namespace CSharpScriptExecutor.Common
             }
             catch (Exception ex)
             {
-                m_executionResult = ScriptExecutionResult.Create(ScriptExecutionResultType.InternalError, ex);
+                m_executionResult = ScriptExecutionResult.CreateError(
+                    ScriptExecutionResultType.InternalError,
+                    ex,
+                    string.Empty,
+                    string.Empty);
             }
 
             if (m_executionResult == null)

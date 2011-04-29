@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using CSharpScriptExecutor.Properties;
 
 namespace CSharpScriptExecutor
 {
@@ -26,6 +27,7 @@ namespace CSharpScriptExecutor
             InitializeComponent();
 
             this.Text = Program.ProgramName;
+            this.Icon = Resources.MainIcon;
 
             niTrayIcon.Icon = this.Icon;
             niTrayIcon.Text = Program.ProgramName;
@@ -55,15 +57,30 @@ namespace CSharpScriptExecutor
             var workingArea = Screen.FromControl(this).WorkingArea;
             using (var scriptForm = new ScriptForm())
             {
+                scriptForm.Icon = this.Icon;
+
                 scriptForm.Size = m_lastScriptFormSize.IsEmpty
-                    ? new Size(workingArea.Width / 2, workingArea.Height / 3)
+                    ? new Size(workingArea.Width / 2, workingArea.Height / 2)
                     : m_lastScriptFormSize;
                 scriptForm.Location = new Point(
                     workingArea.Width - scriptForm.Size.Width,
                     workingArea.Height - scriptForm.Size.Height);
                 scriptForm.Script = m_lastScriptFormScript;
 
-                scriptForm.ShowDialog(this);
+                var oldRunEnabled = tsmiRun.Enabled;
+                var oldAboutEnabled = tsmiAbout.Enabled;
+                try
+                {
+                    tsmiRun.Enabled = false;
+                    tsmiAbout.Enabled = false;
+
+                    scriptForm.ShowDialog(this);
+                }
+                finally
+                {
+                    tsmiRun.Enabled = oldRunEnabled;
+                    tsmiAbout.Enabled = oldAboutEnabled;
+                }
 
                 m_lastScriptFormSize = scriptForm.Size;
                 m_lastScriptFormScript = scriptForm.Script;

@@ -8,9 +8,12 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using CSharpScriptExecutor.Common;
+using CSharpScriptExecutor.Properties;
 
 namespace CSharpScriptExecutor
 {
+    // TODO: Use freeware open source C# code editor instead of RichTextBox
+
     public partial class ScriptForm : Form
     {
         #region Constructors
@@ -20,33 +23,69 @@ namespace CSharpScriptExecutor
             InitializeComponent();
 
             this.Text = string.Format("Script — {0}", Program.ProgramName);
+            scPanels.Panel2Collapsed = true;
         }
 
         #endregion
 
         #region Private Methods
 
-        private void DoCancel()
+        private void CloseForm()
         {
             this.DialogResult = DialogResult.Cancel;
             Close();
         }
 
-        private void DoRun(bool enableDebugging)
+        private void ShowError(string errorMessage)
+        {
+            MessageBox.Show(this, errorMessage, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+        }
+
+        private static string GetErrorMessage(ScriptExecutionResult executionResult)
+        {
+            #region Argument Check
+
+            if (executionResult == null)
+            {
+                throw new ArgumentNullException("executionResult");
+            }
+
+            #endregion
+
+            switch (executionResult.Type)
+            {
+                case ScriptExecutionResultType.InternalError:
+                    return "Internal error: " + executionResult.Message;
+                case ScriptExecutionResultType.CompileError:
+                    return "Compilation error: " + executionResult.Message;
+                case ScriptExecutionResultType.ExecutionError:
+                    return "Execution error: " + executionResult.Message;
+                case ScriptExecutionResultType.Success:
+                    return null;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        private void ExecuteScript(bool enableDebugging)
         {
             string errorMessage;
 
+            bool? success = null;
+            Cursor oldCursor = Cursor.Current;
+            var oldResult = pbResult.Image;
+            var resultTag = pbResult.Tag;
             try
             {
+                Cursor.Current = Cursors.WaitCursor;
+                pbResult.Image = Resources.Wait;
+                pbResult.Tag = null;
+                Application.DoEvents();
+
                 var script = this.Script;
                 if (string.IsNullOrWhiteSpace(script))
                 {
-                    MessageBox.Show(
-                        this,
-                        "No script entered.",
-                        this.Text,
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Exclamation);
+                    //ShowError("No script entered.");
                     return;
                 }
 
@@ -55,37 +94,41 @@ namespace CSharpScriptExecutor
                 var executor = ScriptExecutorProxy.Create(parameters);
                 var executionResult = executor.Execute();
 
-                switch (executionResult.Type)
+                rtbConsoleOut.Text = executionResult.ConsoleOut;
+                rtbConsoleError.Text = executionResult.ConsoleError;
+
+                if (!string.IsNullOrEmpty(executionResult.ConsoleOut)
+                    || !string.IsNullOrEmpty(executionResult.ConsoleError))
                 {
-                    case ScriptExecutionResultType.InternalError:
-                        errorMessage = "Internal error: " + executionResult.Message;
-                        break;
-                    case ScriptExecutionResultType.CompileError:
-                        errorMessage = "Compilation error: " + executionResult.Message;
-                        break;
-                    case ScriptExecutionResultType.ExecutionError:
-                        errorMessage = "Execution error: " + executionResult.Message;
-                        break;
-                    case ScriptExecutionResultType.Success:
-                        errorMessage = null;
-                        break;
-                    default:
-                        throw new NotImplementedException();
+                    ShowConsole(true);
                 }
+
+                errorMessage = GetErrorMessage(executionResult);
+
+                success = errorMessage == null;
+                resultTag = executionResult;
             }
             catch (Exception ex)
             {
                 errorMessage = ex.Message;
+                success = false;
+            }
+            finally
+            {
+                pbResult.Image = success.HasValue
+                    ? (success.Value ? Resources.OKShield_32x32 : Resources.ErrorCircle_32x32)
+                    : oldResult;
+                pbResult.Tag = resultTag;
+                Cursor.Current = oldCursor;
             }
 
             if (string.IsNullOrWhiteSpace(errorMessage))
             {
-                this.DialogResult = DialogResult.OK;
                 return;
             }
 
-            // TODO: use more convenient dialog box (with vertical scrolling)
-            MessageBox.Show(this, errorMessage, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            // TODO: use more convenient dialog box (with vertical scrolling and maybe formatting)
+            ShowError(errorMessage);
         }
 
         private void SetControlStates()
@@ -93,6 +136,43 @@ namespace CSharpScriptExecutor
             var canRun = !string.IsNullOrWhiteSpace(this.Script);
             btnExecute.Enabled = canRun;
             btnDebug.Enabled = canRun;
+            tsmiExecute.Enabled = canRun;
+            tsmiDebug.Enabled = canRun;
+        }
+
+        private void ShowConsole(bool autoSelectTab = false)
+        {
+            scPanels.Panel2Collapsed = false;
+
+            if (autoSelectTab)
+            {
+                if (!string.IsNullOrEmpty(rtbConsoleOut.Text))
+                {
+                    tcConsole.SelectedTab = tpConsoleOut;
+                }
+                else if (!string.IsNullOrEmpty(rtbConsoleError.Text))
+                {
+                    tcConsole.SelectedTab = tpConsoleError;
+                }
+            }
+        }
+
+        private void HideConsole()
+        {
+            scPanels.Panel2Collapsed = true;
+            rtbScript.Select();
+        }
+
+        private void ToggleConsole()
+        {
+            if (scPanels.Panel2Collapsed)
+            {
+                ShowConsole();
+            }
+            else
+            {
+                HideConsole();
+            }
         }
 
         #endregion
@@ -120,9 +200,9 @@ namespace CSharpScriptExecutor
 
         #region Event Handlers
 
-        private void btnCancel_Click(object sender, EventArgs e)
+        private void btnClose_Click(object sender, EventArgs e)
         {
-            DoCancel();
+            CloseForm();
         }
 
         private void ScriptForm_Shown(object sender, EventArgs e)
@@ -135,39 +215,12 @@ namespace CSharpScriptExecutor
 
         private void btnExecute_Click(object sender, EventArgs e)
         {
-            DoRun(false);
+            ExecuteScript(false);
         }
 
         private void btnDebug_Click(object sender, EventArgs e)
         {
-            DoRun(true);
-        }
-
-        private void ScriptForm_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyData == Keys.F5)
-            {
-                e.Handled = true;
-                e.SuppressKeyPress = true;
-                DoRun(false);
-                return;
-            }
-
-            if (e.KeyData == Keys.F8)
-            {
-                e.Handled = true;
-                e.SuppressKeyPress = true;
-                DoRun(true);
-                return;
-            }
-
-            //if (e.KeyData == Keys.Escape)
-            //{
-            //    e.Handled = true;
-            //    e.SuppressKeyPress = true;
-            //    DoCancel();
-            //    return;
-            //}
+            ExecuteScript(true);
         }
 
         private void rtbScript_TextChanged(object sender, EventArgs e)
@@ -189,6 +242,43 @@ namespace CSharpScriptExecutor
             }
 
             SetControlStates();
+        }
+
+        private void tsmiClose_Click(object sender, EventArgs e)
+        {
+            CloseForm();
+        }
+
+        private void tsmiScriptConsole_Click(object sender, EventArgs e)
+        {
+            ToggleConsole();
+        }
+
+        private void tsmiExecute_Click(object sender, EventArgs e)
+        {
+            ExecuteScript(false);
+        }
+
+        private void tsmiDebug_Click(object sender, EventArgs e)
+        {
+            ExecuteScript(true);
+        }
+
+        private void pbResult_Click(object sender, EventArgs e)
+        {
+            var executionResult = pbResult.Tag as ScriptExecutionResult;
+            if (executionResult == null)
+            {
+                return;
+            }
+
+            var errorMessage = GetErrorMessage(executionResult);
+            if (string.IsNullOrEmpty(errorMessage))
+            {
+                return;
+            }
+
+            ShowError(errorMessage);
         }
 
         #endregion
