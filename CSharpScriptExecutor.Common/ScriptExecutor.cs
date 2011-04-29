@@ -4,6 +4,7 @@ using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
@@ -41,6 +42,8 @@ namespace CSharpScriptExecutor.Common
         #region Fields
 
         #region Static
+
+        private static readonly string s_sourceFileExtension = GetSourceFileExtension();
 
         private static readonly StringComparer s_directiveComparer = StringComparer.OrdinalIgnoreCase;
         private static readonly string s_predefinedMainClass = c_predefinedTypeName + Type.Delimiter +
@@ -132,6 +135,16 @@ namespace CSharpScriptExecutor.Common
         #endregion
 
         #region Private Methods
+
+        private static string GetSourceFileExtension()
+        {
+            var result = new CSharpCodeProvider().FileExtension;
+            if (!result.StartsWith("."))
+            {
+                result = "." + result;
+            }
+            return result;
+        }
 
         private void LoadData(out ScriptType outputScriptType, out List<string> outputScriptLines)
         {
@@ -325,73 +338,74 @@ namespace CSharpScriptExecutor.Common
             var compileUnit = new CodeCompileUnit();
             compileUnit.Namespaces.Add(rootNamespace);
 
-            var codeProvider = new CSharpCodeProvider();
-
-            string sourceContent = null;
-            Func<string> getSourceContent =
-                () =>
-                {
-                    if (!string.IsNullOrWhiteSpace(sourceContent))
-                    {
-                        return sourceContent;
-                    }
-
-                    var sourceBuilder = new StringBuilder();
-                    using (var sw = new StringWriter(sourceBuilder))
-                    {
-                        var options = new CodeGeneratorOptions()
-                        {
-                            BlankLinesBetweenMembers = true,
-                            BracingStyle = c_bracingStyle,
-                            ElseOnClosing = false,
-                            IndentString = c_indentString,
-                            VerbatimOrder = true
-                        };
-                        codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
-                    }
-
-                    sourceContent = sourceBuilder.ToString();
-                    return sourceContent;
-                };
-
             CompilerResults compilerResults;
-            if (isDebuggable)
+            using (var codeProvider = new CSharpCodeProvider())
             {
-                var filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, ".cs");
-                File.WriteAllText(filePath, getSourceContent(), Encoding.UTF8);
+                string sourceContent = null;
+                Func<string> getSourceContent =
+                    () =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(sourceContent))
+                        {
+                            return sourceContent;
+                        }
 
-                compilerResults = codeProvider.CompileAssemblyFromFile(compilerParameters, filePath);
-            }
-            else
-            {
-                compilerResults = codeProvider.CompileAssemblyFromDom(compilerParameters, compileUnit);
-            }
+                        var sourceBuilder = new StringBuilder();
+                        using (var sw = new StringWriter(sourceBuilder))
+                        {
+                            var options = new CodeGeneratorOptions()
+                            {
+                                BlankLinesBetweenMembers = true,
+                                BracingStyle = c_bracingStyle,
+                                ElseOnClosing = false,
+                                IndentString = c_indentString,
+                                VerbatimOrder = true
+                            };
+                            codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
+                        }
 
-            if (compilerResults.Errors.HasErrors)
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("*** Error compiling script ***");
-                sb.AppendLine("Errors:");
-                var onlyErrors = compilerResults
-                    .Errors
-                    .Cast<CompilerError>()
-                    .Where(error => !error.IsWarning)
-                    .ToList();
+                        sourceContent = sourceBuilder.ToString();
+                        return sourceContent;
+                    };
 
-                foreach (CompilerError error in onlyErrors)
+                if (isDebuggable)
                 {
-                    sb.AppendLine(string.Format("  {0}", error));
-                }
-                sb.AppendLine("Source:");
-                sb.Append(getSourceContent());
-                sb.AppendLine();
+                    var filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, s_sourceFileExtension);
+                    File.WriteAllText(filePath, getSourceContent(), Encoding.UTF8);
 
-                m_executionResult = new ScriptExecutionResult(
-                    ScriptExecutionResultType.CompileError,
-                    sb.ToString(),
-                    string.Empty,
-                    string.Empty);
-                return;
+                    compilerResults = codeProvider.CompileAssemblyFromFile(compilerParameters, filePath);
+                }
+                else
+                {
+                    compilerResults = codeProvider.CompileAssemblyFromDom(compilerParameters, compileUnit);
+                }
+
+                if (compilerResults.Errors.HasErrors)
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("*** Error compiling script ***");
+                    sb.AppendLine("Errors:");
+                    var onlyErrors = compilerResults
+                        .Errors
+                        .Cast<CompilerError>()
+                        .Where(error => !error.IsWarning)
+                        .ToList();
+
+                    foreach (CompilerError error in onlyErrors)
+                    {
+                        sb.AppendLine(string.Format("  {0}", error));
+                    }
+                    sb.AppendLine("Source:");
+                    sb.Append(getSourceContent());
+                    sb.AppendLine();
+
+                    m_executionResult = new ScriptExecutionResult(
+                        ScriptExecutionResultType.CompileError,
+                        sb.ToString(),
+                        string.Empty,
+                        string.Empty);
+                    return;
+                }
             }
 
             string outputAssembly = compilerParameters.OutputAssembly;
@@ -531,41 +545,6 @@ namespace CSharpScriptExecutor.Common
 
         #region Internal Methods
 
-        internal static ScriptExecutor Create(
-            Guid scriptId,
-            AppDomain domain,
-            ScriptExecutorParameters parameters)
-        {
-            #region Argument Check
-
-            if (Guid.Empty.Equals(scriptId))
-            {
-                throw new ArgumentException("Script ID cannot be empty.", "scriptId");
-            }
-            if (domain == null)
-            {
-                throw new ArgumentNullException("domain");
-            }
-            if (parameters == null)
-            {
-                throw new ArgumentNullException("parameters");
-            }
-
-            #endregion
-
-            Type scriptExecutorType = typeof(ScriptExecutor);
-            ScriptExecutor result = (ScriptExecutor)domain.CreateInstanceAndUnwrap(
-                scriptExecutorType.Assembly.FullName,
-                scriptExecutorType.FullName,
-                false,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                Type.DefaultBinder,
-                new object[] { scriptId, domain, parameters },
-                null,
-                null);
-            return result;
-        }
-
         internal void ExecuteInternal()
         {
             try
@@ -604,7 +583,57 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
+        #region Public Properties
+
+        public static string SourceFileExtension
+        {
+            [DebuggerStepThrough]
+            get { return s_sourceFileExtension; }
+        }
+
+        #endregion
+
         #region Public Methods
+
+        public static IScriptExecutor Create(ScriptExecutorParameters parameters)
+        {
+            #region Argument Check
+
+            if (parameters == null)
+            {
+                throw new ArgumentNullException("parameters");
+            }
+
+            #endregion
+
+            ScriptExecutorProxy result;
+
+            Guid scriptId = Guid.NewGuid();
+            AppDomain domain = AppDomain.CreateDomain(
+                string.Format("{0}_Domain_{1:N}", typeof(ScriptExecutor).Name, scriptId));
+            try
+            {
+                Type scriptExecutorType = typeof(ScriptExecutor);
+                ScriptExecutor scriptExecutor = (ScriptExecutor)domain.CreateInstanceAndUnwrap(
+                    scriptExecutorType.Assembly.FullName,
+                    scriptExecutorType.FullName,
+                    false,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    (System.Reflection.Binder)null,
+                    new object[] { scriptId, domain, parameters },
+                    (CultureInfo)null,
+                    (object[])null);
+
+                result = new ScriptExecutorProxy(scriptId, domain, scriptExecutor);
+            }
+            catch (Exception)
+            {
+                AppDomain.Unload(domain);
+                throw;
+            }
+
+            return result;
+        }
 
         public override object InitializeLifetimeService()
         {
@@ -629,7 +658,7 @@ namespace CSharpScriptExecutor.Common
         [MethodImpl(MethodImplOptions.Synchronized)]
         public void Dispose()
         {
-            throw new NotSupportedException();
+            // Nothing to do
         }
 
         #endregion

@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.labScript = new System.Windows.Forms.Label();
-            this.rtbScript = new System.Windows.Forms.RichTextBox();
             this.btnExecute = new System.Windows.Forms.Button();
             this.btnClose = new System.Windows.Forms.Button();
             this.btnDebug = new System.Windows.Forms.Button();
@@ -48,6 +47,8 @@
             this.tpConsoleError = new System.Windows.Forms.TabPage();
             this.rtbConsoleError = new System.Windows.Forms.RichTextBox();
             this.pbResult = new System.Windows.Forms.PictureBox();
+            this.ehTextEditor = new System.Windows.Forms.Integration.ElementHost();
+            this.tewTextEditor = new CSharpScriptExecutor.TextEditorWrapper();
             this.msMainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.scPanels)).BeginInit();
             this.scPanels.Panel1.SuspendLayout();
@@ -67,22 +68,6 @@
             this.labScript.Size = new System.Drawing.Size(37, 13);
             this.labScript.TabIndex = 0;
             this.labScript.Text = "&Script:";
-            // 
-            // rtbScript
-            // 
-            this.rtbScript.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.rtbScript.DetectUrls = false;
-            this.rtbScript.Font = new System.Drawing.Font("Courier New", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.rtbScript.HideSelection = false;
-            this.rtbScript.Location = new System.Drawing.Point(3, 16);
-            this.rtbScript.Name = "rtbScript";
-            this.rtbScript.Size = new System.Drawing.Size(456, 133);
-            this.rtbScript.TabIndex = 1;
-            this.rtbScript.Text = "";
-            this.rtbScript.WordWrap = false;
-            this.rtbScript.TextChanged += new System.EventHandler(this.rtbScript_TextChanged);
             // 
             // btnExecute
             // 
@@ -144,7 +129,7 @@
             // 
             this.tsmiExecute.Name = "tsmiExecute";
             this.tsmiExecute.ShortcutKeys = System.Windows.Forms.Keys.F5;
-            this.tsmiExecute.Size = new System.Drawing.Size(152, 22);
+            this.tsmiExecute.Size = new System.Drawing.Size(148, 22);
             this.tsmiExecute.Text = "E&xecute";
             this.tsmiExecute.Click += new System.EventHandler(this.tsmiExecute_Click);
             // 
@@ -152,20 +137,20 @@
             // 
             this.tsmiDebug.Name = "tsmiDebug";
             this.tsmiDebug.ShortcutKeys = System.Windows.Forms.Keys.F8;
-            this.tsmiDebug.Size = new System.Drawing.Size(152, 22);
+            this.tsmiDebug.Size = new System.Drawing.Size(148, 22);
             this.tsmiDebug.Text = "&Debug";
             this.tsmiDebug.Click += new System.EventHandler(this.tsmiDebug_Click);
             // 
             // tssSeparator1
             // 
             this.tssSeparator1.Name = "tssSeparator1";
-            this.tssSeparator1.Size = new System.Drawing.Size(149, 6);
+            this.tssSeparator1.Size = new System.Drawing.Size(145, 6);
             // 
             // tsmiClose
             // 
             this.tsmiClose.Name = "tsmiClose";
             this.tsmiClose.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.W)));
-            this.tsmiClose.Size = new System.Drawing.Size(152, 22);
+            this.tsmiClose.Size = new System.Drawing.Size(148, 22);
             this.tsmiClose.Text = "&Close";
             this.tsmiClose.Click += new System.EventHandler(this.tsmiClose_Click);
             // 
@@ -196,7 +181,7 @@
             // 
             // scPanels.Panel1
             // 
-            this.scPanels.Panel1.Controls.Add(this.rtbScript);
+            this.scPanels.Panel1.Controls.Add(this.ehTextEditor);
             this.scPanels.Panel1.Controls.Add(this.labScript);
             this.scPanels.Panel1MinSize = 50;
             // 
@@ -277,6 +262,15 @@
             this.pbResult.TabStop = false;
             this.pbResult.Click += new System.EventHandler(this.pbResult_Click);
             // 
+            // ehTextEditor
+            // 
+            this.ehTextEditor.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.ehTextEditor.Location = new System.Drawing.Point(0, 0);
+            this.ehTextEditor.Name = "ehTextEditor";
+            this.ehTextEditor.Size = new System.Drawing.Size(456, 149);
+            this.ehTextEditor.TabIndex = 1;
+            this.ehTextEditor.Child = this.tewTextEditor;
+            // 
             // ScriptForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -315,7 +309,6 @@
         #endregion
 
         private System.Windows.Forms.Label labScript;
-        private System.Windows.Forms.RichTextBox rtbScript;
         private System.Windows.Forms.Button btnExecute;
         private System.Windows.Forms.Button btnClose;
         private System.Windows.Forms.Button btnDebug;
@@ -334,5 +327,7 @@
         private System.Windows.Forms.ToolStripSeparator tssSeparator1;
         private System.Windows.Forms.ToolStripMenuItem tsmiExecute;
         private System.Windows.Forms.ToolStripMenuItem tsmiDebug;
+        private System.Windows.Forms.Integration.ElementHost ehTextEditor;
+        private TextEditorWrapper tewTextEditor;
     }
 }

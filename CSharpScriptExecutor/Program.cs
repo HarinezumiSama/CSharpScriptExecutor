@@ -170,10 +170,13 @@ namespace CSharpScriptExecutor
                 var executorParameters = new ScriptExecutorParameters(script, actualArguments, isDebugMode);
 
                 ScriptExecutionResult executionResult;
-                using (IScriptExecutor scriptExecutor = ScriptExecutorProxy.Create(executorParameters))
+                using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
                 {
                     executionResult = scriptExecutor.Execute();
                 }
+
+                Console.WriteLine(executionResult.ConsoleOut);
+                Console.WriteLine(executionResult.ConsoleError);
 
                 switch (executionResult.Type)
                 {

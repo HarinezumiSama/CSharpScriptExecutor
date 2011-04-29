@@ -29,9 +29,10 @@ namespace CSharpScriptExecutor.Common
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptExecutorProxy"/> class.
         /// </summary>
-        private ScriptExecutorProxy(Guid scriptId, AppDomain domain, ScriptExecutor scriptExecutor)
+        internal ScriptExecutorProxy(Guid scriptId, AppDomain domain, ScriptExecutor scriptExecutor)
         {
             #region Argument Check
+
             if (domain == null)
             {
                 throw new ArgumentNullException("domain");
@@ -40,6 +41,7 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentNullException("scriptExecutor");
             }
+
             #endregion
 
             m_scriptId = scriptId;
@@ -75,42 +77,6 @@ namespace CSharpScriptExecutor.Common
 
                 return s_tempFiles;
             }
-        }
-
-        #endregion
-
-        #region Public Methods
-
-        public static IScriptExecutor Create(ScriptExecutorParameters parameters)
-        {
-            #region Argument Check
-
-            if (parameters == null)
-            {
-                throw new ArgumentNullException("parameters");
-            }
-
-            #endregion
-
-            ScriptExecutorProxy result;
-
-            Guid scriptId = Guid.NewGuid();
-            AppDomain domain = AppDomain.CreateDomain(string.Format(
-                "{0}_Domain_{1:N}",
-                typeof(ScriptExecutor).Name,
-                scriptId));
-            try
-            {
-                ScriptExecutor scriptExecutor = ScriptExecutor.Create(scriptId, domain, parameters);
-                result = new ScriptExecutorProxy(scriptId, domain, scriptExecutor);
-            }
-            catch (Exception)
-            {
-                AppDomain.Unload(domain);
-                throw;
-            }
-
-            return result;
         }
 
         #endregion

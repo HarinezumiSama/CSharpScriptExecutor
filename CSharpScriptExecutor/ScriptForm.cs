@@ -9,10 +9,11 @@ using System.Text;
 using System.Windows.Forms;
 using CSharpScriptExecutor.Common;
 using CSharpScriptExecutor.Properties;
+using ICSharpCode.AvalonEdit;
 
 namespace CSharpScriptExecutor
 {
-    // TODO: Use freeware open source C# code editor instead of RichTextBox
+    // TODO: Use pre-load of AvalonEdit's TextEditor in background thread to speed up first load on user request
 
     public partial class ScriptForm : Form
     {
@@ -91,8 +92,11 @@ namespace CSharpScriptExecutor
 
                 var parameters = new ScriptExecutorParameters(script, new string[0], enableDebugging);
 
-                var executor = ScriptExecutorProxy.Create(parameters);
-                var executionResult = executor.Execute();
+                ScriptExecutionResult executionResult;
+                using (var executor = ScriptExecutor.Create(parameters))
+                {
+                    executionResult = executor.Execute();
+                }
 
                 rtbConsoleOut.Text = executionResult.ConsoleOut;
                 rtbConsoleError.Text = executionResult.ConsoleError;
@@ -160,7 +164,7 @@ namespace CSharpScriptExecutor
         private void HideConsole()
         {
             scPanels.Panel2Collapsed = true;
-            rtbScript.Select();
+            tewTextEditor.InnerEditor.Focus();
         }
 
         private void ToggleConsole()
@@ -182,6 +186,8 @@ namespace CSharpScriptExecutor
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+
+            tewTextEditor.InnerEditor.TextChanged += this.tewTextEditor_InnerEditor_TextChanged;
         }
 
         #endregion
@@ -191,9 +197,9 @@ namespace CSharpScriptExecutor
         public string Script
         {
             [DebuggerNonUserCode]
-            get { return rtbScript.Text; }
+            get { return tewTextEditor.InnerEditor.Text; }
             [DebuggerNonUserCode]
-            set { rtbScript.Text = value; }
+            set { tewTextEditor.InnerEditor.Text = value; }
         }
 
         #endregion
@@ -207,8 +213,8 @@ namespace CSharpScriptExecutor
 
         private void ScriptForm_Shown(object sender, EventArgs e)
         {
-            rtbScript.SelectAll();
-            rtbScript.Focus();
+            tewTextEditor.InnerEditor.SelectAll();
+            tewTextEditor.InnerEditor.Focus();
 
             SetControlStates();
         }
@@ -223,24 +229,29 @@ namespace CSharpScriptExecutor
             ExecuteScript(true);
         }
 
-        private void rtbScript_TextChanged(object sender, EventArgs e)
+        //private void rtbScript_TextChanged(object sender, EventArgs e)
+        //{
+        //    var selectionStart = rtbScript.SelectionStart;
+        //    var selectionLength = rtbScript.SelectionLength;
+
+        //    try
+        //    {
+        //        rtbScript.SelectAll();
+        //        rtbScript.SelectionBackColor = rtbScript.BackColor;
+        //        rtbScript.SelectionColor = rtbScript.ForeColor;
+        //        rtbScript.Font = rtbScript.Font;
+        //    }
+        //    finally
+        //    {
+        //        rtbScript.SelectionStart = selectionStart;
+        //        rtbScript.SelectionLength = selectionLength;
+        //    }
+
+        //    SetControlStates();
+        //}
+
+        private void tewTextEditor_InnerEditor_TextChanged(object sender, EventArgs e)
         {
-            var selectionStart = rtbScript.SelectionStart;
-            var selectionLength = rtbScript.SelectionLength;
-
-            try
-            {
-                rtbScript.SelectAll();
-                rtbScript.SelectionBackColor = rtbScript.BackColor;
-                rtbScript.SelectionColor = rtbScript.ForeColor;
-                rtbScript.Font = rtbScript.Font;
-            }
-            finally
-            {
-                rtbScript.SelectionStart = selectionStart;
-                rtbScript.SelectionLength = selectionLength;
-            }
-
             SetControlStates();
         }
 
