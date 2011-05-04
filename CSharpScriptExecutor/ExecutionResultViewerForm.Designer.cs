@@ -80,6 +80,7 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.scDetails.Location = new System.Drawing.Point(12, 20);
+            this.scDetails.MinimumSize = new System.Drawing.Size(100, 210);
             this.scDetails.Name = "scDetails";
             this.scDetails.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
@@ -114,6 +115,7 @@
             this.tbMessage.HideSelection = false;
             this.tbMessage.Location = new System.Drawing.Point(3, 16);
             this.tbMessage.MaxLength = 0;
+            this.tbMessage.MinimumSize = new System.Drawing.Size(100, 50);
             this.tbMessage.Multiline = true;
             this.tbMessage.Name = "tbMessage";
             this.tbMessage.ReadOnly = true;
@@ -183,7 +185,9 @@
             this.Controls.Add(this.gbResult);
             this.Controls.Add(this.btnClose);
             this.MinimizeBox = false;
+            this.MinimumSize = new System.Drawing.Size(400, 300);
             this.Name = "ExecutionResultViewerForm";
+            this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "ExecutionResultViewerForm";
             this.gbResult.ResumeLayout(false);

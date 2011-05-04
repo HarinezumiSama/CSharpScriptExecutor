@@ -287,6 +287,7 @@
             this.KeyPreview = true;
             this.MainMenuStrip = this.msMainMenu;
             this.MinimizeBox = false;
+            this.MinimumSize = new System.Drawing.Size(400, 300);
             this.Name = "ScriptForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "ScriptForm";

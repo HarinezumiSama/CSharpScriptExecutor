@@ -257,12 +257,14 @@ namespace CSharpScriptExecutor
 
             #endregion
 
-            using (var form = new ExecutionResultViewerForm()
+            Func<int, int> safeReduce = x => Math.Max(x * 9 / 10, 100);
+
+            using (var form = new ExecutionResultViewerForm())
             {
-                ExecutionResult = executionResult,
-                Icon = owner.Icon
-            })
-            {
+                form.ExecutionResult = executionResult;
+                form.Icon = owner.Icon;
+                form.Size = new System.Drawing.Size(safeReduce(owner.Width), safeReduce(owner.Height));
+
                 form.ShowDialog(owner);
             }
         }

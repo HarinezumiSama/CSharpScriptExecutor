@@ -65,7 +65,7 @@ namespace CSharpScriptExecutor
                     scriptForm.Icon = this.Icon;
 
                     scriptForm.Size = m_lastScriptFormSize.IsEmpty
-                        ? new Size(workingArea.Width / 2, workingArea.Height / 2)
+                        ? new Size(workingArea.Width * 3 / 5, workingArea.Height * 3 / 5)
                         : m_lastScriptFormSize;
                     scriptForm.Location = new Point(
                         workingArea.Width - scriptForm.Size.Width,
