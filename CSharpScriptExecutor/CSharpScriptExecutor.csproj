@@ -75,6 +75,12 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExecutionResultViewerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ExecutionResultViewerForm.Designer.cs">
+      <DependentUpon>ExecutionResultViewerForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -140,6 +146,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="ExecutionResultViewerForm.resx">
+      <DependentUpon>ExecutionResultViewerForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>

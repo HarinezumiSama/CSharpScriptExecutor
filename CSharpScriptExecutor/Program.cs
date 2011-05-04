@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 using CSharpScriptExecutor.Common;
 
@@ -83,10 +84,57 @@ namespace CSharpScriptExecutor
                 return 255;
             }
 
+            //TODO: Use pre-load of AvalonEdit's TextEditor in background thread to speed up first load on user request
+
+            // Preloading causes InvalidOperationException with the message:
+            // 'The calling thread cannot access this object because a different thread owns it.' from time to time.
+            // It seems that ElementHost is the reason for that.
+            #region Preloading form and its components in background since AvalonEdit is a heavy component
+
+            //            Thread preloadThread = new Thread(
+            //                () =>
+            //                {
+            //#pragma warning disable 618
+            //Debugger.Log(0, "", string.Format("Preload thread ID: {0}\n", AppDomain.GetCurrentThreadId()));
+            //#pragma warning restore 618
+
+            //                    using (var form = new ScriptForm())
+            //                    {
+            //                        // Nothing to do
+            //                    }
+            //                })
+            //            {
+            //                Name = "Preload thread",
+            //                IsBackground = true,
+            //                Priority = ThreadPriority.Lowest
+            //            };
+
+            //#pragma warning disable 618
+            //            Debugger.Log(0, "", string.Format("Main thread ID: {0}\n", AppDomain.GetCurrentThreadId()));
+            //#pragma warning restore 618
+
+            //            preloadThread.SetApartmentState(ApartmentState.STA);
+            //            preloadThread.Start();
+
+            #endregion
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
             return 0;
+        }
+
+        private static void WiatForKeyIfUnderDebugger()
+        {
+            if (Debugger.IsAttached)
+            {
+                Console.WriteLine("* Press any key to exit...");
+                while (!Console.KeyAvailable)
+                {
+                    // Nothing to do
+                }
+                Console.ReadKey(true);
+            }
         }
 
         #endregion
@@ -103,23 +151,6 @@ namespace CSharpScriptExecutor
         {
             [DebuggerStepThrough]
             get { return s_fullProgramName; }
-        }
-
-        #endregion
-
-        #region Internal Methods
-
-        internal static void PauseIfUnderDebugger()
-        {
-            if (Debugger.IsAttached)
-            {
-                Console.WriteLine("* Press any key to exit...");
-                while (!Console.KeyAvailable)
-                {
-                    // Nothing to do
-                }
-                Console.ReadKey(true);
-            }
         }
 
         #endregion
@@ -170,9 +201,21 @@ namespace CSharpScriptExecutor
                 var executorParameters = new ScriptExecutorParameters(script, actualArguments, isDebugMode);
 
                 ScriptExecutionResult executionResult;
-                using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
+                try
                 {
-                    executionResult = scriptExecutor.Execute();
+                    using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
+                    {
+                        executionResult = scriptExecutor.Execute();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    executionResult = ScriptExecutionResult.CreateInternalError(
+                        ex,
+                        string.Empty,
+                        string.Empty,
+                        script,
+                        null);
                 }
 
                 Console.WriteLine(executionResult.ConsoleOut);
@@ -181,16 +224,30 @@ namespace CSharpScriptExecutor
                 switch (executionResult.Type)
                 {
                     case ScriptExecutionResultType.InternalError:
-                    case ScriptExecutionResultType.CompileError:
+                    case ScriptExecutionResultType.CompilationError:
                     case ScriptExecutionResultType.ExecutionError:
                         {
                             Console.WriteLine();
                             Console.WriteLine("* Error processing script file \"{0}\":", scriptFilePath);
                             Console.WriteLine("* Error type: {0}", executionResult.Type.ToString());
                             Console.WriteLine(executionResult.Message);
+                            if (!string.IsNullOrEmpty(executionResult.SourceCode))
+                            {
+                                Console.WriteLine();
+                                Console.WriteLine(" * Source code <START");
+                                Console.WriteLine(executionResult.SourceCode);
+                                Console.WriteLine(" * Source code END>");
+                            }
+                            if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
+                            {
+                                Console.WriteLine();
+                                Console.WriteLine(" * Generated code <START");
+                                Console.WriteLine(executionResult.GeneratedCode);
+                                Console.WriteLine(" * Generated code END>");
+                            }
                             Console.WriteLine();
 
-                            Program.PauseIfUnderDebugger();
+                            Program.WiatForKeyIfUnderDebugger();
                             return 200;
                         }
 
@@ -212,7 +269,7 @@ namespace CSharpScriptExecutor
                 Console.WriteLine(ex.ToString());
                 Console.WriteLine();
 
-                Program.PauseIfUnderDebugger();
+                Program.WiatForKeyIfUnderDebugger();
                 return 255;
             }
             finally
@@ -220,7 +277,7 @@ namespace CSharpScriptExecutor
                 ScriptExecutorProxy.TempFiles.Delete();
             }
 
-            Program.PauseIfUnderDebugger();
+            Program.WiatForKeyIfUnderDebugger();
             return 0;
         }
 

@@ -44,6 +44,7 @@ namespace CSharpScriptExecutor.Common
         #region Static
 
         private static readonly string s_sourceFileExtension = GetSourceFileExtension();
+        private static readonly string s_userCodeIndentation = new string(' ', 8);
 
         private static readonly StringComparer s_directiveComparer = StringComparer.OrdinalIgnoreCase;
         private static readonly string s_predefinedMainClass = c_predefinedTypeName + Type.Delimiter +
@@ -129,7 +130,7 @@ namespace CSharpScriptExecutor.Common
             m_arguments = parameters.ScriptArguments.ToArray();
             m_isDebugMode = parameters.IsDebugMode;
 
-            LoadData(out m_scriptType, out m_scriptLines);
+            LoadData(m_script, out m_scriptType, out m_scriptLines);
         }
 
         #endregion
@@ -146,16 +147,28 @@ namespace CSharpScriptExecutor.Common
             return result;
         }
 
-        private void LoadData(out ScriptType outputScriptType, out List<string> outputScriptLines)
+        private static void LoadData(
+            string script,
+            out ScriptType outputScriptType,
+            out List<string> outputScriptLines)
         {
+            #region Argument Check
+
+            if (script == null)
+            {
+                throw new ArgumentNullException("script");
+            }
+
+            #endregion
+
             outputScriptType = ScriptType.Default;
 
             List<string> scriptLines = new List<string>();
-            using (var sr = new StringReader(m_script))
+            using (var reader = new StringReader(script))
             {
                 while (true)
                 {
-                    var line = sr.ReadLine();
+                    var line = reader.ReadLine();
                     if (line == null)
                     {
                         break;
@@ -188,10 +201,12 @@ namespace CSharpScriptExecutor.Common
                 }
                 else
                 {
-                    throw new ScriptExecutorException(string.Format(
-                        "Invalid script directive: \"{0}\" at line {1}.",
-                        directive,
-                        lineIndex + 1));
+                    throw new ScriptExecutorException(
+                        string.Format(
+                            "Invalid script directive: \"{0}\" at line {1}.",
+                            directive,
+                            lineIndex + 1),
+                        script);
                 }
             }
 
@@ -199,7 +214,7 @@ namespace CSharpScriptExecutor.Common
             bool hasFirstNotEmptyLine = false;
             for (int index = startLineIndex; index < scriptLines.Count; index++)
             {
-                if (!hasFirstNotEmptyLine && string.IsNullOrEmpty(scriptLines[index].Trim()))
+                if (!hasFirstNotEmptyLine && string.IsNullOrWhiteSpace(scriptLines[index]))
                 {
                     continue;
                 }
@@ -209,7 +224,7 @@ namespace CSharpScriptExecutor.Common
             }
             for (int index = outputScriptLines.Count - 1; index >= 0; index--)
             {
-                if (!string.IsNullOrEmpty(outputScriptLines[index].Trim()))
+                if (!string.IsNullOrWhiteSpace(outputScriptLines[index]))
                 {
                     break;
                 }
@@ -243,9 +258,9 @@ namespace CSharpScriptExecutor.Common
             }
             compilerParameters.ReferencedAssemblies.AddRange(s_predefinedReferences);
 
-            var mainMethodBody = new CodeSnippetStatement(
-                string.Join(Environment.NewLine, m_scriptLines.Select(line => "        " + line).ToArray())
-                    + Environment.NewLine + ";")
+            var userCodeSnippetStatement = new CodeSnippetStatement(
+                string.Join(Environment.NewLine, m_scriptLines.Select(line => s_userCodeIndentation + line).ToArray())
+                    + Environment.NewLine + Environment.NewLine + s_userCodeIndentation + "; // Auto-generated")
             {
                 //StartDirectives = { new CodeRegionDirective(CodeRegionMode.Start, "User's code snippet") },
                 //EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
@@ -306,7 +321,7 @@ namespace CSharpScriptExecutor.Common
                     });
                 wrapperMethod.Statements.Add(new CodeSnippetStatement(Environment.NewLine));
             }
-            wrapperMethod.Statements.Add(mainMethodBody);
+            wrapperMethod.Statements.Add(userCodeSnippetStatement);
 
             var predefinedConstructor = new CodeConstructor()
             {
@@ -383,7 +398,7 @@ namespace CSharpScriptExecutor.Common
                 if (compilerResults.Errors.HasErrors)
                 {
                     var sb = new StringBuilder();
-                    sb.AppendLine("*** Error compiling script ***");
+                    //sb.AppendLine("*** Error compiling script ***");
                     sb.AppendLine("Errors:");
                     var onlyErrors = compilerResults
                         .Errors
@@ -395,135 +410,156 @@ namespace CSharpScriptExecutor.Common
                     {
                         sb.AppendLine(string.Format("  {0}", error));
                     }
-                    sb.AppendLine("Source:");
-                    sb.Append(getSourceContent());
-                    sb.AppendLine();
+                    //sb.AppendLine("Source:");
+                    //sb.Append(getSourceContent());
+                    //sb.AppendLine();
 
-                    m_executionResult = new ScriptExecutionResult(
-                        ScriptExecutionResultType.CompileError,
-                        sb.ToString(),
+                    m_executionResult = ScriptExecutionResult.CreateError(
+                        ScriptExecutionResultType.CompilationError,
+                        new ScriptExecutorException(sb.ToString()),
                         string.Empty,
-                        string.Empty);
+                        string.Empty,
+                        m_script,
+                        getSourceContent(),
+                        onlyErrors);
                     return;
                 }
-            }
 
-            string outputAssembly = compilerParameters.OutputAssembly;
-            if (!string.IsNullOrEmpty(outputAssembly))
-            {
-                var files = Directory.GetFiles(
-                    Path.GetDirectoryName(outputAssembly),
-                    Path.ChangeExtension(Path.GetFileName(outputAssembly), ".*"),
-                    SearchOption.TopDirectoryOnly);
-                foreach (string file in files)
+                string outputAssembly = compilerParameters.OutputAssembly;
+                if (!string.IsNullOrEmpty(outputAssembly))
                 {
-                    ScriptExecutorProxy.TempFiles.AddFile(file, false);
-                }
-            }
-
-            var compiledType = compilerResults.CompiledAssembly.GetType(c_predefinedTypeName);
-            if (compiledType == null)
-            {
-                throw new ScriptExecutorException(
-                    string.Format("Cannot obtain the predefined type \"{0}\".", c_predefinedTypeName));
-            }
-
-            var compiledMethod = compiledType.GetMethod(
-                c_predefinedMethodName,
-                c_predefinedMethodBindingFlags);
-            if (compiledMethod == null)
-            {
-                throw new ScriptExecutorException(
-                    string.Format(
-                        "Cannot obtain the predefined method \"{0}\" in the type \"{1}\".",
-                        c_predefinedMethodName,
-                        c_predefinedTypeName));
-            }
-
-            var compiledPredefinedConstructor = compiledType.GetConstructor(
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                null,
-                Type.EmptyTypes,
-                null);
-            if (compiledPredefinedConstructor == null)
-            {
-                throw new ScriptExecutorException(
-                    string.Format(
-                        "Cannot obtain the predefined parameterless constructor in the type \"{0}\".",
-                        c_predefinedTypeName));
-            }
-
-            var allDeclaredMembers = compiledType.GetMembers(c_allDecalredMemberBindingFlags).ToList();
-            var unexpectedMembers = allDeclaredMembers
-                .Where(
-                    item => item != compiledMethod && item != compiledPredefinedConstructor
-                        && item.Name.IndexOfAny(s_specialNameChars) < 0)
-                .ToList();
-            if (unexpectedMembers.Any())
-            {
-                throw new ScriptExecutorException(
-                    "The script must not contain any members and must be just a code snippet.");
-            }
-
-            var methodDelegate = (Action<string[]>)Delegate.CreateDelegate(
-                typeof(Action<string[]>),
-                compiledMethod,
-                true);
-            if (methodDelegate == null)
-            {
-                throw new ScriptExecutorException(
-                    string.Format(
-                        "Cannot create a delegate from the predefined method \"{0}{1}{2}\".",
-                        compiledMethod.DeclaringType.FullName,
-                        Type.Delimiter,
-                        compiledMethod.Name));
-            }
-
-            var consoleOutBuilder = new StringBuilder();
-            var consoleErrorBuilder = new StringBuilder();
-            var originalConsoleOut = Console.Out;
-            var originalConsoleError = Console.Error;
-            try
-            {
-                using (StringWriter outWriter = new StringWriter(consoleOutBuilder),
-                    errorWriter = new StringWriter(consoleErrorBuilder))
-                {
-                    Console.SetOut(outWriter);
-                    Console.SetError(errorWriter);
-
-                    try
+                    var files = Directory.GetFiles(
+                        Path.GetDirectoryName(outputAssembly),
+                        Path.ChangeExtension(Path.GetFileName(outputAssembly), ".*"),
+                        SearchOption.TopDirectoryOnly);
+                    foreach (string file in files)
                     {
-                        methodDelegate(m_arguments);
-                    }
-                    catch (Exception ex)
-                    {
-                        m_executionResult = ScriptExecutionResult.CreateError(
-                            ScriptExecutionResultType.ExecutionError,
-                            ex,
-                            consoleOutBuilder.ToString(),
-                            consoleErrorBuilder.ToString());
-                        return;
+                        ScriptExecutorProxy.TempFiles.AddFile(file, false);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                m_executionResult = ScriptExecutionResult.CreateError(
-                    ScriptExecutionResultType.InternalError,
-                    ex,
-                    string.Empty,
-                    string.Empty);
-                return;
-            }
-            finally
-            {
-                Console.SetOut(originalConsoleOut);
-                Console.SetError(originalConsoleError);
-            }
 
-            m_executionResult = ScriptExecutionResult.CreateSuccess(
-                consoleOutBuilder.ToString(),
-                consoleErrorBuilder.ToString());
+                var compiledType = compilerResults.CompiledAssembly.GetType(c_predefinedTypeName);
+                if (compiledType == null)
+                {
+                    throw new ScriptExecutorException(
+                        string.Format("Cannot obtain the predefined type \"{0}\".", c_predefinedTypeName),
+                        m_script,
+                        getSourceContent());
+                }
+
+                var compiledMethod = compiledType.GetMethod(
+                    c_predefinedMethodName,
+                    c_predefinedMethodBindingFlags);
+                if (compiledMethod == null)
+                {
+                    throw new ScriptExecutorException(
+                        string.Format(
+                            "Cannot obtain the predefined method \"{0}\" in the type \"{1}\".",
+                            c_predefinedMethodName,
+                            c_predefinedTypeName),
+                        m_script,
+                        getSourceContent());
+                }
+
+                var compiledPredefinedConstructor = compiledType.GetConstructor(
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    Type.EmptyTypes,
+                    null);
+                if (compiledPredefinedConstructor == null)
+                {
+                    throw new ScriptExecutorException(
+                        string.Format(
+                            "Cannot obtain the predefined parameterless constructor in the type \"{0}\".",
+                            c_predefinedTypeName),
+                        m_script,
+                        getSourceContent());
+                }
+
+                var allDeclaredMembers = compiledType.GetMembers(c_allDecalredMemberBindingFlags).ToList();
+                var unexpectedMembers = allDeclaredMembers
+                    .Where(
+                        item => item != compiledMethod && item != compiledPredefinedConstructor
+                            && item.Name.IndexOfAny(s_specialNameChars) < 0)
+                    .ToList();
+                if (unexpectedMembers.Any())
+                {
+                    throw new ScriptExecutorException(
+                        "The script must not contain any members and must be just a code snippet.",
+                        m_script,
+                        getSourceContent());
+                }
+
+                var methodDelegate = (Action<string[]>)Delegate.CreateDelegate(
+                    typeof(Action<string[]>),
+                    compiledMethod,
+                    true);
+                if (methodDelegate == null)
+                {
+                    throw new ScriptExecutorException(
+                        string.Format(
+                            "Cannot create a delegate from the predefined method \"{0}{1}{2}\".",
+                            compiledMethod.DeclaringType.FullName,
+                            Type.Delimiter,
+                            compiledMethod.Name),
+                        m_script,
+                        getSourceContent());
+                }
+
+                var consoleOutBuilder = new StringBuilder();
+                var consoleErrorBuilder = new StringBuilder();
+                var originalConsoleOut = Console.Out;
+                var originalConsoleError = Console.Error;
+                try
+                {
+                    using (StringWriter outWriter = new StringWriter(consoleOutBuilder),
+                        errorWriter = new StringWriter(consoleErrorBuilder))
+                    {
+                        Console.SetOut(outWriter);
+                        Console.SetError(errorWriter);
+
+                        try
+                        {
+                            methodDelegate(m_arguments);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_executionResult = ScriptExecutionResult.CreateError(
+                                ScriptExecutionResultType.ExecutionError,
+                                ex,
+                                consoleOutBuilder.ToString(),
+                                consoleErrorBuilder.ToString(),
+                                m_script,
+                                getSourceContent(),
+                                null);
+                            return;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    m_executionResult = ScriptExecutionResult.CreateError(
+                        ScriptExecutionResultType.InternalError,
+                        ex,
+                        string.Empty,
+                        string.Empty,
+                        m_script,
+                        getSourceContent(),
+                        null);
+                    return;
+                }
+                finally
+                {
+                    Console.SetOut(originalConsoleOut);
+                    Console.SetError(originalConsoleError);
+                }
+
+                m_executionResult = ScriptExecutionResult.CreateSuccess(
+                    consoleOutBuilder.ToString(),
+                    consoleErrorBuilder.ToString(),
+                    m_script,
+                    getSourceContent());
+            }
         }
 
         private void ExecuteClassScript()
@@ -572,7 +608,10 @@ namespace CSharpScriptExecutor.Common
                     ScriptExecutionResultType.InternalError,
                     ex,
                     string.Empty,
-                    string.Empty);
+                    string.Empty,
+                    m_script,
+                    null,
+                    null);
             }
 
             if (m_executionResult == null)
@@ -589,6 +628,12 @@ namespace CSharpScriptExecutor.Common
         {
             [DebuggerStepThrough]
             get { return s_sourceFileExtension; }
+        }
+
+        public string Script
+        {
+            [DebuggerStepThrough]
+            get { return m_script; }
         }
 
         #endregion

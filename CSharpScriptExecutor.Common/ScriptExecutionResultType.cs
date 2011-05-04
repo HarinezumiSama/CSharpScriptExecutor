@@ -7,7 +7,7 @@ namespace CSharpScriptExecutor.Common
     public enum ScriptExecutionResultType
     {
         InternalError,
-        CompileError,
+        CompilationError,
         ExecutionError,
         Success
     }

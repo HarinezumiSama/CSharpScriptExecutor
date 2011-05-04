@@ -104,7 +104,10 @@ namespace CSharpScriptExecutor.Common
                     ScriptExecutionResultType.InternalError,
                     ex,
                     string.Empty,
-                    string.Empty);
+                    string.Empty,
+                    m_scriptExecutor.Script,
+                    null,
+                    null);
             }
 
             if (m_executionResult == null)

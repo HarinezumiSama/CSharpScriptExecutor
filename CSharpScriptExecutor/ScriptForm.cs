@@ -13,7 +13,7 @@ using ICSharpCode.AvalonEdit;
 
 namespace CSharpScriptExecutor
 {
-    // TODO: Use pre-load of AvalonEdit's TextEditor in background thread to speed up first load on user request
+    // TODO: Make possible to enter arguments from GUI
 
     public partial class ScriptForm : Form
     {
@@ -42,40 +42,29 @@ namespace CSharpScriptExecutor
             MessageBox.Show(this, errorMessage, this.Text, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         }
 
-        private static string GetErrorMessage(ScriptExecutionResult executionResult)
+        private void ShowExecutionResult(ScriptExecutionResult executionResult)
         {
-            #region Argument Check
-
             if (executionResult == null)
             {
-                throw new ArgumentNullException("executionResult");
+                return;
             }
 
-            #endregion
-
-            switch (executionResult.Type)
-            {
-                case ScriptExecutionResultType.InternalError:
-                    return "Internal error: " + executionResult.Message;
-                case ScriptExecutionResultType.CompileError:
-                    return "Compilation error: " + executionResult.Message;
-                case ScriptExecutionResultType.ExecutionError:
-                    return "Execution error: " + executionResult.Message;
-                case ScriptExecutionResultType.Success:
-                    return null;
-                default:
-                    throw new NotImplementedException();
-            }
+            ExecutionResultViewerForm.Show(this, executionResult);
         }
 
         private void ExecuteScript(bool enableDebugging)
         {
-            string errorMessage;
+            var script = this.Script;
+            if (string.IsNullOrWhiteSpace(script))
+            {
+                return;
+            }
 
-            bool? success = null;
+            ScriptExecutionResult executionResult = null;
+
             Cursor oldCursor = Cursor.Current;
-            var oldResult = pbResult.Image;
-            var resultTag = pbResult.Tag;
+            var oldResultImage = pbResult.Image;
+            var oldResultTag = pbResult.Tag;
             try
             {
                 Cursor.Current = Cursors.WaitCursor;
@@ -83,19 +72,23 @@ namespace CSharpScriptExecutor
                 pbResult.Tag = null;
                 Application.DoEvents();
 
-                var script = this.Script;
-                if (string.IsNullOrWhiteSpace(script))
-                {
-                    //ShowError("No script entered.");
-                    return;
-                }
-
                 var parameters = new ScriptExecutorParameters(script, new string[0], enableDebugging);
 
-                ScriptExecutionResult executionResult;
-                using (var executor = ScriptExecutor.Create(parameters))
+                try
                 {
-                    executionResult = executor.Execute();
+                    using (var executor = ScriptExecutor.Create(parameters))
+                    {
+                        executionResult = executor.Execute();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    executionResult = ScriptExecutionResult.CreateInternalError(
+                        ex,
+                        string.Empty,
+                        string.Empty,
+                        script,
+                        null);
                 }
 
                 rtbConsoleOut.Text = executionResult.ConsoleOut;
@@ -106,33 +99,32 @@ namespace CSharpScriptExecutor
                 {
                     ShowConsole(true);
                 }
-
-                errorMessage = GetErrorMessage(executionResult);
-
-                success = errorMessage == null;
-                resultTag = executionResult;
             }
             catch (Exception ex)
             {
-                errorMessage = ex.Message;
-                success = false;
+                executionResult = ScriptExecutionResult.CreateInternalError(
+                    ex,
+                    string.Empty,
+                    string.Empty,
+                    script,
+                    null);
             }
             finally
             {
-                pbResult.Image = success.HasValue
-                    ? (success.Value ? Resources.OKShield_32x32 : Resources.ErrorCircle_32x32)
-                    : oldResult;
-                pbResult.Tag = resultTag;
+                pbResult.Image = executionResult == null
+                    ? oldResultImage
+                    : executionResult.IsSuccess ? Resources.OKShield_32x32 : Resources.ErrorCircle_32x32;
+                pbResult.Tag = executionResult ?? oldResultTag;
+
                 Cursor.Current = oldCursor;
             }
 
-            if (string.IsNullOrWhiteSpace(errorMessage))
+            if (executionResult != null && executionResult.IsSuccess)
             {
                 return;
             }
 
-            // TODO: use more convenient dialog box (with vertical scrolling and maybe formatting)
-            ShowError(errorMessage);
+            ShowExecutionResult(executionResult);
         }
 
         private void SetControlStates()
@@ -217,6 +209,9 @@ namespace CSharpScriptExecutor
             tewTextEditor.InnerEditor.Focus();
 
             SetControlStates();
+
+            // If the caller sets non-default cursor, resetting it
+            Cursor.Current = Cursors.Default;
         }
 
         private void btnExecute_Click(object sender, EventArgs e)
@@ -228,27 +223,6 @@ namespace CSharpScriptExecutor
         {
             ExecuteScript(true);
         }
-
-        //private void rtbScript_TextChanged(object sender, EventArgs e)
-        //{
-        //    var selectionStart = rtbScript.SelectionStart;
-        //    var selectionLength = rtbScript.SelectionLength;
-
-        //    try
-        //    {
-        //        rtbScript.SelectAll();
-        //        rtbScript.SelectionBackColor = rtbScript.BackColor;
-        //        rtbScript.SelectionColor = rtbScript.ForeColor;
-        //        rtbScript.Font = rtbScript.Font;
-        //    }
-        //    finally
-        //    {
-        //        rtbScript.SelectionStart = selectionStart;
-        //        rtbScript.SelectionLength = selectionLength;
-        //    }
-
-        //    SetControlStates();
-        //}
 
         private void tewTextEditor_InnerEditor_TextChanged(object sender, EventArgs e)
         {
@@ -277,19 +251,7 @@ namespace CSharpScriptExecutor
 
         private void pbResult_Click(object sender, EventArgs e)
         {
-            var executionResult = pbResult.Tag as ScriptExecutionResult;
-            if (executionResult == null)
-            {
-                return;
-            }
-
-            var errorMessage = GetErrorMessage(executionResult);
-            if (string.IsNullOrEmpty(errorMessage))
-            {
-                return;
-            }
-
-            ShowError(errorMessage);
+            ShowExecutionResult(pbResult.Tag as ScriptExecutionResult);
         }
 
         #endregion

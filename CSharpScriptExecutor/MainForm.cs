@@ -52,38 +52,49 @@ namespace CSharpScriptExecutor
             tsmiAbout.Visible = true;
         }
 
-        private void DoRun()
+        private void ShowScriptForm()
         {
             var workingArea = Screen.FromControl(this).WorkingArea;
-            using (var scriptForm = new ScriptForm())
+            Cursor oldCursor = Cursor.Current;
+            try
             {
-                scriptForm.Icon = this.Icon;
+                Cursor.Current = Cursors.AppStarting;
 
-                scriptForm.Size = m_lastScriptFormSize.IsEmpty
-                    ? new Size(workingArea.Width / 2, workingArea.Height / 2)
-                    : m_lastScriptFormSize;
-                scriptForm.Location = new Point(
-                    workingArea.Width - scriptForm.Size.Width,
-                    workingArea.Height - scriptForm.Size.Height);
-                scriptForm.Script = m_lastScriptFormScript;
-
-                var oldRunEnabled = tsmiRun.Enabled;
-                var oldAboutEnabled = tsmiAbout.Enabled;
-                try
+                using (var scriptForm = new ScriptForm())
                 {
-                    tsmiRun.Enabled = false;
-                    tsmiAbout.Enabled = false;
+                    scriptForm.Icon = this.Icon;
 
-                    scriptForm.ShowDialog(this);
-                }
-                finally
-                {
-                    tsmiRun.Enabled = oldRunEnabled;
-                    tsmiAbout.Enabled = oldAboutEnabled;
-                }
+                    scriptForm.Size = m_lastScriptFormSize.IsEmpty
+                        ? new Size(workingArea.Width / 2, workingArea.Height / 2)
+                        : m_lastScriptFormSize;
+                    scriptForm.Location = new Point(
+                        workingArea.Width - scriptForm.Size.Width,
+                        workingArea.Height - scriptForm.Size.Height);
+                    scriptForm.Script = m_lastScriptFormScript;
 
-                m_lastScriptFormSize = scriptForm.Size;
-                m_lastScriptFormScript = scriptForm.Script;
+                    var oldRunEnabled = tsmiRun.Enabled;
+                    var oldAboutEnabled = tsmiAbout.Enabled;
+                    try
+                    {
+                        tsmiRun.Enabled = false;
+                        tsmiAbout.Enabled = false;
+
+                        scriptForm.ShowDialog(this);
+                        Cursor.Current = Cursors.AppStarting;
+                    }
+                    finally
+                    {
+                        tsmiRun.Enabled = oldRunEnabled;
+                        tsmiAbout.Enabled = oldAboutEnabled;
+                    }
+
+                    m_lastScriptFormSize = scriptForm.Size;
+                    m_lastScriptFormScript = scriptForm.Script;
+                }
+            }
+            finally
+            {
+                Cursor.Current = oldCursor;
             }
         }
 
@@ -129,12 +140,12 @@ namespace CSharpScriptExecutor
 
         private void niTrayIcon_DoubleClick(object sender, EventArgs e)
         {
-            DoRun();
+            ShowScriptForm();
         }
 
         private void tsmiRun_Click(object sender, EventArgs e)
         {
-            DoRun();
+            ShowScriptForm();
         }
 
         [DebuggerStepThrough]

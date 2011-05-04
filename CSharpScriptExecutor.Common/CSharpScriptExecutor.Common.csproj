@@ -65,7 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
-    <Compile Include="Exceptions.cs" />
+    <Compile Include="ScriptExecutorException.cs" />
     <Compile Include="IScriptExecutor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ScriptExecutionResult.cs" />

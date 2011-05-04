@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("CSharpScriptExecutor")]
+[assembly: AssemblyTitle("C# Script Executor")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Qualiware")]
-[assembly: AssemblyProduct("CSharpScriptExecutor")]
+[assembly: AssemblyProduct("C# Script Executor")]
 [assembly: AssemblyCopyright("Copyright (C) Vitalii Maklai")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
