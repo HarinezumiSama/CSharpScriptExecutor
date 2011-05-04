@@ -116,7 +116,7 @@ namespace CSharpScriptExecutor
                     return;
                 }
 
-                var errorBrush = new SolidColorBrush(Colors.Red);
+                var errorBrush = new SolidColorBrush(Colors.LightPink);
 
                 if (m_compilerErrors.Any(item => item.Line == line.LineNumber + m_lineOffset))
                 {

@@ -11,6 +11,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.CSharp;
 using Microsoft.CSharp.RuntimeBinder;
 
@@ -23,6 +24,8 @@ namespace CSharpScriptExecutor.Common
         private const string c_directivePrefix = "##";
         private const string c_codeDirective = "Code";
         private const string c_classDirective = "Class";
+
+        // TODO: `##Reference` script directive (reference to an assembly)
 
         private const string c_predefinedTypeName = "ScriptExecutorWrapper";
         private const string c_predefinedMethodName = "Main";
@@ -45,6 +48,10 @@ namespace CSharpScriptExecutor.Common
 
         private static readonly string s_sourceFileExtension = GetSourceFileExtension();
         private static readonly string s_userCodeIndentation = new string(' ', 8);
+
+        private static readonly Regex s_prohibitedDirectiveRegex = new Regex(
+            @"^\s* \# \s* line \b",
+            RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
 
         private static readonly StringComparer s_directiveComparer = StringComparer.OrdinalIgnoreCase;
         private static readonly string s_predefinedMainClass = c_predefinedTypeName + Type.Delimiter +
@@ -214,13 +221,20 @@ namespace CSharpScriptExecutor.Common
             bool hasFirstNotEmptyLine = false;
             for (int index = startLineIndex; index < scriptLines.Count; index++)
             {
-                if (!hasFirstNotEmptyLine && string.IsNullOrWhiteSpace(scriptLines[index]))
+                var scriptLine = scriptLines[index];
+                if (s_prohibitedDirectiveRegex.IsMatch(scriptLine))
+                {
+                    throw new ScriptExecutorException(
+                        "Directive '#line' is prohibited to use in a script (even in the multiline comment block).");
+                }
+
+                if (!hasFirstNotEmptyLine && string.IsNullOrWhiteSpace(scriptLine))
                 {
                     continue;
                 }
 
                 hasFirstNotEmptyLine = true;
-                outputScriptLines.Add(scriptLines[index]);
+                outputScriptLines.Add(scriptLine);
             }
             for (int index = outputScriptLines.Count - 1; index >= 0; index--)
             {
@@ -261,16 +275,20 @@ namespace CSharpScriptExecutor.Common
             Func<string> generateRandomId = () => Guid.NewGuid().ToString("N");
             var offsetWarningId = string.Join(string.Empty, Enumerable.Range(0, 4).Select(i => generateRandomId()));
 
+            var formattedScriptLinesString = string.Join(
+                Environment.NewLine,
+                m_scriptLines.Select(line => s_userCodeIndentation + line));
+
             var userCodeSnippetStatement = new CodeSnippetStatement(
                 string.Format(
-                    "#warning [For internal purposes] {0}{1}{2}",
+                    "#warning [For internal purposes] {0}{1}"
+                        + "{2}{1}"
+                        + "{1}"
+                        + "{3}; // Auto-generated",
                     offsetWarningId,
                     Environment.NewLine,
-                    string.Join(
-                        Environment.NewLine,
-                        m_scriptLines.Select(line => s_userCodeIndentation + line).ToArray())
-                        + Environment.NewLine + Environment.NewLine
-                        + s_userCodeIndentation + "; // Auto-generated"));
+                    formattedScriptLinesString,
+                    s_userCodeIndentation));
             {
                 //StartDirectives = { new CodeRegionDirective(CodeRegionMode.Start, "User's code snippet") },
                 //EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
