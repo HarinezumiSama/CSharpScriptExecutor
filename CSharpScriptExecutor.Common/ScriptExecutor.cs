@@ -258,9 +258,19 @@ namespace CSharpScriptExecutor.Common
             }
             compilerParameters.ReferencedAssemblies.AddRange(s_predefinedReferences);
 
+            Func<string> generateRandomId = () => Guid.NewGuid().ToString("N");
+            var offsetWarningId = string.Join(string.Empty, Enumerable.Range(0, 4).Select(i => generateRandomId()));
+
             var userCodeSnippetStatement = new CodeSnippetStatement(
-                string.Join(Environment.NewLine, m_scriptLines.Select(line => s_userCodeIndentation + line).ToArray())
-                    + Environment.NewLine + Environment.NewLine + s_userCodeIndentation + "; // Auto-generated")
+                string.Format(
+                    "#warning [For internal purposes] {0}{1}{2}",
+                    offsetWarningId,
+                    Environment.NewLine,
+                    string.Join(
+                        Environment.NewLine,
+                        m_scriptLines.Select(line => s_userCodeIndentation + line).ToArray())
+                        + Environment.NewLine + Environment.NewLine
+                        + s_userCodeIndentation + "; // Auto-generated"));
             {
                 //StartDirectives = { new CodeRegionDirective(CodeRegionMode.Start, "User's code snippet") },
                 //EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
@@ -414,6 +424,13 @@ namespace CSharpScriptExecutor.Common
                     //sb.Append(getSourceContent());
                     //sb.AppendLine();
 
+                    var offsetWarning = compilerResults
+                        .Errors
+                        .Cast<CompilerError>()
+                        .Where(item => item.IsWarning && item.ErrorText.Contains(offsetWarningId))
+                        .Single();
+                    var sourceCodeLineOffset = offsetWarning.Line;
+
                     m_executionResult = ScriptExecutionResult.CreateError(
                         ScriptExecutionResultType.CompilationError,
                         new ScriptExecutorException(sb.ToString()),
@@ -421,7 +438,8 @@ namespace CSharpScriptExecutor.Common
                         string.Empty,
                         m_script,
                         getSourceContent(),
-                        onlyErrors);
+                        onlyErrors,
+                        sourceCodeLineOffset);
                     return;
                 }
 
@@ -531,6 +549,7 @@ namespace CSharpScriptExecutor.Common
                                 consoleErrorBuilder.ToString(),
                                 m_script,
                                 getSourceContent(),
+                                null,
                                 null);
                             return;
                         }
@@ -545,6 +564,7 @@ namespace CSharpScriptExecutor.Common
                         string.Empty,
                         m_script,
                         getSourceContent(),
+                        null,
                         null);
                     return;
                 }
@@ -610,6 +630,7 @@ namespace CSharpScriptExecutor.Common
                     string.Empty,
                     string.Empty,
                     m_script,
+                    null,
                     null,
                     null);
             }

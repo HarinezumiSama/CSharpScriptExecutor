@@ -22,6 +22,7 @@ namespace CSharpScriptExecutor.Common
         private readonly string m_sourceCode;
         private readonly string m_generatedCode;
         private readonly IList<CompilerError> m_compilerErrors;
+        private readonly int? m_sourceCodeLineOffset;
 
         #endregion
 
@@ -37,7 +38,8 @@ namespace CSharpScriptExecutor.Common
             string consoleError,
             string sourceCode,
             string generatedCode,
-            IEnumerable<CompilerError> compilerErrors)
+            IEnumerable<CompilerError> compilerErrors,
+            int? sourceCodeLineOffset)
         {
             #region Argument Check
 
@@ -69,6 +71,10 @@ namespace CSharpScriptExecutor.Common
                 {
                     throw new ArgumentException("The collection must contain errors only.", "compilerErrors");
                 }
+                if (sourceCodeLineOffset == null)
+                {
+                    throw new ArgumentNullException("sourceCodeLineOffset");
+                }
             }
             else
             {
@@ -87,6 +93,7 @@ namespace CSharpScriptExecutor.Common
             m_sourceCode = sourceCode ?? string.Empty;
             m_generatedCode = generatedCode ?? string.Empty;
             m_compilerErrors = compilerErrors == null ? s_emptyCompilerErrors : compilerErrors.ToList().AsReadOnly();
+            m_sourceCodeLineOffset = sourceCodeLineOffset;
         }
 
         #endregion
@@ -100,7 +107,8 @@ namespace CSharpScriptExecutor.Common
             string consoleError,
             string sourceCode,
             string generatedSource,
-            IEnumerable<CompilerError> compilerErrors)
+            IEnumerable<CompilerError> compilerErrors,
+            int? sourceCodeLineOffset)
         {
             #region Argument Check
 
@@ -140,7 +148,8 @@ namespace CSharpScriptExecutor.Common
                 consoleError,
                 sourceCode,
                 generatedSource,
-                compilerErrors);
+                compilerErrors,
+                sourceCodeLineOffset);
         }
 
         internal static ScriptExecutionResult CreateSuccess(
@@ -156,6 +165,7 @@ namespace CSharpScriptExecutor.Common
                 consoleError,
                 sourceCode,
                 generatedSource,
+                null,
                 null);
         }
 
@@ -217,6 +227,12 @@ namespace CSharpScriptExecutor.Common
             get { return m_compilerErrors; }
         }
 
+        public int? SourceCodeLineOffset
+        {
+            [DebuggerStepThrough]
+            get { return m_sourceCodeLineOffset; }
+        }
+
         #endregion
 
         #region Public Methods
@@ -262,6 +278,7 @@ namespace CSharpScriptExecutor.Common
                 consoleError,
                 sourceCode,
                 generatedSource,
+                null,
                 null);
         }
 

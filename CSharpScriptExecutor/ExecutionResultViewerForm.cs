@@ -13,6 +13,7 @@ using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 using System.Windows.Media;
 using CSharpScriptExecutor.Common;
+using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Rendering;
 
@@ -31,12 +32,13 @@ namespace CSharpScriptExecutor
             //private static readonly System.Windows.Media.Pen s_errorPen = CreateErrorPen();
 
             private readonly IList<CompilerError> m_compilerErrors;
+            private readonly int m_lineOffset;
 
             #endregion
 
             #region Constructors
 
-            public ErrorColorizer(IEnumerable<CompilerError> compilerErrors)
+            public ErrorColorizer(IEnumerable<CompilerError> compilerErrors, int lineOffset)
             {
                 #region Argument Check
 
@@ -48,10 +50,18 @@ namespace CSharpScriptExecutor
                 {
                     throw new ArgumentException("The collection contains a null element.", "compilerErrors");
                 }
+                if (lineOffset < 0)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        "lineOffset",
+                        lineOffset,
+                        "The value must be non-negative.");
+                }
 
                 #endregion
 
                 m_compilerErrors = compilerErrors.ToList().AsReadOnly();
+                m_lineOffset = lineOffset;
             }
 
             #endregion
@@ -108,7 +118,7 @@ namespace CSharpScriptExecutor
 
                 var errorBrush = new SolidColorBrush(Colors.Red);
 
-                if (m_compilerErrors.Any(item => item.Line == line.LineNumber))
+                if (m_compilerErrors.Any(item => item.Line == line.LineNumber + m_lineOffset))
                 {
                     ChangeLinePart(
                         line.Offset,
@@ -141,7 +151,7 @@ namespace CSharpScriptExecutor
         #region Fields
 
         private ScriptExecutionResult m_executionResult;
-        private System.Windows.Controls.ToolTip m_toolTip = new System.Windows.Controls.ToolTip();
+        private System.Windows.Controls.ToolTip m_errorToolTip = new System.Windows.Controls.ToolTip();
 
         #endregion
 
@@ -154,8 +164,12 @@ namespace CSharpScriptExecutor
             this.Text = string.Format("Execution Result — {0}", Program.ProgramName);
             tewSourceCode.InnerEditor.IsReadOnly = true;
             tewGeneratedCode.InnerEditor.IsReadOnly = true;
-            tewGeneratedCode.InnerEditor.MouseHover += tewGeneratedCode_InnerEditor_MouseHover;
-            tewGeneratedCode.InnerEditor.MouseHoverStopped += tewGeneratedCode_InnerEditor_MouseHoverStopped;
+
+            tewSourceCode.InnerEditor.MouseHover += CodeEditor_MouseHover;
+            tewSourceCode.InnerEditor.MouseHoverStopped += CodeEditor_MouseHoverStopped;
+
+            tewGeneratedCode.InnerEditor.MouseHover += CodeEditor_MouseHover;
+            tewGeneratedCode.InnerEditor.MouseHoverStopped += CodeEditor_MouseHoverStopped;
         }
 
         #endregion
@@ -180,9 +194,18 @@ namespace CSharpScriptExecutor
                     gbResult.Text = "Internal Error";
                     break;
                 case ScriptExecutionResultType.CompilationError:
-                    gbResult.Text = "Compilation Error";
-                    tewGeneratedCode.InnerEditor.TextArea.TextView.LineTransformers.Add(
-                        new ErrorColorizer(m_executionResult.CompilerErrors));
+                    {
+                        gbResult.Text = "Compilation Error";
+                        tewGeneratedCode.InnerEditor.TextArea.TextView.LineTransformers.Add(
+                            new ErrorColorizer(m_executionResult.CompilerErrors, 0));
+                        if (m_executionResult.SourceCodeLineOffset.HasValue)
+                        {
+                            tewSourceCode.InnerEditor.TextArea.TextView.LineTransformers.Add(
+                                new ErrorColorizer(
+                                    m_executionResult.CompilerErrors,
+                                    m_executionResult.SourceCodeLineOffset.Value));
+                        }
+                    }
                     break;
                 case ScriptExecutionResultType.ExecutionError:
                     gbResult.Text = "Execution Error";
@@ -253,21 +276,39 @@ namespace CSharpScriptExecutor
             Close();
         }
 
-        private void tewGeneratedCode_InnerEditor_MouseHover(object sender, System.Windows.Input.MouseEventArgs e)
+        private void CodeEditor_MouseHover(object sender, System.Windows.Input.MouseEventArgs e)
         {
             if (m_executionResult.Type != ScriptExecutionResultType.CompilationError)
             {
                 return;
             }
 
-            var editor = tewGeneratedCode.InnerEditor;
+            var editor = sender as TextEditor;
+            if (editor == null)
+            {
+                return;
+            }
+
+            var lineOffset = 0;
+            if (editor == tewSourceCode.InnerEditor)
+            {
+                if (!m_executionResult.SourceCodeLineOffset.HasValue)
+                {
+                    return;
+                }
+                lineOffset = m_executionResult.SourceCodeLineOffset.Value;
+            }
+
             var position = editor.GetPositionFromPoint(e.GetPosition(editor));
             if (!position.HasValue)
             {
                 return;
             }
 
-            var errors = m_executionResult.CompilerErrors.Where(item => item.Line == position.Value.Line).ToList();
+            var errors = m_executionResult
+                .CompilerErrors
+                .Where(item => item.Line == position.Value.Line + lineOffset)
+                .ToList();
             if (!errors.Any())
             {
                 return;
@@ -275,17 +316,17 @@ namespace CSharpScriptExecutor
 
             var errorTooltip = string.Join(
                 Environment.NewLine,
-                errors.Select(item => string.Format("{0}: {1}", item.ErrorNumber, item.ErrorText)));
+                errors.Select(item => string.Format("Error {0}: {1}", item.ErrorNumber, item.ErrorText)));
 
-            m_toolTip.PlacementTarget = editor;
-            m_toolTip.Content = errorTooltip;
-            m_toolTip.IsOpen = true;
+            m_errorToolTip.PlacementTarget = editor;
+            m_errorToolTip.Content = errorTooltip;
+            m_errorToolTip.IsOpen = true;
             e.Handled = true;
         }
 
-        private void tewGeneratedCode_InnerEditor_MouseHoverStopped(object sender, System.Windows.Input.MouseEventArgs e)
+        private void CodeEditor_MouseHoverStopped(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            m_toolTip.IsOpen = false;
+            m_errorToolTip.IsOpen = false;
         }
 
         #endregion

@@ -107,6 +107,7 @@ namespace CSharpScriptExecutor.Common
                     string.Empty,
                     m_scriptExecutor.Script,
                     null,
+                    null,
                     null);
             }
 

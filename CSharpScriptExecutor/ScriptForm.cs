@@ -15,6 +15,8 @@ namespace CSharpScriptExecutor
 {
     // TODO: Make possible to enter arguments from GUI
 
+    // TODO: `Auto-run if successful compilation` check box
+
     public partial class ScriptForm : Form
     {
         #region Constructors
@@ -72,7 +74,7 @@ namespace CSharpScriptExecutor
                 pbResult.Tag = null;
                 Application.DoEvents();
 
-                var parameters = new ScriptExecutorParameters(script, new string[0], enableDebugging);
+                var parameters = new ScriptExecutorParameters(script, Enumerable.Empty<string>(), enableDebugging);
 
                 try
                 {
