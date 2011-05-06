@@ -73,7 +73,7 @@
     <Compile Include="ScriptExecutor.cs" />
     <Compile Include="ScriptExecutorParameters.cs" />
     <Compile Include="ScriptExecutorProxy.cs" />
-    <Compile Include="ScriptType.cs" />
+    <Compile Include="ScriptReturnValue.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CSharpScriptExecutor.Common.snk" />

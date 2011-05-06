@@ -28,6 +28,7 @@ namespace CSharpScriptExecutor
             InitializeComponent();
 
             this.Text = Program.ProgramName;
+            labAbout.Text = Program.FullProgramName;
             this.Icon = Resources.MainIcon;
 
             niTrayIcon.Icon = this.Icon;
@@ -118,7 +119,6 @@ namespace CSharpScriptExecutor
         {
             base.OnLoad(e);
 
-            labAbout.Text = Program.FullProgramName;
             DoHide();
         }
 

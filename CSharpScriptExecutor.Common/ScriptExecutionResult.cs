@@ -16,6 +16,7 @@ namespace CSharpScriptExecutor.Common
         private static readonly IList<CompilerError> s_emptyCompilerErrors = new List<CompilerError>().AsReadOnly();
 
         private readonly ScriptExecutionResultType m_type;
+        private readonly ScriptReturnValue m_returnValue;
         private readonly string m_message;
         private readonly string m_consoleOut;
         private readonly string m_consoleError;
@@ -33,6 +34,7 @@ namespace CSharpScriptExecutor.Common
         /// </summary>
         private ScriptExecutionResult(
             ScriptExecutionResultType type,
+            object returnValue,
             string message,
             string consoleOut,
             string consoleError,
@@ -50,6 +52,15 @@ namespace CSharpScriptExecutor.Common
             if (consoleError == null)
             {
                 throw new ArgumentNullException("consoleError");
+            }
+            if (type != ScriptExecutionResultType.Success)
+            {
+                if (returnValue != null)
+                {
+                    throw new ArgumentException(
+                        "Script could not return a value since it has failed to run.",
+                        "returnValue");
+                }
             }
             if (type == ScriptExecutionResultType.CompilationError)
             {
@@ -87,6 +98,7 @@ namespace CSharpScriptExecutor.Common
             #endregion
 
             m_type = type;
+            m_returnValue = type == ScriptExecutionResultType.Success ? ScriptReturnValue.Create(returnValue) : null;
             m_message = message;
             m_consoleOut = consoleOut;
             m_consoleError = consoleError;
@@ -143,6 +155,7 @@ namespace CSharpScriptExecutor.Common
 
             return new ScriptExecutionResult(
                 type,
+                null,
                 exception.ToString(),
                 consoleOut,
                 consoleError,
@@ -153,6 +166,7 @@ namespace CSharpScriptExecutor.Common
         }
 
         internal static ScriptExecutionResult CreateSuccess(
+            object returnValue,
             string consoleOut,
             string consoleError,
             string sourceCode,
@@ -160,6 +174,7 @@ namespace CSharpScriptExecutor.Common
         {
             return new ScriptExecutionResult(
                 ScriptExecutionResultType.Success,
+                returnValue,
                 null,
                 consoleOut,
                 consoleError,
@@ -183,6 +198,12 @@ namespace CSharpScriptExecutor.Common
         {
             [DebuggerStepThrough]
             get { return m_type == ScriptExecutionResultType.Success; }
+        }
+
+        public ScriptReturnValue ReturnValue
+        {
+            [DebuggerStepThrough]
+            get { return m_returnValue; }
         }
 
         public string Message
@@ -213,7 +234,7 @@ namespace CSharpScriptExecutor.Common
         }
 
         /// <summary>
-        ///     Gets the full code generated from the source script.
+        ///     Gets the code generated from the source script.
         /// </summary>
         public string GeneratedCode
         {
@@ -273,6 +294,7 @@ namespace CSharpScriptExecutor.Common
 
             return new ScriptExecutionResult(
                 ScriptExecutionResultType.InternalError,
+                null,
                 exception.ToString(),
                 consoleOut,
                 consoleError,

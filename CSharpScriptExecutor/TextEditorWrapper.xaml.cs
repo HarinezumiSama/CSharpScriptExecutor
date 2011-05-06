@@ -42,5 +42,14 @@ namespace CSharpScriptExecutor
         }
 
         #endregion
+
+        #region Event Handlers
+
+        private void innerEditor_KeyDown(object sender, KeyEventArgs e)
+        {
+            OnKeyDown(e);
+        }
+
+        #endregion
     }
 }

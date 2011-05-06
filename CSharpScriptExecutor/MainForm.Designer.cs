@@ -32,13 +32,14 @@
             this.niTrayIcon = new System.Windows.Forms.NotifyIcon(this.components);
             this.cmsTrayIconMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.tsmiRun = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmiAttachDebuggerNow = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiAbout = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiExit = new System.Windows.Forms.ToolStripMenuItem();
             this.labAbout = new System.Windows.Forms.Label();
             this.btnOK = new System.Windows.Forms.Button();
-            this.tsmiAttachDebuggerNow = new System.Windows.Forms.ToolStripMenuItem();
+            this.lblThanks = new System.Windows.Forms.Label();
             this.cmsTrayIconMenu.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -68,6 +69,13 @@
             this.tsmiRun.Size = new System.Drawing.Size(198, 22);
             this.tsmiRun.Text = "&Run...";
             this.tsmiRun.Click += new System.EventHandler(this.tsmiRun_Click);
+            // 
+            // tsmiAttachDebuggerNow
+            // 
+            this.tsmiAttachDebuggerNow.Name = "tsmiAttachDebuggerNow";
+            this.tsmiAttachDebuggerNow.Size = new System.Drawing.Size(198, 22);
+            this.tsmiAttachDebuggerNow.Text = "Attach &debugger now...";
+            this.tsmiAttachDebuggerNow.Click += new System.EventHandler(this.tsmiAttachDebuggerNow_Click);
             // 
             // toolStripSeparator2
             // 
@@ -116,12 +124,15 @@
             this.btnOK.UseVisualStyleBackColor = true;
             this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
             // 
-            // tsmiAttachDebuggerNow
+            // lblThanks
             // 
-            this.tsmiAttachDebuggerNow.Name = "tsmiAttachDebuggerNow";
-            this.tsmiAttachDebuggerNow.Size = new System.Drawing.Size(198, 22);
-            this.tsmiAttachDebuggerNow.Text = "Attach &debugger now...";
-            this.tsmiAttachDebuggerNow.Click += new System.EventHandler(this.tsmiAttachDebuggerNow_Click);
+            this.lblThanks.AutoSize = true;
+            this.lblThanks.Font = new System.Drawing.Font("Verdana", 7F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.lblThanks.Location = new System.Drawing.Point(13, 60);
+            this.lblThanks.Name = "lblThanks";
+            this.lblThanks.Size = new System.Drawing.Size(348, 12);
+            this.lblThanks.TabIndex = 3;
+            this.lblThanks.Text = "This software includes ICSharpCode.AvalonEdit from SharpDevelop";
             // 
             // MainForm
             // 
@@ -130,6 +141,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.btnOK;
             this.ClientSize = new System.Drawing.Size(598, 86);
+            this.Controls.Add(this.lblThanks);
             this.Controls.Add(this.btnOK);
             this.Controls.Add(this.labAbout);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -140,6 +152,7 @@
             this.Text = "MainForm";
             this.cmsTrayIconMenu.ResumeLayout(false);
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -155,5 +168,6 @@
         private System.Windows.Forms.ToolStripMenuItem tsmiRun;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripMenuItem tsmiAttachDebuggerNow;
+        private System.Windows.Forms.Label lblThanks;
     }
 }

@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("CSharpScriptExecutor.Common")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Qualiware")]
-[assembly: AssemblyProduct("CSharpScriptExecutor.Common")]
-[assembly: AssemblyCopyright("Copyright © Qualiware 2009")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("C# Script Executor")]
+[assembly: AssemblyCopyright("Copyright (C) Vitalii Maklai")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

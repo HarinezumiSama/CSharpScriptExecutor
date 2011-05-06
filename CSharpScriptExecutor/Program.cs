@@ -29,10 +29,12 @@ namespace CSharpScriptExecutor
             GetSoleAssemblyAttribute<AssemblyFileVersionAttribute>().Version;
         private static readonly string s_programCopyright =
             GetSoleAssemblyAttribute<AssemblyCopyrightAttribute>().Copyright;
+
         private static readonly string s_fullProgramName = string.Format(
-            "{0} {1}",
+            "{0} {1}. {2}",
             s_programName,
-            s_programVersion);
+            s_programVersion,
+            s_programCopyright);
 
         #endregion
 
@@ -58,7 +60,7 @@ namespace CSharpScriptExecutor
 
         private static void ShowHelp()
         {
-            Console.WriteLine("{0}. {1}", s_fullProgramName, s_programCopyright);
+            Console.WriteLine(s_fullProgramName);
             Console.WriteLine("Usage:");
             Console.WriteLine("  {0} [/Debug | /GUI] <Script> [ScriptParameters...]", s_programName);
             Console.WriteLine();
@@ -78,13 +80,16 @@ namespace CSharpScriptExecutor
             {
                 MessageBox.Show(
                     "Unable to switch to GUI mode.",
-                    s_fullProgramName,
+                    s_programName,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Exclamation);
                 return 255;
             }
 
-            //TODO: Use pre-load of AvalonEdit's TextEditor in background thread to speed up first load on user request
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            // TODO: Use pre-load of AvalonEdit's editor in background thread to speed up first load on user request
 
             // Preloading causes InvalidOperationException with the message:
             // 'The calling thread cannot access this object because a different thread owns it.' from time to time.
@@ -118,8 +123,6 @@ namespace CSharpScriptExecutor
 
             #endregion
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
             return 0;
         }

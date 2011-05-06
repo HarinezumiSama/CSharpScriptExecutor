@@ -17,23 +17,33 @@ using Microsoft.CSharp.RuntimeBinder;
 
 namespace CSharpScriptExecutor.Common
 {
+    // TODO: Implement Referenced .cs files that can be referenced and used from main code
+
+    // TODO: Implement Assembly Reference through directive in the code
+
+    // TODO: `##Reference` script directive (reference to an assembly)
+
     public sealed class ScriptExecutor : MarshalByRefObject, IScriptExecutor
     {
         #region Constants
 
-        private const string c_directivePrefix = "##";
-        private const string c_codeDirective = "Code";
-        private const string c_classDirective = "Class";
+        //private const string c_directivePrefix = "//###";
+        //private const string c_referenceDirective = "Ref";
 
-        // TODO: `##Reference` script directive (reference to an assembly)
-
-        private const string c_predefinedTypeName = "ScriptExecutorWrapper";
-        private const string c_predefinedMethodName = "Main";
-        private const BindingFlags c_predefinedMethodBindingFlags = BindingFlags.Static | BindingFlags.Public
+        private const BindingFlags c_anyMemberBindingFlags = BindingFlags.Static | BindingFlags.Instance
+            | BindingFlags.Public | BindingFlags.NonPublic;
+        private const BindingFlags c_predefinedConstructorBindingFlags = BindingFlags.Instance | BindingFlags.Public
             | BindingFlags.NonPublic;
-        private const string c_predefinedMethodParameterName = "arguments";
-        private const BindingFlags c_allDecalredMemberBindingFlags = BindingFlags.DeclaredOnly | BindingFlags.Static
-            | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        private const BindingFlags c_predefinedMembersBindingFlags = BindingFlags.Static | BindingFlags.Public
+            | BindingFlags.NonPublic;
+
+        private const string c_wrapperTypeName = "ScriptExecutorWrapper";
+        private const string c_wrapperMethodName = "Main";
+        private const string c_wrapperMethodParameterName = "arguments";
+        private const string c_debugMethodName = "Debug";
+
+        private const BindingFlags c_allDeclaredMembersBindingFlags =
+            BindingFlags.DeclaredOnly | c_anyMemberBindingFlags;
 
         private const string c_bracingStyle = "C";
         private const string c_indentString = "    ";
@@ -54,8 +64,6 @@ namespace CSharpScriptExecutor.Common
             RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
 
         private static readonly StringComparer s_directiveComparer = StringComparer.OrdinalIgnoreCase;
-        private static readonly string s_predefinedMainClass = c_predefinedTypeName + Type.Delimiter +
-            c_predefinedMethodName;
 
         private static readonly char[] s_specialNameChars = new[] { '<', '>' };
 
@@ -98,7 +106,6 @@ namespace CSharpScriptExecutor.Common
         private readonly string m_script;
         private readonly string[] m_arguments;
         private readonly bool m_isDebugMode;
-        private readonly ScriptType m_scriptType;
         private readonly List<string> m_scriptLines;
 
         private ScriptExecutionResult m_executionResult;
@@ -137,7 +144,7 @@ namespace CSharpScriptExecutor.Common
             m_arguments = parameters.ScriptArguments.ToArray();
             m_isDebugMode = parameters.IsDebugMode;
 
-            LoadData(m_script, out m_scriptType, out m_scriptLines);
+            LoadData(m_script, out m_scriptLines);
         }
 
         #endregion
@@ -154,10 +161,7 @@ namespace CSharpScriptExecutor.Common
             return result;
         }
 
-        private static void LoadData(
-            string script,
-            out ScriptType outputScriptType,
-            out List<string> outputScriptLines)
+        private static void LoadData(string script, out List<string> outputScriptLines)
         {
             #region Argument Check
 
@@ -167,8 +171,6 @@ namespace CSharpScriptExecutor.Common
             }
 
             #endregion
-
-            outputScriptType = ScriptType.Default;
 
             List<string> scriptLines = new List<string>();
             using (var reader = new StringReader(script))
@@ -192,43 +194,169 @@ namespace CSharpScriptExecutor.Common
                 }
             }
 
-            int startLineIndex = 0;
-            for (int lineIndex = 0; lineIndex < scriptLines.Count; lineIndex++)
-            {
-                string scriptLine = scriptLines[lineIndex];
+            //int startLineIndex = 0;
+            //for (int lineIndex = 0; lineIndex < scriptLines.Count; lineIndex++)
+            //{
+            //    string scriptLine = scriptLines[lineIndex];
 
-                string fixedLine = scriptLine.Trim();
-                if (!fixedLine.StartsWith(c_directivePrefix))
-                {
-                    startLineIndex = lineIndex;
-                    break;
-                }
+            //    string fixedLine = scriptLine.Trim();
+            //    if (!fixedLine.StartsWith(c_directivePrefix))
+            //    {
+            //        startLineIndex = lineIndex;
+            //        break;
+            //    }
 
-                string directive = fixedLine.Substring(c_directivePrefix.Length);
-                if (s_directiveComparer.Equals(directive, c_codeDirective))
-                {
-                    outputScriptType = ScriptType.Code;
-                }
-                else if (s_directiveComparer.Equals(directive, c_classDirective))
-                {
-                    outputScriptType = ScriptType.Class;
-                }
-                else
-                {
-                    throw new ScriptExecutorException(
-                        string.Format(
-                            "Invalid script directive: \"{0}\" at line {1}.",
-                            directive,
-                            lineIndex + 1),
-                        script);
-                }
-            }
+            //    string directive = fixedLine.Substring(c_directivePrefix.Length);
+            //    if (s_directiveComparer.Equals(directive, c_codeDirective))
+            //    {
+            //        outputScriptType = ScriptType.Code;
+            //    }
+            //    else if (s_directiveComparer.Equals(directive, c_classDirective))
+            //    {
+            //        outputScriptType = ScriptType.Class;
+            //    }
+            //    else
+            //    {
+            //        throw new ScriptExecutorException(
+            //            string.Format(
+            //                "Invalid script directive: \"{0}\" at line {1}.",
+            //                directive,
+            //                lineIndex + 1),
+            //            script);
+            //    }
+            //}
 
-            outputScriptLines = scriptLines.Skip(startLineIndex).ToList();
+            //outputScriptLines = scriptLines.Skip(startLineIndex).ToList();
+            outputScriptLines = scriptLines;
+
             outputScriptLines.TrimExcess();
         }
 
-        private void ExecuteCodeScript()
+        private CodeConstructor CreatePredefinedConstructor()
+        {
+            return new CodeConstructor
+            {
+                CustomAttributes =
+                {
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(DebuggerStepThroughAttribute))),
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(CompilerGeneratedAttribute)))
+                },
+                Statements = { new CodeCommentStatement("Nothing to do") },
+                StartDirectives =
+                {
+                    new CodeRegionDirective(CodeRegionMode.Start, "Auto-generated code")
+                },
+                EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
+            };
+        }
+
+        private CodeMemberMethod CreateDebugMethod()
+        {
+            var isAttachedName =
+                ((MemberExpression)((Expression<Func<bool>>)(() => Debugger.IsAttached)).Body).Member.Name;
+
+            var debuggerBreakStatement = new CodeExpressionStatement(
+                new CodeMethodInvokeExpression(
+                    new CodeMethodReferenceExpression(
+                        new CodeTypeReferenceExpression(typeof(Debugger)),
+                        new Action(Debugger.Break).Method.Name)));
+            var debuggerLaunchStatement = new CodeExpressionStatement(
+                new CodeMethodInvokeExpression(
+                    new CodeMethodReferenceExpression(
+                        new CodeTypeReferenceExpression(typeof(Debugger)),
+                        new Func<bool>(Debugger.Launch).Method.Name)));
+
+            return new CodeMemberMethod
+            {
+                Name = c_debugMethodName,
+                Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
+                ReturnType = new CodeTypeReference(typeof(void)),
+                Statements =
+                {
+                    new CodeConditionStatement(
+                        new CodePropertyReferenceExpression(
+                            new CodeTypeReferenceExpression(typeof(Debugger)),
+                            isAttachedName),
+                            new[] { debuggerBreakStatement },
+                            new[] { debuggerLaunchStatement })
+                }
+            };
+        }
+
+        private CodeMemberMethod CreateUserCodeWrapperMethod(CodeTypeDeclaration declaringType, string offsetWarningId)
+        {
+            #region Argument Check
+
+            if (declaringType == null)
+            {
+                throw new ArgumentNullException("declaringType");
+            }
+
+            #endregion
+
+            var formattedScriptLinesString = string.Join(
+                Environment.NewLine,
+                m_scriptLines.Select(line => s_userCodeIndentation + line));
+
+            var userCodeSnippetStatement = new CodeSnippetStatement(
+                string.Format(
+                    "#warning [For internal purposes] {1}{0}"
+                        + "{2}{0}"
+                        + "{0}"
+                        + "{3}; // Auto-generated{0}"
+                        + "{3}return null; // Auto-generated",
+                    Environment.NewLine,
+                    offsetWarningId,
+                    formattedScriptLinesString,
+                    s_userCodeIndentation));
+
+            var result = new CodeMemberMethod
+            {
+                Name = c_wrapperMethodName,
+                Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
+                ReturnType = new CodeTypeReference(typeof(object)),
+                Parameters =
+                {
+                    new CodeParameterDeclarationExpression(typeof(string[]), c_wrapperMethodParameterName)
+                    {
+                        CustomAttributes =
+                        {
+                            new CodeAttributeDeclaration(new CodeTypeReference(typeof(ParamArrayAttribute)))
+                        }
+                    }
+                }
+            };
+
+            if (m_isDebugMode)
+            {
+                result.Statements.Add(
+                    new CodeExpressionStatement(
+                        new CodeMethodInvokeExpression(
+                            new CodeMethodReferenceExpression(
+                                new CodeThisReferenceExpression(),
+                                c_debugMethodName)))
+                    {
+                        StartDirectives =
+                        {
+                            new CodeRegionDirective(
+                                CodeRegionMode.Start,
+                                string.Format(
+                                    "This statement is generated by {0} since the debug mode is active.",
+                                    this.GetType().FullName))
+                        },
+                        EndDirectives =
+                        {
+                            new CodeRegionDirective(CodeRegionMode.End, string.Empty)
+                        }
+                    });
+                result.Statements.Add(new CodeSnippetStatement(Environment.NewLine));
+            }
+            result.Statements.Add(userCodeSnippetStatement);
+
+            return result;
+        }
+
+        private void GenerateAndRunScript()
         {
             bool isDebuggable = Debugger.IsAttached || m_isDebugMode;
 
@@ -238,7 +366,7 @@ namespace CSharpScriptExecutor.Common
                 GenerateInMemory = !isDebuggable,
                 IncludeDebugInformation = isDebuggable,
                 TreatWarningsAsErrors = false,
-                CompilerOptions = string.Format("/unsafe+ /optimize{0}", isDebuggable ? "-" : "+")
+                CompilerOptions = string.Format("/unsafe- /optimize{0}", isDebuggable ? "-" : "+")
             };
             if (isDebuggable)
             {
@@ -255,108 +383,27 @@ namespace CSharpScriptExecutor.Common
             Func<string> generateRandomId = () => Guid.NewGuid().ToString("N");
             var offsetWarningId = string.Join(string.Empty, Enumerable.Range(0, 4).Select(i => generateRandomId()));
 
-            var formattedScriptLinesString = string.Join(
-                Environment.NewLine,
-                m_scriptLines.Select(line => s_userCodeIndentation + line));
-
-            var userCodeSnippetStatement = new CodeSnippetStatement(
-                string.Format(
-                    "#warning [For internal purposes] {0}{1}"
-                        + "{2}{1}"
-                        + "{1}"
-                        + "{3}; // Auto-generated",
-                    offsetWarningId,
-                    Environment.NewLine,
-                    formattedScriptLinesString,
-                    s_userCodeIndentation));
-            {
-                //StartDirectives = { new CodeRegionDirective(CodeRegionMode.Start, "User's code snippet") },
-                //EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
-            };
-
-            var wrapperMethod = new CodeMemberMethod
-            {
-                Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
-                Name = c_predefinedMethodName,
-                ReturnType = new CodeTypeReference(typeof(void)),
-                Parameters =
-                {
-                    new CodeParameterDeclarationExpression(typeof(string[]), c_predefinedMethodParameterName)
-                    {
-                        CustomAttributes =
-                        {
-                            new CodeAttributeDeclaration(new CodeTypeReference(typeof(ParamArrayAttribute)))
-                        }
-                    }
-                }
-            };
-
-            if (m_isDebugMode)
-            {
-                var isAttachedName =
-                    ((MemberExpression)((Expression<Func<bool>>)(() => Debugger.IsAttached)).Body).Member.Name;
-
-                var debuggerBreakStatement = new CodeExpressionStatement(
-                    new CodeMethodInvokeExpression(
-                        new CodeMethodReferenceExpression(
-                            new CodeTypeReferenceExpression(typeof(Debugger)),
-                            new Action(Debugger.Break).Method.Name)));
-                var debuggerLaunchStatement = new CodeExpressionStatement(
-                    new CodeMethodInvokeExpression(
-                        new CodeMethodReferenceExpression(
-                            new CodeTypeReferenceExpression(typeof(Debugger)),
-                            new Func<bool>(Debugger.Launch).Method.Name)));
-                wrapperMethod.Statements.Add(
-                    new CodeConditionStatement(
-                        new CodePropertyReferenceExpression(
-                            new CodeTypeReferenceExpression(typeof(Debugger)),
-                            isAttachedName),
-                            new[] { debuggerBreakStatement },
-                            new[] { debuggerLaunchStatement })
-                    {
-                        StartDirectives =
-                        {
-                            new CodeRegionDirective(
-                                CodeRegionMode.Start,
-                                string.Format(
-                                    "This statement is generated by {0} since the debug mode is active.",
-                                    this.GetType().Name))
-                        },
-                        EndDirectives =
-                        {
-                            new CodeRegionDirective(CodeRegionMode.End, string.Empty)
-                        }
-                    });
-                wrapperMethod.Statements.Add(new CodeSnippetStatement(Environment.NewLine));
-            }
-            wrapperMethod.Statements.Add(userCodeSnippetStatement);
-
-            var predefinedConstructor = new CodeConstructor()
-            {
-                CustomAttributes =
-                {
-                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(DebuggerStepThroughAttribute))),
-                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(CompilerGeneratedAttribute)))
-                },
-                Statements = { new CodeCommentStatement("Nothing to do") },
-                StartDirectives =
-                {
-                    new CodeRegionDirective(CodeRegionMode.Start, "Auto-generated code")
-                },
-                EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
-            };
-
-            var rootType = new CodeTypeDeclaration(c_predefinedTypeName)
+            var wrapperCodeType = new CodeTypeDeclaration(c_wrapperTypeName)
             {
                 Attributes = MemberAttributes.Public,
-                TypeAttributes = TypeAttributes.Class | TypeAttributes.Sealed | TypeAttributes.NotPublic,
-                Members = { predefinedConstructor, wrapperMethod }
+                TypeAttributes = TypeAttributes.Class | TypeAttributes.Sealed | TypeAttributes.NotPublic
             };
+
+            var predefinedConstructor = CreatePredefinedConstructor();
+            var userCodeWrapperMethod = CreateUserCodeWrapperMethod(wrapperCodeType, offsetWarningId);
+
+            wrapperCodeType.Members.Add(predefinedConstructor);
+            if (m_isDebugMode)
+            {
+                var debugMethod = CreateDebugMethod();
+                wrapperCodeType.Members.Add(debugMethod);
+            }
+            wrapperCodeType.Members.Add(userCodeWrapperMethod);
 
             var rootNamespace = new CodeNamespace(string.Empty);
             rootNamespace.Imports.AddRange(
                 s_predefinedImports.Select(item => new CodeNamespaceImport(item)).ToArray());
-            rootNamespace.Types.Add(rootType);
+            rootNamespace.Types.Add(wrapperCodeType);
 
             var compileUnit = new CodeCompileUnit();
             compileUnit.Namespaces.Add(rootNamespace);
@@ -400,14 +447,6 @@ namespace CSharpScriptExecutor.Common
                         .Where(error => !error.IsWarning)
                         .ToList();
 
-                    //var sb = new StringBuilder();
-                    //sb.AppendLine("Error compiling script:");
-
-                    //foreach (CompilerError error in onlyErrors)
-                    //{
-                    //    sb.AppendLine(string.Format("  {0}", error));
-                    //}
-
                     var offsetWarning = compilerResults
                         .Errors
                         .Cast<CompilerError>()
@@ -440,31 +479,17 @@ namespace CSharpScriptExecutor.Common
                     }
                 }
 
-                var compiledType = compilerResults.CompiledAssembly.GetType(c_predefinedTypeName);
-                if (compiledType == null)
+                var compiledWrapperType = compilerResults.CompiledAssembly.GetType(c_wrapperTypeName);
+                if (compiledWrapperType == null)
                 {
                     throw new ScriptExecutorException(
-                        string.Format("Cannot obtain the predefined type \"{0}\".", c_predefinedTypeName),
+                        string.Format("Cannot obtain the wrapper type \"{0}\".", c_wrapperTypeName),
                         m_script,
                         generatedCode);
                 }
 
-                var compiledMethod = compiledType.GetMethod(
-                    c_predefinedMethodName,
-                    c_predefinedMethodBindingFlags);
-                if (compiledMethod == null)
-                {
-                    throw new ScriptExecutorException(
-                        string.Format(
-                            "Cannot obtain the predefined method \"{0}\" in the type \"{1}\".",
-                            c_predefinedMethodName,
-                            c_predefinedTypeName),
-                        m_script,
-                        generatedCode);
-                }
-
-                var compiledPredefinedConstructor = compiledType.GetConstructor(
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                var compiledPredefinedConstructor = compiledWrapperType.GetConstructor(
+                    c_predefinedConstructorBindingFlags,
                     null,
                     Type.EmptyTypes,
                     null);
@@ -473,16 +498,48 @@ namespace CSharpScriptExecutor.Common
                     throw new ScriptExecutorException(
                         string.Format(
                             "Cannot obtain the predefined parameterless constructor in the type \"{0}\".",
-                            c_predefinedTypeName),
+                            c_wrapperTypeName),
                         m_script,
                         generatedCode);
                 }
 
-                var allDeclaredMembers = compiledType.GetMembers(c_allDecalredMemberBindingFlags).ToList();
+                MethodInfo compiledDebugMethod = null;
+                if (m_isDebugMode)
+                {
+                    compiledDebugMethod = compiledWrapperType.GetMethod(
+                        c_debugMethodName,
+                        c_predefinedMembersBindingFlags);
+                    if (compiledDebugMethod == null)
+                    {
+                        throw new ScriptExecutorException(
+                            string.Format(
+                                "Cannot obtain the debug method \"{0}\" in the type \"{1}\".",
+                                c_debugMethodName,
+                                c_wrapperTypeName),
+                            m_script,
+                            generatedCode);
+                    }
+                }
+
+                var compiledWrapperMethod = compiledWrapperType.GetMethod(
+                    c_wrapperMethodName,
+                    c_predefinedMembersBindingFlags);
+                if (compiledWrapperMethod == null)
+                {
+                    throw new ScriptExecutorException(
+                        string.Format(
+                            "Cannot obtain the wrapper method \"{0}\" in the type \"{1}\".",
+                            c_wrapperMethodName,
+                            c_wrapperTypeName),
+                        m_script,
+                        generatedCode);
+                }
+
+                var allDeclaredMembers = compiledWrapperType.GetMembers(c_allDeclaredMembersBindingFlags).ToList();
                 var unexpectedMembers = allDeclaredMembers
                     .Where(
-                        item => item != compiledMethod && item != compiledPredefinedConstructor
-                            && item.Name.IndexOfAny(s_specialNameChars) < 0)
+                        item => item != compiledWrapperMethod && item != compiledPredefinedConstructor
+                            && item != compiledDebugMethod && item.Name.IndexOfAny(s_specialNameChars) < 0)
                     .ToList();
                 if (unexpectedMembers.Any())
                 {
@@ -492,21 +549,23 @@ namespace CSharpScriptExecutor.Common
                         generatedCode);
                 }
 
-                var methodDelegate = (Action<string[]>)Delegate.CreateDelegate(
-                    typeof(Action<string[]>),
-                    compiledMethod,
+                var methodDelegate = (Func<string[], object>)Delegate.CreateDelegate(
+                    typeof(Func<string[], object>),
+                    compiledWrapperMethod,
                     true);
                 if (methodDelegate == null)
                 {
                     throw new ScriptExecutorException(
                         string.Format(
-                            "Cannot create a delegate from the predefined method \"{0}{1}{2}\".",
-                            compiledMethod.DeclaringType.FullName,
+                            "Cannot create a delegate from the wrapper method \"{0}{1}{2}\".",
+                            compiledWrapperMethod.DeclaringType.FullName,
                             Type.Delimiter,
-                            compiledMethod.Name),
+                            compiledWrapperMethod.Name),
                         m_script,
                         generatedCode);
                 }
+
+                object scriptReturnValue;
 
                 var consoleOutBuilder = new StringBuilder();
                 var consoleErrorBuilder = new StringBuilder();
@@ -522,7 +581,7 @@ namespace CSharpScriptExecutor.Common
 
                         try
                         {
-                            methodDelegate(m_arguments);
+                            scriptReturnValue = methodDelegate(m_arguments);
                         }
                         catch (Exception ex)
                         {
@@ -559,16 +618,12 @@ namespace CSharpScriptExecutor.Common
                 }
 
                 m_executionResult = ScriptExecutionResult.CreateSuccess(
+                    scriptReturnValue,
                     consoleOutBuilder.ToString(),
                     consoleErrorBuilder.ToString(),
                     m_script,
                     generatedCode);
             }
-        }
-
-        private void ExecuteClassScript()
-        {
-            throw new NotImplementedException();
         }
 
         #endregion
@@ -589,22 +644,7 @@ namespace CSharpScriptExecutor.Common
         {
             try
             {
-                switch (m_scriptType)
-                {
-                    case ScriptType.None:
-                        throw new InvalidOperationException("Script type is not assigned after initialization.");
-                    case ScriptType.Code:
-                        ExecuteCodeScript();
-                        break;
-                    case ScriptType.Class:
-                        ExecuteClassScript();
-                        break;
-                    default:
-                        throw new NotImplementedException(
-                            string.Format(
-                                "Support of the script type '{0}' is not implemented yet.",
-                                m_scriptType.ToString()));
-                }
+                GenerateAndRunScript();
             }
             catch (Exception ex)
             {

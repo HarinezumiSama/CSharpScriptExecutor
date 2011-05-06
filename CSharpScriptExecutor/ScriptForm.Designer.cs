@@ -41,14 +41,14 @@
             this.tsmiView = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiScriptConsole = new System.Windows.Forms.ToolStripMenuItem();
             this.scPanels = new System.Windows.Forms.SplitContainer();
-            this.ehTextEditor = new System.Windows.Forms.Integration.ElementHost();
-            this.tewTextEditor = new CSharpScriptExecutor.TextEditorWrapper();
             this.tcConsole = new System.Windows.Forms.TabControl();
             this.tpConsoleOut = new System.Windows.Forms.TabPage();
             this.rtbConsoleOut = new System.Windows.Forms.RichTextBox();
             this.tpConsoleError = new System.Windows.Forms.TabPage();
             this.rtbConsoleError = new System.Windows.Forms.RichTextBox();
             this.pbResult = new System.Windows.Forms.PictureBox();
+            this.ehTextEditor = new System.Windows.Forms.Integration.ElementHost();
+            this.tewTextEditor = new CSharpScriptExecutor.TextEditorWrapper();
             this.msMainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.scPanels)).BeginInit();
             this.scPanels.Panel1.SuspendLayout();
@@ -193,15 +193,6 @@
             this.scPanels.SplitterDistance = 149;
             this.scPanels.TabIndex = 1;
             // 
-            // ehTextEditor
-            // 
-            this.ehTextEditor.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ehTextEditor.Location = new System.Drawing.Point(0, 0);
-            this.ehTextEditor.Name = "ehTextEditor";
-            this.ehTextEditor.Size = new System.Drawing.Size(456, 149);
-            this.ehTextEditor.TabIndex = 1;
-            this.ehTextEditor.Child = this.tewTextEditor;
-            // 
             // tcConsole
             // 
             this.tcConsole.Controls.Add(this.tpConsoleOut);
@@ -274,11 +265,19 @@
             this.pbResult.TabStop = false;
             this.pbResult.Click += new System.EventHandler(this.pbResult_Click);
             // 
+            // ehTextEditor
+            // 
+            this.ehTextEditor.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.ehTextEditor.Location = new System.Drawing.Point(0, 0);
+            this.ehTextEditor.Name = "ehTextEditor";
+            this.ehTextEditor.Size = new System.Drawing.Size(456, 149);
+            this.ehTextEditor.TabIndex = 1;
+            this.ehTextEditor.Child = this.tewTextEditor;
+            // 
             // ScriptForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.CancelButton = this.btnClose;
             this.ClientSize = new System.Drawing.Size(484, 362);
             this.Controls.Add(this.pbResult);
             this.Controls.Add(this.scPanels);
@@ -294,6 +293,7 @@
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "ScriptForm";
             this.Shown += new System.EventHandler(this.ScriptForm_Shown);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ScriptForm_KeyDown);
             this.msMainMenu.ResumeLayout(false);
             this.msMainMenu.PerformLayout();
             this.scPanels.Panel1.ResumeLayout(false);

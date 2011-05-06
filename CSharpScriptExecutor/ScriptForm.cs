@@ -7,17 +7,27 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using System.Windows.Input;
 using CSharpScriptExecutor.Common;
 using CSharpScriptExecutor.Properties;
 using ICSharpCode.AvalonEdit;
+using Cursor = System.Windows.Forms.Cursor;
+using Cursors = System.Windows.Forms.Cursors;
+using KeyEventArgs = System.Windows.Forms.KeyEventArgs;
 
 namespace CSharpScriptExecutor
 {
     // TODO: Make possible to enter arguments from GUI
 
     // TODO: `Auto-run if successful compilation` check box
+    // TODO: Highlighting error 'as you type'
 
     // TODO: Script history
+    // TODO: File | Open and File | Save As...
+
+    // TODO: Shortcuts for often used texts such as Console.WriteLine and so on
+
+    // TODO: Allow script to return a value, and then parse this value properties and/or fields and show them in UI
 
     public partial class ScriptForm : Form
     {
@@ -29,6 +39,7 @@ namespace CSharpScriptExecutor
 
             this.Text = string.Format("Script — {0}", Program.ProgramName);
             scPanels.Panel2Collapsed = true;
+            tewTextEditor.KeyDown += this.tewTextEditor_KeyDown;
         }
 
         #endregion
@@ -256,6 +267,24 @@ namespace CSharpScriptExecutor
         private void pbResult_Click(object sender, EventArgs e)
         {
             ShowExecutionResult(pbResult.Tag as ScriptExecutionResult);
+        }
+
+        private void ScriptForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyData == (Keys.Escape | Keys.Shift))
+            {
+                e.Handled = true;
+                CloseForm();
+            }
+        }
+
+        private void tewTextEditor_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape && e.KeyboardDevice.Modifiers == System.Windows.Input.ModifierKeys.Shift)
+            {
+                e.Handled = true;
+                CloseForm();
+            }
         }
 
         #endregion
