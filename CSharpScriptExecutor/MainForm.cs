@@ -15,6 +15,7 @@ namespace CSharpScriptExecutor
     {
         #region Fields
 
+        private bool m_isScriptFormActive;
         private Size m_lastScriptFormSize;
         private string m_lastScriptFormScript;
 
@@ -54,11 +55,22 @@ namespace CSharpScriptExecutor
 
         private void ShowScriptForm()
         {
+            if (m_isScriptFormActive)
+            {
+                return;
+            }
+
             var workingArea = Screen.FromControl(this).WorkingArea;
+
             Cursor oldCursor = Cursor.Current;
+            var oldRunEnabled = tsmiRun.Enabled;
+            var oldAboutEnabled = tsmiAbout.Enabled;
             try
             {
+                m_isScriptFormActive = true;
                 Cursor.Current = Cursors.AppStarting;
+                tsmiRun.Enabled = false;
+                tsmiAbout.Enabled = false;
 
                 using (var scriptForm = new ScriptForm())
                 {
@@ -72,21 +84,8 @@ namespace CSharpScriptExecutor
                         workingArea.Height - scriptForm.Size.Height);
                     scriptForm.Script = m_lastScriptFormScript;
 
-                    var oldRunEnabled = tsmiRun.Enabled;
-                    var oldAboutEnabled = tsmiAbout.Enabled;
-                    try
-                    {
-                        tsmiRun.Enabled = false;
-                        tsmiAbout.Enabled = false;
-
-                        scriptForm.ShowDialog(this);
-                        Cursor.Current = Cursors.AppStarting;
-                    }
-                    finally
-                    {
-                        tsmiRun.Enabled = oldRunEnabled;
-                        tsmiAbout.Enabled = oldAboutEnabled;
-                    }
+                    scriptForm.ShowDialog(this);
+                    Cursor.Current = Cursors.AppStarting;
 
                     m_lastScriptFormSize = scriptForm.Size;
                     m_lastScriptFormScript = scriptForm.Script;
@@ -94,7 +93,11 @@ namespace CSharpScriptExecutor
             }
             finally
             {
+                tsmiRun.Enabled = oldRunEnabled;
+                tsmiAbout.Enabled = oldAboutEnabled;
                 Cursor.Current = oldCursor;
+
+                m_isScriptFormActive = false;
             }
         }
 

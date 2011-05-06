@@ -364,63 +364,49 @@ namespace CSharpScriptExecutor.Common
             CompilerResults compilerResults;
             using (var codeProvider = new CSharpCodeProvider())
             {
-                string sourceContent = null;
-                Func<string> getSourceContent =
-                    () =>
+                var generatedCodeBuilder = new StringBuilder();
+                using (var sw = new StringWriter(generatedCodeBuilder))
+                {
+                    var options = new CodeGeneratorOptions()
                     {
-                        if (!string.IsNullOrWhiteSpace(sourceContent))
-                        {
-                            return sourceContent;
-                        }
-
-                        var sourceBuilder = new StringBuilder();
-                        using (var sw = new StringWriter(sourceBuilder))
-                        {
-                            var options = new CodeGeneratorOptions()
-                            {
-                                BlankLinesBetweenMembers = true,
-                                BracingStyle = c_bracingStyle,
-                                ElseOnClosing = false,
-                                IndentString = c_indentString,
-                                VerbatimOrder = true
-                            };
-                            codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
-                        }
-
-                        sourceContent = sourceBuilder.ToString();
-                        return sourceContent;
+                        BlankLinesBetweenMembers = true,
+                        BracingStyle = c_bracingStyle,
+                        ElseOnClosing = false,
+                        IndentString = c_indentString,
+                        VerbatimOrder = true
                     };
+                    codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
+                }
+
+                var generatedCode = generatedCodeBuilder.ToString();
 
                 if (isDebuggable)
                 {
                     var filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, s_sourceFileExtension);
-                    File.WriteAllText(filePath, getSourceContent(), Encoding.UTF8);
+                    File.WriteAllText(filePath, generatedCode, Encoding.UTF8);
 
                     compilerResults = codeProvider.CompileAssemblyFromFile(compilerParameters, filePath);
                 }
                 else
                 {
-                    compilerResults = codeProvider.CompileAssemblyFromDom(compilerParameters, compileUnit);
+                    compilerResults = codeProvider.CompileAssemblyFromSource(compilerParameters, generatedCode);
                 }
 
                 if (compilerResults.Errors.HasErrors)
                 {
-                    var sb = new StringBuilder();
-                    //sb.AppendLine("*** Error compiling script ***");
-                    sb.AppendLine("Errors:");
                     var onlyErrors = compilerResults
                         .Errors
                         .Cast<CompilerError>()
                         .Where(error => !error.IsWarning)
                         .ToList();
 
-                    foreach (CompilerError error in onlyErrors)
-                    {
-                        sb.AppendLine(string.Format("  {0}", error));
-                    }
-                    //sb.AppendLine("Source:");
-                    //sb.Append(getSourceContent());
-                    //sb.AppendLine();
+                    //var sb = new StringBuilder();
+                    //sb.AppendLine("Error compiling script:");
+
+                    //foreach (CompilerError error in onlyErrors)
+                    //{
+                    //    sb.AppendLine(string.Format("  {0}", error));
+                    //}
 
                     var offsetWarning = compilerResults
                         .Errors
@@ -431,11 +417,11 @@ namespace CSharpScriptExecutor.Common
 
                     m_executionResult = ScriptExecutionResult.CreateError(
                         ScriptExecutionResultType.CompilationError,
-                        new ScriptExecutorException(sb.ToString()),
+                        new ScriptExecutorException("Error compiling script"),
                         string.Empty,
                         string.Empty,
                         m_script,
-                        getSourceContent(),
+                        generatedCode,
                         onlyErrors,
                         sourceCodeLineOffset);
                     return;
@@ -460,7 +446,7 @@ namespace CSharpScriptExecutor.Common
                     throw new ScriptExecutorException(
                         string.Format("Cannot obtain the predefined type \"{0}\".", c_predefinedTypeName),
                         m_script,
-                        getSourceContent());
+                        generatedCode);
                 }
 
                 var compiledMethod = compiledType.GetMethod(
@@ -474,7 +460,7 @@ namespace CSharpScriptExecutor.Common
                             c_predefinedMethodName,
                             c_predefinedTypeName),
                         m_script,
-                        getSourceContent());
+                        generatedCode);
                 }
 
                 var compiledPredefinedConstructor = compiledType.GetConstructor(
@@ -489,7 +475,7 @@ namespace CSharpScriptExecutor.Common
                             "Cannot obtain the predefined parameterless constructor in the type \"{0}\".",
                             c_predefinedTypeName),
                         m_script,
-                        getSourceContent());
+                        generatedCode);
                 }
 
                 var allDeclaredMembers = compiledType.GetMembers(c_allDecalredMemberBindingFlags).ToList();
@@ -503,7 +489,7 @@ namespace CSharpScriptExecutor.Common
                     throw new ScriptExecutorException(
                         "The script must not contain any members and must be just a code snippet.",
                         m_script,
-                        getSourceContent());
+                        generatedCode);
                 }
 
                 var methodDelegate = (Action<string[]>)Delegate.CreateDelegate(
@@ -519,7 +505,7 @@ namespace CSharpScriptExecutor.Common
                             Type.Delimiter,
                             compiledMethod.Name),
                         m_script,
-                        getSourceContent());
+                        generatedCode);
                 }
 
                 var consoleOutBuilder = new StringBuilder();
@@ -546,7 +532,7 @@ namespace CSharpScriptExecutor.Common
                                 consoleOutBuilder.ToString(),
                                 consoleErrorBuilder.ToString(),
                                 m_script,
-                                getSourceContent(),
+                                generatedCode,
                                 null,
                                 null);
                             return;
@@ -561,7 +547,7 @@ namespace CSharpScriptExecutor.Common
                         string.Empty,
                         string.Empty,
                         m_script,
-                        getSourceContent(),
+                        generatedCode,
                         null,
                         null);
                     return;
@@ -576,7 +562,7 @@ namespace CSharpScriptExecutor.Common
                     consoleOutBuilder.ToString(),
                     consoleErrorBuilder.ToString(),
                     m_script,
-                    getSourceContent());
+                    generatedCode);
             }
         }
 

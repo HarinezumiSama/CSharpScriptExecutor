@@ -17,6 +17,8 @@ namespace CSharpScriptExecutor
 
     // TODO: `Auto-run if successful compilation` check box
 
+    // TODO: Script history
+
     public partial class ScriptForm : Form
     {
         #region Constructors
