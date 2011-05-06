@@ -181,6 +181,13 @@ namespace CSharpScriptExecutor.Common
                         break;
                     }
 
+                    if (s_prohibitedDirectiveRegex.IsMatch(line))
+                    {
+                        throw new ScriptExecutorException(
+                            "Directive '#line' is prohibited to use in a script"
+                                + " (even in the multiline comment block).");
+                    }
+
                     scriptLines.Add(line);
                 }
             }
@@ -217,34 +224,7 @@ namespace CSharpScriptExecutor.Common
                 }
             }
 
-            outputScriptLines = new List<string>(scriptLines.Count - startLineIndex);
-            bool hasFirstNotEmptyLine = false;
-            for (int index = startLineIndex; index < scriptLines.Count; index++)
-            {
-                var scriptLine = scriptLines[index];
-                if (s_prohibitedDirectiveRegex.IsMatch(scriptLine))
-                {
-                    throw new ScriptExecutorException(
-                        "Directive '#line' is prohibited to use in a script (even in the multiline comment block).");
-                }
-
-                if (!hasFirstNotEmptyLine && string.IsNullOrWhiteSpace(scriptLine))
-                {
-                    continue;
-                }
-
-                hasFirstNotEmptyLine = true;
-                outputScriptLines.Add(scriptLine);
-            }
-            for (int index = outputScriptLines.Count - 1; index >= 0; index--)
-            {
-                if (!string.IsNullOrWhiteSpace(outputScriptLines[index]))
-                {
-                    break;
-                }
-
-                outputScriptLines.RemoveAt(index);
-            }
+            outputScriptLines = scriptLines.Skip(startLineIndex).ToList();
             outputScriptLines.TrimExcess();
         }
 

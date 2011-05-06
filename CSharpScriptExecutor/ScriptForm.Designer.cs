@@ -228,6 +228,7 @@
             // 
             this.rtbConsoleOut.DetectUrls = false;
             this.rtbConsoleOut.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.rtbConsoleOut.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.rtbConsoleOut.HideSelection = false;
             this.rtbConsoleOut.Location = new System.Drawing.Point(3, 3);
             this.rtbConsoleOut.Name = "rtbConsoleOut";
@@ -252,6 +253,7 @@
             // 
             this.rtbConsoleError.DetectUrls = false;
             this.rtbConsoleError.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.rtbConsoleError.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.rtbConsoleError.HideSelection = false;
             this.rtbConsoleError.Location = new System.Drawing.Point(3, 3);
             this.rtbConsoleError.Name = "rtbConsoleError";
