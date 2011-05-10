@@ -1,6 +1,7 @@
 ﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -17,8 +18,13 @@ namespace CSharpScriptExecutor
     {
         #region Constants
 
-        private const string c_debugParameter = "/Debug";
-        private const string c_guiParameter = "/GUI";
+        private const string c_parameterPrefix = "/";
+        private const string c_parameterPrefixAlt = "-";
+        private const string c_parameterStopper = "--";
+
+        private const string c_debugParameter = "Debug";
+        private const string c_pauseParameter = "Pause";
+        private const string c_guiParameter = "GUI";
 
         #endregion
 
@@ -36,12 +42,13 @@ namespace CSharpScriptExecutor
             s_programVersion,
             s_programCopyright);
 
+        private static string[] s_switches;
+        private static bool s_makePause;
+        private static bool s_isDebugMode;
+
         #endregion
 
         #region Private Methods
-
-        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-        private static extern bool FreeConsole();
 
         private static TAttribute GetSoleAssemblyAttribute<TAttribute>()
             where TAttribute : Attribute
@@ -58,12 +65,87 @@ namespace CSharpScriptExecutor
             return attributes[0];
         }
 
-        private static void ShowHelp()
+        private static void ShowHelp(bool isConsoleMode)
         {
-            Console.WriteLine(s_fullProgramName);
-            Console.WriteLine("Usage:");
-            Console.WriteLine("  {0} [/Debug | /GUI] <Script> [ScriptParameters...]", s_programName);
-            Console.WriteLine();
+            StringBuilder sb = new StringBuilder()
+                .AppendLine(s_fullProgramName)
+                .AppendLine("Usage:")
+                .AppendFormat(
+                    "  {0} [{1}{2} | {1}{3}] [{1}{4}] <Script> [ScriptParameters...]",
+                    s_programName,
+                    c_parameterPrefix,
+                    c_debugParameter,
+                    c_guiParameter,
+                    c_pauseParameter)
+                .AppendLine();
+
+            if (isConsoleMode)
+            {
+                Console.WriteLine();
+                Console.WriteLine(sb.ToString());
+                Console.WriteLine();
+            }
+            else
+            {
+                MessageBox.Show(sb.ToString(), s_programName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private static void ShowGuiError(string text, string caption)
+        {
+            MessageBox.Show(
+                text,
+                caption,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Exclamation);
+        }
+
+        private static bool InitializeConsole()
+        {
+            //if (!WinApi.AttachConsole(WinApi.ATTACH_PARENT_PROCESS))
+            //{
+            //    if (!WinApi.AllocConsole())
+            //    {
+            //        var lastError = Marshal.GetLastWin32Error();
+            //        string errorMessage = string.Format(
+            //            "Unable to switch to console mode: {0}",
+            //            new Win32Exception(lastError).Message);
+
+            //        ShowGuiError(errorMessage, s_programName);
+            //        return false;
+            //    }
+            //}
+
+            Console.CancelKeyPress += Console_CancelKeyPress;
+
+            return true;
+        }
+
+        private static bool InitializeGui()
+        {
+            WinApi.AttachConsole(WinApi.ATTACH_PARENT_PROCESS);
+
+            if (!WinApi.FreeConsole())
+            {
+                var error = Marshal.GetLastWin32Error();
+                string errorMessage = string.Format(
+                    "Unable to switch to GUI mode: {0}",
+                    new Win32Exception(error).Message);
+
+                try
+                {
+                    Console.WriteLine("{0}: {1}", s_programName, errorMessage);
+                }
+                catch (Exception)
+                {
+                    // Nothing to do
+                }
+
+                ShowGuiError(errorMessage, s_programName);
+                return false;
+            }
+
+            return true;
         }
 
         private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
@@ -74,18 +156,21 @@ namespace CSharpScriptExecutor
             }
         }
 
-        private static int RunInGuiMode()
+        private static void AutoWaitForKey()
         {
-            if (!FreeConsole())
+            if (Debugger.IsAttached || s_makePause)
             {
-                MessageBox.Show(
-                    "Unable to switch to GUI mode.",
-                    s_programName,
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Exclamation);
-                return 255;
+                Console.WriteLine("* Press any key to exit...");
+                while (!Console.KeyAvailable)
+                {
+                    // Nothing to do
+                }
+                Console.ReadKey(true);
             }
+        }
 
+        private static int RunInGuiMode(string[] arguments)
+        {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -94,6 +179,7 @@ namespace CSharpScriptExecutor
             // Preloading causes InvalidOperationException with the message:
             // 'The calling thread cannot access this object because a different thread owns it.' from time to time.
             // It seems that ElementHost is the reason for that.
+
             #region Preloading form and its components in background since AvalonEdit is a heavy component
 
             //            Thread preloadThread = new Thread(
@@ -127,17 +213,91 @@ namespace CSharpScriptExecutor
             return 0;
         }
 
-        private static void WiatForKeyIfUnderDebugger()
+        private static int RunInConsoleMode(string[] arguments)
         {
-            if (Debugger.IsAttached)
+            if (arguments.Length <= 0)
             {
-                Console.WriteLine("* Press any key to exit...");
-                while (!Console.KeyAvailable)
-                {
-                    // Nothing to do
-                }
-                Console.ReadKey(true);
+                //Console.WriteLine();
+                ShowHelp(true);
+                return 1;
             }
+
+            Console.WriteLine();
+
+            string scriptFilePath = Path.GetFullPath(arguments[0]);
+            var scriptArguments = arguments.Skip(1).ToArray();
+            var scriptSource = File.ReadAllText(scriptFilePath);
+            var executorParameters = new ScriptExecutorParameters(scriptSource, scriptArguments, s_isDebugMode);
+
+            ScriptExecutionResult executionResult;
+            try
+            {
+                using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
+                {
+                    executionResult = scriptExecutor.Execute();
+                }
+            }
+            catch (Exception ex)
+            {
+                executionResult = ScriptExecutionResult.CreateInternalError(
+                    ex,
+                    string.Empty,
+                    string.Empty,
+                    scriptSource,
+                    null);
+            }
+
+            Console.WriteLine(executionResult.ConsoleOut);
+            Console.WriteLine(executionResult.ConsoleError);
+
+            switch (executionResult.Type)
+            {
+                case ScriptExecutionResultType.InternalError:
+                case ScriptExecutionResultType.CompilationError:
+                case ScriptExecutionResultType.ExecutionError:
+                    {
+                        Console.WriteLine();
+                        Console.WriteLine("* Error processing script file \"{0}\":", scriptFilePath);
+                        Console.WriteLine("* Error type: {0}", executionResult.Type.ToString());
+                        Console.WriteLine(executionResult.Message);
+                        if (executionResult.Type == ScriptExecutionResultType.CompilationError)
+                        {
+                            foreach (var compilerError in executionResult.CompilerErrors)
+                            {
+                                Console.WriteLine(compilerError.ToString());
+                            }
+                        }
+                        if (!string.IsNullOrEmpty(executionResult.SourceCode))
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine(" * Source code <START");
+                            Console.WriteLine(executionResult.SourceCode);
+                            Console.WriteLine(" * Source code END>");
+                        }
+                        if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine(" * Generated code <START");
+                            Console.WriteLine(executionResult.GeneratedCode);
+                            Console.WriteLine(" * Generated code END>");
+                        }
+                        Console.WriteLine();
+
+                        return 200;
+                    }
+
+                case ScriptExecutionResultType.Success:
+                    // Nothing to do
+                    break;
+
+                default:
+                    throw new NotImplementedException(
+                        string.Format(
+                            "Not implemented script execution result type ({0}).",
+                            executionResult.Type.ToString()));
+            }
+
+            return 0;
         }
 
         #endregion
@@ -170,100 +330,77 @@ namespace CSharpScriptExecutor
             {
                 throw new ArgumentNullException("arguments");
             }
+            if (arguments.Contains(null))
+            {
+                throw new ArgumentException("The collection contains a null element.", "arguments");
+            }
 
             #endregion
 
+            s_switches = arguments
+                .TakeWhile(
+                    item => (item.StartsWith(c_parameterPrefix) || item.StartsWith(c_parameterPrefixAlt))
+                        && item != c_parameterStopper)
+                .Select(item => item.Substring(c_parameterPrefix.Length))
+                .ToArray();
+            var actualArguments = arguments
+                .SkipWhile((item, i) => i < s_switches.Length || item == c_parameterStopper)
+                .ToArray();
+
+            Func<string, string, bool> switchEqual =
+                (@switch, parameter) => StringComparer.OrdinalIgnoreCase.Equals(@switch, parameter);
+
+            var guiMode = false;
+            foreach (var @switch in s_switches)
+            {
+                if (switchEqual(@switch, c_guiParameter))
+                {
+                    guiMode = true;
+                    continue;
+                }
+                if (switchEqual(@switch, c_debugParameter))
+                {
+                    s_isDebugMode = true;
+                    continue;
+                }
+                if (switchEqual(@switch, c_pauseParameter))
+                {
+                    s_makePause = true;
+                    continue;
+                }
+
+                ShowHelp(false);
+                return 1;
+            }
+
             try
             {
-                if (arguments.Length <= 0)
+                if (guiMode)
                 {
-                    Console.WriteLine();
-                    ShowHelp();
-                    return 1;
-                }
-
-                if (StringComparer.OrdinalIgnoreCase.Equals(arguments.First(), c_guiParameter))
-                {
-                    return RunInGuiMode();
-                }
-
-                Console.CancelKeyPress += Console_CancelKeyPress;
-                Console.WriteLine();
-
-                bool isDebugMode = false;
-
-                int argumentOffset = 0;
-                if (StringComparer.OrdinalIgnoreCase.Equals(arguments.First(), c_debugParameter))
-                {
-                    isDebugMode = true;
-                    argumentOffset++;
-                }
-                string scriptFilePath = Path.GetFullPath(arguments[argumentOffset]);
-                var actualArguments = arguments.Skip(argumentOffset + 1).ToArray();
-                var script = File.ReadAllText(scriptFilePath);
-                var executorParameters = new ScriptExecutorParameters(script, actualArguments, isDebugMode);
-
-                ScriptExecutionResult executionResult;
-                try
-                {
-                    using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
+                    if (!InitializeGui())
                     {
-                        executionResult = scriptExecutor.Execute();
+                        return 255;
                     }
+
+                    return RunInGuiMode(actualArguments);
                 }
-                catch (Exception ex)
+
+                if (!InitializeConsole())
                 {
-                    executionResult = ScriptExecutionResult.CreateInternalError(
-                        ex,
-                        string.Empty,
-                        string.Empty,
-                        script,
-                        null);
+                    return 255;
                 }
+            }
+            catch (Exception ex)
+            {
+                ShowGuiError(ex.ToString(), s_programName);
+                return 255;
+            }
 
-                Console.WriteLine(executionResult.ConsoleOut);
-                Console.WriteLine(executionResult.ConsoleError);
-
-                switch (executionResult.Type)
-                {
-                    case ScriptExecutionResultType.InternalError:
-                    case ScriptExecutionResultType.CompilationError:
-                    case ScriptExecutionResultType.ExecutionError:
-                        {
-                            Console.WriteLine();
-                            Console.WriteLine("* Error processing script file \"{0}\":", scriptFilePath);
-                            Console.WriteLine("* Error type: {0}", executionResult.Type.ToString());
-                            Console.WriteLine(executionResult.Message);
-                            if (!string.IsNullOrEmpty(executionResult.SourceCode))
-                            {
-                                Console.WriteLine();
-                                Console.WriteLine(" * Source code <START");
-                                Console.WriteLine(executionResult.SourceCode);
-                                Console.WriteLine(" * Source code END>");
-                            }
-                            if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
-                            {
-                                Console.WriteLine();
-                                Console.WriteLine(" * Generated code <START");
-                                Console.WriteLine(executionResult.GeneratedCode);
-                                Console.WriteLine(" * Generated code END>");
-                            }
-                            Console.WriteLine();
-
-                            Program.WiatForKeyIfUnderDebugger();
-                            return 200;
-                        }
-
-                    case ScriptExecutionResultType.Success:
-                        // Nothing to do
-                        break;
-
-                    default:
-                        throw new NotImplementedException(
-                            string.Format(
-                                "Not implemented script execution result type ({0}).",
-                                executionResult.Type.ToString()));
-                }
+            try
+            {
+                var consoleModeResult = RunInConsoleMode(actualArguments);
+                Program.AutoWaitForKey();
+                return consoleModeResult;
             }
             catch (Exception ex)
             {
@@ -272,16 +409,9 @@ namespace CSharpScriptExecutor
                 Console.WriteLine(ex.ToString());
                 Console.WriteLine();
 
-                Program.WiatForKeyIfUnderDebugger();
+                Program.AutoWaitForKey();
                 return 255;
             }
-            finally
-            {
-                ScriptExecutorProxy.TempFiles.Delete();
-            }
-
-            Program.WiatForKeyIfUnderDebugger();
-            return 0;
         }
 
         #endregion

@@ -12,9 +12,6 @@ namespace CSharpScriptExecutor.Common
     {
         #region Fields
 
-        [ThreadStatic]
-        private static TempFileCollection s_tempFiles;
-
         private readonly Guid m_scriptId;
         private AppDomain m_domain;
         private ScriptExecutor m_scriptExecutor;
@@ -63,24 +60,6 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
-        #region Public Properties
-
-        public static TempFileCollection TempFiles
-        {
-            [DebuggerNonUserCode]
-            get
-            {
-                if (s_tempFiles == null)
-                {
-                    s_tempFiles = new TempFileCollection();
-                }
-
-                return s_tempFiles;
-            }
-        }
-
-        #endregion
-
         #region IScriptExecutor Members
 
         [MethodImpl(MethodImplOptions.Synchronized)]
@@ -124,16 +103,40 @@ namespace CSharpScriptExecutor.Common
         #region IDisposable Members
 
         [MethodImpl(MethodImplOptions.Synchronized)]
-        public void Dispose()
+        void IDisposable.Dispose()
         {
             if (m_isDisposed)
             {
                 return;
             }
 
-            m_scriptExecutor = null;
-            AppDomain.Unload(m_domain);
-            m_domain = null;
+            TemporaryFileList temporaryFiles = null;
+            if (m_scriptExecutor != null)
+            {
+                temporaryFiles = m_scriptExecutor.GetTemporaryFiles();
+
+                try
+                {
+                    m_scriptExecutor.Dispose();
+                }
+                catch (Exception)
+                {
+                    // Nothing to do
+                }
+                m_scriptExecutor = null;
+            }
+
+            if (m_domain != null)
+            {
+                AppDomain.Unload(m_domain);
+                m_domain = null;
+            }
+
+            // After the domain is unloaded we may try to delete the temporary files
+            if (temporaryFiles != null)
+            {
+                temporaryFiles.Delete();
+            }
 
             // Finally, setting the flag
             m_isDisposed = true;

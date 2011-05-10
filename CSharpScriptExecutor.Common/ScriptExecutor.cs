@@ -107,6 +107,7 @@ namespace CSharpScriptExecutor.Common
         private readonly string[] m_arguments;
         private readonly bool m_isDebugMode;
         private readonly List<string> m_scriptLines;
+        private readonly TemporaryFileList m_tempFiles = new TemporaryFileList();
 
         private ScriptExecutionResult m_executionResult;
 
@@ -234,7 +235,7 @@ namespace CSharpScriptExecutor.Common
 
         private CodeConstructor CreatePredefinedConstructor()
         {
-            return new CodeConstructor
+            var result = new CodeConstructor
             {
                 CustomAttributes =
                 {
@@ -245,9 +246,13 @@ namespace CSharpScriptExecutor.Common
                 StartDirectives =
                 {
                     new CodeRegionDirective(CodeRegionMode.Start, "Auto-generated code")
-                },
-                EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) }
+                }
             };
+            if (!m_isDebugMode)
+            {
+                result.EndDirectives.Add(new CodeRegionDirective(CodeRegionMode.End, string.Empty));
+            }
+            return result;
         }
 
         private CodeMemberMethod CreateDebugMethod()
@@ -270,6 +275,12 @@ namespace CSharpScriptExecutor.Common
             {
                 Name = c_debugMethodName,
                 Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
+                CustomAttributes =
+                {
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(DebuggerStepThroughAttribute))),
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(CompilerGeneratedAttribute)))
+                },
+                EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) },
                 ReturnType = new CodeTypeReference(typeof(void)),
                 Statements =
                 {
@@ -303,8 +314,7 @@ namespace CSharpScriptExecutor.Common
                     "#warning [For internal purposes] {1}{0}"
                         + "{2}{0}"
                         + "{0}"
-                        + "{3}; // Auto-generated{0}"
-                        + "{3}return null; // Auto-generated",
+                        + "{3}; return null; // Auto-generated",
                     Environment.NewLine,
                     offsetWarningId,
                     formattedScriptLinesString,
@@ -333,7 +343,7 @@ namespace CSharpScriptExecutor.Common
                     new CodeExpressionStatement(
                         new CodeMethodInvokeExpression(
                             new CodeMethodReferenceExpression(
-                                new CodeThisReferenceExpression(),
+                                null,
                                 c_debugMethodName)))
                     {
                         StartDirectives =
@@ -475,7 +485,7 @@ namespace CSharpScriptExecutor.Common
                         SearchOption.TopDirectoryOnly);
                     foreach (string file in files)
                     {
-                        ScriptExecutorProxy.TempFiles.AddFile(file, false);
+                        m_tempFiles.Add(file);
                     }
                 }
 
@@ -663,6 +673,11 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new InvalidOperationException("Execution result is not assigned after execution.");
             }
+        }
+
+        internal TemporaryFileList GetTemporaryFiles()
+        {
+            return m_tempFiles.Copy();
         }
 
         #endregion

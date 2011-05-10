@@ -55,6 +55,9 @@
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="ICSharpCode.AvalonEdit">
       <HintPath>..\Binaries\ICSharpCode.AvalonEdit.dll</HintPath>
@@ -103,6 +106,7 @@
     <Compile Include="TextEditorWrapper.xaml.cs">
       <DependentUpon>TextEditorWrapper.xaml</DependentUpon>
     </Compile>
+    <Compile Include="WinApi.cs" />
     <None Include="app.config" />
     <None Include="CSharpScriptExecutor.snk" />
     <None Include="Samples\HelloWorldSample.csxs" />
