@@ -21,7 +21,10 @@ namespace CSharpScriptExecutor.Common
 
         private static readonly ScriptReturnValue s_null = new ScriptReturnValue(null);
 
-        private readonly Dictionary<PropertyInfo, ScriptReturnValue> m_propertyValueMap;
+        private readonly Dictionary<string, ScriptReturnValue> m_propertyValueMap =
+            new Dictionary<string, ScriptReturnValue>();
+        private readonly Dictionary<string, ScriptReturnValue> m_fieldValueMap =
+            new Dictionary<string, ScriptReturnValue>();
 
         #endregion
 
@@ -30,39 +33,57 @@ namespace CSharpScriptExecutor.Common
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptReturnValue"/> class.
         /// </summary>
-        private ScriptReturnValue(object returnValue)
+        private ScriptReturnValue(object value)
         {
-            m_propertyValueMap = new Dictionary<PropertyInfo, ScriptReturnValue>();
-
-            if (ReferenceEquals(returnValue, null))
+            if (ReferenceEquals(value, null))
             {
-                //Type = typeof(void);
                 IsSimpleType = true;
                 AsString = "<null>";
                 return;
             }
 
-            Type = returnValue.GetType();
-            IsSimpleType = Type.IsPrimitive || Type == typeof(string) || Type == typeof(decimal)
-                || Type == typeof(DateTime);
+            var type = value.GetType();
 
-            Func<string> toStringMethod = returnValue.ToString;
+            this.TypeFullName = type.FullName;
+            this.TypeAssemblyName = type.Assembly.GetName();
+            this.TypeQualifiedName = type.AssemblyQualifiedName;
+            this.IsSimpleType = type.IsPrimitive || type.IsEnum || type == typeof(char) || type == typeof(string)
+                || type == typeof(decimal) || type == typeof(DateTime) || type == typeof(DateTimeOffset);
+
+            Func<string> toStringMethod = value.ToString;
             try
             {
-                AsString = toStringMethod();
+                this.AsString = toStringMethod();
             }
             catch (Exception ex)
             {
-                AsString = string.Format(
+                this.AsString = string.Format(
                     "An exception {0} occurred on calling value's {1} method: {2}",
                     ex.GetType().FullName,
                     toStringMethod.Method.Name,
                     ex.Message);
             }
 
-            if (!IsSimpleType)
+            if (!this.IsSimpleType)
             {
-                //TODO: Populate property map
+                var propertyInfos = type
+                    .GetProperties(c_memberBindingFlags)
+                    .Where(item => item.CanRead && !item.GetIndexParameters().Any())
+                    .ToList();
+                foreach (var propertyInfo in propertyInfos)
+                {
+                    var propertyValue = propertyInfo.GetValue(value, null);
+                    var wrappedPropertyValue = new ScriptReturnValue(propertyValue);
+                    m_propertyValueMap.Add(propertyInfo.Name, wrappedPropertyValue);
+                }
+
+                var fieldInfos = type.GetFields(c_memberBindingFlags);
+                foreach (var fieldInfo in fieldInfos)
+                {
+                    var fieldValue = fieldInfo.GetValue(value);
+                    var wrappedFieldValue = new ScriptReturnValue(fieldValue);
+                    m_propertyValueMap.Add(fieldInfo.Name, wrappedFieldValue);
+                }
             }
         }
 
@@ -85,7 +106,19 @@ namespace CSharpScriptExecutor.Common
 
         #region Public Properties
 
-        public Type Type
+        public string TypeFullName
+        {
+            get;
+            private set;
+        }
+
+        public AssemblyName TypeAssemblyName
+        {
+            get;
+            private set;
+        }
+
+        public string TypeQualifiedName
         {
             get;
             private set;
