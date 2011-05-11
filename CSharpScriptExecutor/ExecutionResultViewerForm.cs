@@ -66,47 +66,6 @@ namespace CSharpScriptExecutor
 
             #endregion
 
-            #region Private Methods
-
-            //private static System.Windows.Media.Pen CreateErrorPen()
-            //{
-            //    var geometry = new StreamGeometry();
-            //    using (var context = geometry.Open())
-            //    {
-            //        context.BeginFigure(new System.Windows.Point(0.0, 0.0), false, false);
-            //        context.PolyLineTo(
-            //            new[]
-            //            {
-            //                new System.Windows.Point(0.75, 0.75),
-            //                new System.Windows.Point(1.5, 0.0),
-            //                new System.Windows.Point(2.25, 0.75),
-            //                new System.Windows.Point(3.0, 0.0)
-            //            },
-            //            true,
-            //            true);
-            //    }
-
-            //    var brushPattern = new GeometryDrawing
-            //    {
-            //        Pen = new System.Windows.Media.Pen(System.Windows.Media.Brushes.Red, 0.5d),
-            //        Geometry = geometry
-            //    };
-
-            //    var brush = new DrawingBrush(brushPattern)
-            //    {
-            //        TileMode = TileMode.Tile,
-            //        Viewport = new Rect(0.0, 1.5, 9.0, 3.0),
-            //        ViewportUnits = BrushMappingMode.Absolute
-            //    };
-
-            //    var result = new System.Windows.Media.Pen(brush, 3.0);
-            //    result.Freeze();
-
-            //    return result;
-            //}
-
-            #endregion
-
             #region Protected Methods
 
             protected override void ColorizeLine(DocumentLine line)
@@ -118,26 +77,14 @@ namespace CSharpScriptExecutor
 
                 var errorBrush = new SolidColorBrush(Colors.LightPink);
 
-                if (m_compilerErrors.Any(item => item.Line == line.LineNumber + m_lineOffset))
+                var compiledLineNumber = line.LineNumber + m_lineOffset;
+                if (m_compilerErrors.Any(item => item.Line == compiledLineNumber)
+                    || (line.NextLine == null && m_compilerErrors.Any(item => item.Line > compiledLineNumber)))
                 {
                     ChangeLinePart(
                         line.Offset,
                         line.EndOffset,
-                        item =>
-                        {
-                            item.TextRunProperties.SetBackgroundBrush(errorBrush);
-
-                            //item.TextRunProperties.SetTextDecorations(
-                            //    new TextDecorationCollection(
-                            //        new[]
-                            //        {
-                            //            new TextDecoration()
-                            //            {
-                            //                Pen = s_errorPen,
-                            //                PenThicknessUnit = TextDecorationUnit.FontRecommended
-                            //            }
-                            //        }));
-                        });
+                        item => item.TextRunProperties.SetBackgroundBrush(errorBrush));
                 }
             }
 
@@ -217,10 +164,33 @@ namespace CSharpScriptExecutor
                     throw new NotImplementedException();
             }
 
-            tbMessage.Text = m_executionResult.Message;
+            tbMessage.Text = string.Format(
+                "{0}{1}{2}",
+                m_executionResult.Message,
+                Environment.NewLine,
+                string.Join(
+                    Environment.NewLine,
+                    m_executionResult.CompilerErrors.Select(item => FormatCompilerError(item, true))));
             scDetails.Panel1Collapsed = m_executionResult.IsSuccess;
             tewSourceCode.InnerEditor.Text = m_executionResult.SourceCode;
             tewGeneratedCode.InnerEditor.Text = m_executionResult.GeneratedCode;
+        }
+
+        private string FormatCompilerError(
+            CompilerError compilerError,
+            bool indent,
+            TextEditor sourceCodeEditor = null,
+            int lineOffset = 0)
+        {
+            return string.Format(
+                "{0}Script({1},{2}): error {3}: {4}",
+                indent ? "    " : string.Empty,
+                sourceCodeEditor != null
+                    ? Math.Min(compilerError.Line - lineOffset, sourceCodeEditor.LineCount)
+                    : compilerError.Line,
+                compilerError.Column,
+                compilerError.ErrorNumber,
+                compilerError.ErrorText);
         }
 
         #endregion
@@ -292,6 +262,7 @@ namespace CSharpScriptExecutor
             }
 
             var lineOffset = 0;
+            var isSourceCodeEditor = false;
             if (editor == tewSourceCode.InnerEditor)
             {
                 if (!m_executionResult.SourceCodeLineOffset.HasValue)
@@ -299,6 +270,7 @@ namespace CSharpScriptExecutor
                     return;
                 }
                 lineOffset = m_executionResult.SourceCodeLineOffset.Value;
+                isSourceCodeEditor = true;
             }
 
             var position = editor.GetPositionFromPoint(e.GetPosition(editor));
@@ -307,9 +279,13 @@ namespace CSharpScriptExecutor
                 return;
             }
 
+            var compiledLineNumber = position.Value.Line + lineOffset;
+
             var errors = m_executionResult
                 .CompilerErrors
-                .Where(item => item.Line == position.Value.Line + lineOffset)
+                .Where(item => item.Line == compiledLineNumber || item.Line > editor.LineCount)
+                .OrderBy(item => item.Line)
+                .ThenBy(item => item.Column)
                 .ToList();
             if (!errors.Any())
             {
@@ -318,7 +294,8 @@ namespace CSharpScriptExecutor
 
             var errorTooltip = string.Join(
                 Environment.NewLine,
-                errors.Select(item => string.Format("Error {0}: {1}", item.ErrorNumber, item.ErrorText)));
+                errors.Select(
+                item => FormatCompilerError(item, false, isSourceCodeEditor ? editor : null, lineOffset)));
 
             m_errorToolTip.PlacementTarget = editor;
             m_errorToolTip.Content = errorTooltip;

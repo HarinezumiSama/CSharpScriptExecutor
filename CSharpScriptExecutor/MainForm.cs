@@ -16,6 +16,7 @@ namespace CSharpScriptExecutor
         #region Fields
 
         private bool m_isScriptFormActive;
+        private ScriptForm m_scriptForm;
         private Size m_lastScriptFormSize;
         private string m_lastScriptFormScript;
 
@@ -58,6 +59,10 @@ namespace CSharpScriptExecutor
         {
             if (m_isScriptFormActive)
             {
+                if (m_scriptForm != null && m_scriptForm.Enabled)
+                {
+                    m_scriptForm.Activate();
+                }
                 return;
             }
 
@@ -73,23 +78,23 @@ namespace CSharpScriptExecutor
                 tsmiRun.Enabled = false;
                 tsmiAbout.Enabled = false;
 
-                using (var scriptForm = new ScriptForm())
+                using (m_scriptForm = new ScriptForm())
                 {
-                    scriptForm.Icon = this.Icon;
+                    m_scriptForm.Icon = this.Icon;
 
-                    scriptForm.Size = m_lastScriptFormSize.IsEmpty
+                    m_scriptForm.Size = m_lastScriptFormSize.IsEmpty
                         ? new Size(workingArea.Width * 3 / 5, workingArea.Height * 3 / 5)
                         : m_lastScriptFormSize;
-                    scriptForm.Location = new Point(
-                        workingArea.Width - scriptForm.Size.Width,
-                        workingArea.Height - scriptForm.Size.Height);
-                    scriptForm.Script = m_lastScriptFormScript;
+                    m_scriptForm.Location = new Point(
+                        workingArea.Width - m_scriptForm.Size.Width,
+                        workingArea.Height - m_scriptForm.Size.Height);
+                    m_scriptForm.Script = m_lastScriptFormScript;
 
-                    scriptForm.ShowDialog(this);
+                    m_scriptForm.ShowDialog(this);
                     Cursor.Current = Cursors.AppStarting;
 
-                    m_lastScriptFormSize = scriptForm.Size;
-                    m_lastScriptFormScript = scriptForm.Script;
+                    m_lastScriptFormSize = m_scriptForm.Size;
+                    m_lastScriptFormScript = m_scriptForm.Script;
                 }
             }
             finally
@@ -98,6 +103,7 @@ namespace CSharpScriptExecutor
                 tsmiAbout.Enabled = oldAboutEnabled;
                 Cursor.Current = oldCursor;
 
+                m_scriptForm = null;
                 m_isScriptFormActive = false;
             }
         }

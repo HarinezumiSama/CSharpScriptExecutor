@@ -66,6 +66,8 @@ namespace CSharpScriptExecutor.Common
 
             if (!this.IsSimpleType)
             {
+                // TODO: Special handling for IDictionary, IEnumerable etc.
+
                 var propertyInfos = type
                     .GetProperties(c_memberBindingFlags)
                     .Where(item => item.CanRead && !item.GetIndexParameters().Any())

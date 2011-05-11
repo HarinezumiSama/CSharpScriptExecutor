@@ -81,6 +81,7 @@ namespace CSharpScriptExecutor.Common
             "System.Reflection",
             "System.Text",
             "System.Text.RegularExpressions",
+            "System.Threading",
             "System.Web",
             "System.Windows.Forms",
             "System.Xml"
@@ -90,7 +91,7 @@ namespace CSharpScriptExecutor.Common
         {
             "System.dll",
             Assembly.GetAssembly(typeof(Enumerable)).Location,  // System.Linq.dll
-            Assembly.GetAssembly(typeof(RuntimeBinderException)).Location,  // Microsoft.CSharp.dll
+            Assembly.GetAssembly(typeof(RuntimeBinderException)).Location,  // Microsoft.CSharp.dll, for 'dynamic'
             "System.Data.dll",
             "System.Web.dll",
             "System.Windows.Forms.dll",
