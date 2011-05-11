@@ -179,15 +179,18 @@ namespace CSharpScriptExecutor
         private string FormatCompilerError(
             CompilerError compilerError,
             bool indent,
-            TextEditor sourceCodeEditor = null,
+            int? lineCount = null,
             int lineOffset = 0)
         {
+            var line = compilerError.Line - lineOffset;
+            if (lineCount.HasValue && line > lineCount.Value)
+            {
+                line = lineCount.Value;
+            }
             return string.Format(
                 "{0}Script({1},{2}): error {3}: {4}",
                 indent ? "    " : string.Empty,
-                sourceCodeEditor != null
-                    ? Math.Min(compilerError.Line - lineOffset, sourceCodeEditor.LineCount)
-                    : compilerError.Line,
+                line,
                 compilerError.Column,
                 compilerError.ErrorNumber,
                 compilerError.ErrorText);
@@ -261,6 +264,8 @@ namespace CSharpScriptExecutor
                 return;
             }
 
+            e.Handled = true;
+
             var lineOffset = 0;
             var isSourceCodeEditor = false;
             if (editor == tewSourceCode.InnerEditor)
@@ -280,10 +285,11 @@ namespace CSharpScriptExecutor
             }
 
             var compiledLineNumber = position.Value.Line + lineOffset;
+            var totalLineCount = editor.LineCount;
 
             var errors = m_executionResult
                 .CompilerErrors
-                .Where(item => item.Line == compiledLineNumber || item.Line > editor.LineCount)
+                .Where(item => item.Line == compiledLineNumber || item.Line > totalLineCount)
                 .OrderBy(item => item.Line)
                 .ThenBy(item => item.Column)
                 .ToList();
@@ -295,12 +301,15 @@ namespace CSharpScriptExecutor
             var errorTooltip = string.Join(
                 Environment.NewLine,
                 errors.Select(
-                item => FormatCompilerError(item, false, isSourceCodeEditor ? editor : null, lineOffset)));
+                    item => FormatCompilerError(
+                        item,
+                        false,
+                        isSourceCodeEditor ? totalLineCount : (int?)null,
+                        lineOffset)));
 
             m_errorToolTip.PlacementTarget = editor;
             m_errorToolTip.Content = errorTooltip;
             m_errorToolTip.IsOpen = true;
-            e.Handled = true;
         }
 
         private void CodeEditor_MouseHoverStopped(object sender, System.Windows.Input.MouseEventArgs e)
