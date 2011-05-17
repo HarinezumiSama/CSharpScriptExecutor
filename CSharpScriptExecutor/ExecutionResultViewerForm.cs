@@ -109,8 +109,12 @@ namespace CSharpScriptExecutor
             InitializeComponent();
 
             this.Text = string.Format("Execution Result — {0}", Program.ProgramName);
+
             tewSourceCode.InnerEditor.IsReadOnly = true;
+            tewSourceCode.Background = new SolidColorBrush(Colors.Gainsboro);
+
             tewGeneratedCode.InnerEditor.IsReadOnly = true;
+            tewGeneratedCode.Background = new SolidColorBrush(Colors.Gainsboro);
 
             tewSourceCode.InnerEditor.MouseHover += CodeEditor_MouseHover;
             tewSourceCode.InnerEditor.MouseHoverStopped += CodeEditor_MouseHoverStopped;
@@ -122,6 +126,55 @@ namespace CSharpScriptExecutor
         #endregion
 
         #region Private Methods
+
+        private void SetTabPageVisibility(TabPage page, bool visible)
+        {
+            #region Argument Check
+
+            if (page == null)
+            {
+                throw new ArgumentNullException("page");
+            }
+
+            #endregion
+
+            bool contains = tcResults.TabPages.Contains(page);
+
+            if (visible)
+            {
+                if (!contains)
+                {
+                    tcResults.TabPages.Add(page);  // TODO: Insert at right position automatically
+                }
+            }
+            else
+            {
+                if (contains)
+                {
+                    tcResults.TabPages.Remove(page);
+                }
+            }
+        }
+
+        private string FormatCompilerError(
+            CompilerError compilerError,
+            bool indent,
+            int? lineCount = null,
+            int lineOffset = 0)
+        {
+            var line = compilerError.Line - lineOffset;
+            if (lineCount.HasValue && line > lineCount.Value)
+            {
+                line = lineCount.Value;
+            }
+            return string.Format(
+                "{0}Script({1},{2}): error {3}: {4}",
+                indent ? "    " : string.Empty,
+                line,
+                compilerError.Column,
+                compilerError.ErrorNumber,
+                compilerError.ErrorText);
+        }
 
         private void ParseExecutionResult()
         {
@@ -164,6 +217,17 @@ namespace CSharpScriptExecutor
                     throw new NotImplementedException();
             }
 
+            var hasReturnValue = m_executionResult.IsSuccess && !m_executionResult.ReturnValue.IsNull();
+
+            SetTabPageVisibility(tpReturnValue, hasReturnValue);
+            pgReturnValue.SelectedObject = hasReturnValue ? m_executionResult.ReturnValue : null;
+
+            rtbConsoleOut.Text = m_executionResult.ConsoleOut;
+            SetTabPageVisibility(tpConsoleOut, !string.IsNullOrEmpty(m_executionResult.ConsoleOut));
+
+            rtbConsoleError.Text = m_executionResult.ConsoleError;
+            SetTabPageVisibility(tpConsoleError, !string.IsNullOrEmpty(m_executionResult.ConsoleError));
+
             tbMessage.Text = string.Format(
                 "{0}{1}{2}",
                 m_executionResult.Message,
@@ -174,26 +238,6 @@ namespace CSharpScriptExecutor
             scDetails.Panel1Collapsed = m_executionResult.IsSuccess;
             tewSourceCode.InnerEditor.Text = m_executionResult.SourceCode;
             tewGeneratedCode.InnerEditor.Text = m_executionResult.GeneratedCode;
-        }
-
-        private string FormatCompilerError(
-            CompilerError compilerError,
-            bool indent,
-            int? lineCount = null,
-            int lineOffset = 0)
-        {
-            var line = compilerError.Line - lineOffset;
-            if (lineCount.HasValue && line > lineCount.Value)
-            {
-                line = lineCount.Value;
-            }
-            return string.Format(
-                "{0}Script({1},{2}): error {3}: {4}",
-                indent ? "    " : string.Empty,
-                line,
-                compilerError.Column,
-                compilerError.ErrorNumber,
-                compilerError.ErrorText);
         }
 
         #endregion

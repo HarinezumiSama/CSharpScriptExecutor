@@ -31,6 +31,12 @@ namespace CSharpScriptExecutor
 
     public partial class ScriptForm : Form
     {
+        #region Fields
+
+        private ScriptExecutionResult m_executionResult;
+
+        #endregion
+
         #region Constructors
 
         public ScriptForm()
@@ -38,8 +44,8 @@ namespace CSharpScriptExecutor
             InitializeComponent();
 
             this.Text = string.Format("Script — {0}", Program.ProgramName);
-            scPanels.Panel2Collapsed = true;
-            tewTextEditor.KeyDown += this.tewTextEditor_KeyDown;
+            //tewTextEditor.KeyDown += this.tewTextEditor_KeyDown;
+            pbResult.Visible = false;
         }
 
         #endregion
@@ -79,12 +85,12 @@ namespace CSharpScriptExecutor
 
             Cursor oldCursor = Cursor.Current;
             var oldResultImage = pbResult.Image;
-            var oldResultTag = pbResult.Tag;
+            var oldExecutionResult = m_executionResult;
             try
             {
                 Cursor.Current = Cursors.WaitCursor;
                 pbResult.Image = Resources.Wait;
-                pbResult.Tag = null;
+                m_executionResult = null;
                 Application.DoEvents();
 
                 var parameters = new ScriptExecutorParameters(script, Enumerable.Empty<string>(), enableDebugging);
@@ -105,15 +111,6 @@ namespace CSharpScriptExecutor
                         script,
                         null);
                 }
-
-                rtbConsoleOut.Text = executionResult.ConsoleOut;
-                rtbConsoleError.Text = executionResult.ConsoleError;
-
-                if (!string.IsNullOrEmpty(executionResult.ConsoleOut)
-                    || !string.IsNullOrEmpty(executionResult.ConsoleError))
-                {
-                    ShowConsole(true);
-                }
             }
             catch (Exception ex)
             {
@@ -129,17 +126,23 @@ namespace CSharpScriptExecutor
                 pbResult.Image = executionResult == null
                     ? oldResultImage
                     : executionResult.IsSuccess ? Resources.OKShield_32x32 : Resources.ErrorCircle_32x32;
-                pbResult.Tag = executionResult ?? oldResultTag;
+                m_executionResult = executionResult ?? oldExecutionResult;
+                pbResult.Show();
 
                 Cursor.Current = oldCursor;
             }
 
-            if (executionResult != null && executionResult.IsSuccess)
+            if (executionResult == null)
             {
                 return;
             }
 
-            ShowExecutionResult(executionResult);
+            if (!executionResult.IsSuccess || !executionResult.ReturnValue.IsNull()
+                || !string.IsNullOrEmpty(executionResult.ConsoleOut)
+                || !string.IsNullOrEmpty(executionResult.ConsoleError))
+            {
+                ShowExecutionResult(executionResult);
+            }
         }
 
         private void SetControlStates()
@@ -149,41 +152,6 @@ namespace CSharpScriptExecutor
             btnDebug.Enabled = canRun;
             tsmiExecute.Enabled = canRun;
             tsmiDebug.Enabled = canRun;
-        }
-
-        private void ShowConsole(bool autoSelectTab = false)
-        {
-            scPanels.Panel2Collapsed = false;
-
-            if (autoSelectTab)
-            {
-                if (!string.IsNullOrEmpty(rtbConsoleOut.Text))
-                {
-                    tcConsole.SelectedTab = tpConsoleOut;
-                }
-                else if (!string.IsNullOrEmpty(rtbConsoleError.Text))
-                {
-                    tcConsole.SelectedTab = tpConsoleError;
-                }
-            }
-        }
-
-        private void HideConsole()
-        {
-            scPanels.Panel2Collapsed = true;
-            tewTextEditor.InnerEditor.Focus();
-        }
-
-        private void ToggleConsole()
-        {
-            if (scPanels.Panel2Collapsed)
-            {
-                ShowConsole();
-            }
-            else
-            {
-                HideConsole();
-            }
         }
 
         #endregion
@@ -249,11 +217,6 @@ namespace CSharpScriptExecutor
             CloseForm();
         }
 
-        private void tsmiScriptConsole_Click(object sender, EventArgs e)
-        {
-            ToggleConsole();
-        }
-
         private void tsmiExecute_Click(object sender, EventArgs e)
         {
             ExecuteScript(false);
@@ -266,7 +229,7 @@ namespace CSharpScriptExecutor
 
         private void pbResult_Click(object sender, EventArgs e)
         {
-            ShowExecutionResult(pbResult.Tag as ScriptExecutionResult);
+            ShowExecutionResult(m_executionResult);
         }
 
         private void ScriptForm_KeyDown(object sender, KeyEventArgs e)
@@ -288,5 +251,10 @@ namespace CSharpScriptExecutor
         }
 
         #endregion
+
+        private void tsmiShowResult_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

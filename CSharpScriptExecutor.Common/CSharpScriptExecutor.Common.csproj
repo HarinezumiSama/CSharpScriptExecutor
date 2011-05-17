@@ -74,6 +74,7 @@
     <Compile Include="ScriptExecutorParameters.cs" />
     <Compile Include="ScriptExecutorProxy.cs" />
     <Compile Include="ScriptReturnValue.cs" />
+    <Compile Include="ScriptReturnValueExtensions.cs" />
     <Compile Include="TemporaryFileList.cs" />
   </ItemGroup>
   <ItemGroup>

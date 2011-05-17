@@ -28,7 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.labScript = new System.Windows.Forms.Label();
             this.btnExecute = new System.Windows.Forms.Button();
             this.btnClose = new System.Windows.Forms.Button();
             this.btnDebug = new System.Windows.Forms.Button();
@@ -39,35 +38,13 @@
             this.tssSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiClose = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiView = new System.Windows.Forms.ToolStripMenuItem();
-            this.tsmiScriptConsole = new System.Windows.Forms.ToolStripMenuItem();
-            this.scPanels = new System.Windows.Forms.SplitContainer();
-            this.tcConsole = new System.Windows.Forms.TabControl();
-            this.tpConsoleOut = new System.Windows.Forms.TabPage();
-            this.rtbConsoleOut = new System.Windows.Forms.RichTextBox();
-            this.tpConsoleError = new System.Windows.Forms.TabPage();
-            this.rtbConsoleError = new System.Windows.Forms.RichTextBox();
+            this.tsmiShowResult = new System.Windows.Forms.ToolStripMenuItem();
             this.pbResult = new System.Windows.Forms.PictureBox();
             this.ehTextEditor = new System.Windows.Forms.Integration.ElementHost();
             this.tewTextEditor = new CSharpScriptExecutor.TextEditorWrapper();
             this.msMainMenu.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.scPanels)).BeginInit();
-            this.scPanels.Panel1.SuspendLayout();
-            this.scPanels.Panel2.SuspendLayout();
-            this.scPanels.SuspendLayout();
-            this.tcConsole.SuspendLayout();
-            this.tpConsoleOut.SuspendLayout();
-            this.tpConsoleError.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbResult)).BeginInit();
             this.SuspendLayout();
-            // 
-            // labScript
-            // 
-            this.labScript.AutoSize = true;
-            this.labScript.Location = new System.Drawing.Point(3, 0);
-            this.labScript.Name = "labScript";
-            this.labScript.Size = new System.Drawing.Size(37, 13);
-            this.labScript.TabIndex = 0;
-            this.labScript.Text = "&Script:";
             // 
             // btnExecute
             // 
@@ -157,102 +134,18 @@
             // tsmiView
             // 
             this.tsmiView.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.tsmiScriptConsole});
+            this.tsmiShowResult});
             this.tsmiView.Name = "tsmiView";
             this.tsmiView.Size = new System.Drawing.Size(44, 20);
             this.tsmiView.Text = "&View";
             // 
-            // tsmiScriptConsole
+            // tsmiShowResult
             // 
-            this.tsmiScriptConsole.Name = "tsmiScriptConsole";
-            this.tsmiScriptConsole.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.K)));
-            this.tsmiScriptConsole.Size = new System.Drawing.Size(231, 22);
-            this.tsmiScriptConsole.Text = "Toggle Script &Console";
-            this.tsmiScriptConsole.Click += new System.EventHandler(this.tsmiScriptConsole_Click);
-            // 
-            // scPanels
-            // 
-            this.scPanels.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.scPanels.Location = new System.Drawing.Point(16, 27);
-            this.scPanels.Name = "scPanels";
-            this.scPanels.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
-            // scPanels.Panel1
-            // 
-            this.scPanels.Panel1.Controls.Add(this.ehTextEditor);
-            this.scPanels.Panel1.Controls.Add(this.labScript);
-            this.scPanels.Panel1MinSize = 50;
-            // 
-            // scPanels.Panel2
-            // 
-            this.scPanels.Panel2.Controls.Add(this.tcConsole);
-            this.scPanels.Panel2MinSize = 50;
-            this.scPanels.Size = new System.Drawing.Size(456, 283);
-            this.scPanels.SplitterDistance = 149;
-            this.scPanels.TabIndex = 1;
-            // 
-            // tcConsole
-            // 
-            this.tcConsole.Controls.Add(this.tpConsoleOut);
-            this.tcConsole.Controls.Add(this.tpConsoleError);
-            this.tcConsole.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tcConsole.Location = new System.Drawing.Point(0, 0);
-            this.tcConsole.Name = "tcConsole";
-            this.tcConsole.SelectedIndex = 0;
-            this.tcConsole.Size = new System.Drawing.Size(456, 130);
-            this.tcConsole.TabIndex = 0;
-            // 
-            // tpConsoleOut
-            // 
-            this.tpConsoleOut.Controls.Add(this.rtbConsoleOut);
-            this.tpConsoleOut.Location = new System.Drawing.Point(4, 22);
-            this.tpConsoleOut.Name = "tpConsoleOut";
-            this.tpConsoleOut.Padding = new System.Windows.Forms.Padding(3);
-            this.tpConsoleOut.Size = new System.Drawing.Size(448, 104);
-            this.tpConsoleOut.TabIndex = 0;
-            this.tpConsoleOut.Text = "Out";
-            this.tpConsoleOut.UseVisualStyleBackColor = true;
-            // 
-            // rtbConsoleOut
-            // 
-            this.rtbConsoleOut.DetectUrls = false;
-            this.rtbConsoleOut.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.rtbConsoleOut.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.rtbConsoleOut.HideSelection = false;
-            this.rtbConsoleOut.Location = new System.Drawing.Point(3, 3);
-            this.rtbConsoleOut.Name = "rtbConsoleOut";
-            this.rtbConsoleOut.ReadOnly = true;
-            this.rtbConsoleOut.Size = new System.Drawing.Size(442, 98);
-            this.rtbConsoleOut.TabIndex = 0;
-            this.rtbConsoleOut.Text = "";
-            this.rtbConsoleOut.WordWrap = false;
-            // 
-            // tpConsoleError
-            // 
-            this.tpConsoleError.Controls.Add(this.rtbConsoleError);
-            this.tpConsoleError.Location = new System.Drawing.Point(4, 22);
-            this.tpConsoleError.Name = "tpConsoleError";
-            this.tpConsoleError.Padding = new System.Windows.Forms.Padding(3);
-            this.tpConsoleError.Size = new System.Drawing.Size(448, 104);
-            this.tpConsoleError.TabIndex = 1;
-            this.tpConsoleError.Text = "Error";
-            this.tpConsoleError.UseVisualStyleBackColor = true;
-            // 
-            // rtbConsoleError
-            // 
-            this.rtbConsoleError.DetectUrls = false;
-            this.rtbConsoleError.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.rtbConsoleError.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.rtbConsoleError.HideSelection = false;
-            this.rtbConsoleError.Location = new System.Drawing.Point(3, 3);
-            this.rtbConsoleError.Name = "rtbConsoleError";
-            this.rtbConsoleError.ReadOnly = true;
-            this.rtbConsoleError.Size = new System.Drawing.Size(442, 98);
-            this.rtbConsoleError.TabIndex = 1;
-            this.rtbConsoleError.Text = "";
-            this.rtbConsoleError.WordWrap = false;
+            this.tsmiShowResult.Name = "tsmiShowResult";
+            this.tsmiShowResult.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.R)));
+            this.tsmiShowResult.Size = new System.Drawing.Size(188, 22);
+            this.tsmiShowResult.Text = "Show &Result...";
+            this.tsmiShowResult.Click += new System.EventHandler(this.tsmiShowResult_Click);
             // 
             // pbResult
             // 
@@ -267,11 +160,13 @@
             // 
             // ehTextEditor
             // 
-            this.ehTextEditor.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.ehTextEditor.Location = new System.Drawing.Point(0, 0);
+            this.ehTextEditor.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.ehTextEditor.Location = new System.Drawing.Point(12, 27);
             this.ehTextEditor.Name = "ehTextEditor";
-            this.ehTextEditor.Size = new System.Drawing.Size(456, 149);
-            this.ehTextEditor.TabIndex = 1;
+            this.ehTextEditor.Size = new System.Drawing.Size(460, 284);
+            this.ehTextEditor.TabIndex = 7;
             this.ehTextEditor.Child = this.tewTextEditor;
             // 
             // ScriptForm
@@ -279,8 +174,8 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(484, 362);
+            this.Controls.Add(this.ehTextEditor);
             this.Controls.Add(this.pbResult);
-            this.Controls.Add(this.scPanels);
             this.Controls.Add(this.btnDebug);
             this.Controls.Add(this.btnClose);
             this.Controls.Add(this.btnExecute);
@@ -296,14 +191,6 @@
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ScriptForm_KeyDown);
             this.msMainMenu.ResumeLayout(false);
             this.msMainMenu.PerformLayout();
-            this.scPanels.Panel1.ResumeLayout(false);
-            this.scPanels.Panel1.PerformLayout();
-            this.scPanels.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.scPanels)).EndInit();
-            this.scPanels.ResumeLayout(false);
-            this.tcConsole.ResumeLayout(false);
-            this.tpConsoleOut.ResumeLayout(false);
-            this.tpConsoleError.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pbResult)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -312,7 +199,6 @@
 
         #endregion
 
-        private System.Windows.Forms.Label labScript;
         private System.Windows.Forms.Button btnExecute;
         private System.Windows.Forms.Button btnClose;
         private System.Windows.Forms.Button btnDebug;
@@ -320,13 +206,7 @@
         private System.Windows.Forms.ToolStripMenuItem tsmiView;
         private System.Windows.Forms.ToolStripMenuItem tsmiFile;
         private System.Windows.Forms.ToolStripMenuItem tsmiClose;
-        private System.Windows.Forms.ToolStripMenuItem tsmiScriptConsole;
-        private System.Windows.Forms.SplitContainer scPanels;
-        private System.Windows.Forms.TabControl tcConsole;
-        private System.Windows.Forms.TabPage tpConsoleOut;
-        private System.Windows.Forms.TabPage tpConsoleError;
-        private System.Windows.Forms.RichTextBox rtbConsoleOut;
-        private System.Windows.Forms.RichTextBox rtbConsoleError;
+        private System.Windows.Forms.ToolStripMenuItem tsmiShowResult;
         private System.Windows.Forms.PictureBox pbResult;
         private System.Windows.Forms.ToolStripSeparator tssSeparator1;
         private System.Windows.Forms.ToolStripMenuItem tsmiExecute;

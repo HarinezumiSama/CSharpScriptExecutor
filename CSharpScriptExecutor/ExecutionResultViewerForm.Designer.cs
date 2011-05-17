@@ -33,9 +33,15 @@
             this.scDetails = new System.Windows.Forms.SplitContainer();
             this.lblMessage = new System.Windows.Forms.Label();
             this.tbMessage = new System.Windows.Forms.TextBox();
-            this.tcSource = new System.Windows.Forms.TabControl();
+            this.tcResults = new System.Windows.Forms.TabControl();
             this.tpSourceCode = new System.Windows.Forms.TabPage();
             this.tpGeneratedCode = new System.Windows.Forms.TabPage();
+            this.tpConsoleOut = new System.Windows.Forms.TabPage();
+            this.rtbConsoleOut = new System.Windows.Forms.RichTextBox();
+            this.tpConsoleError = new System.Windows.Forms.TabPage();
+            this.rtbConsoleError = new System.Windows.Forms.RichTextBox();
+            this.tpReturnValue = new System.Windows.Forms.TabPage();
+            this.pgReturnValue = new System.Windows.Forms.PropertyGrid();
             this.ehSourceCode = new System.Windows.Forms.Integration.ElementHost();
             this.tewSourceCode = new CSharpScriptExecutor.TextEditorWrapper();
             this.ehGeneratedCode = new System.Windows.Forms.Integration.ElementHost();
@@ -45,9 +51,12 @@
             this.scDetails.Panel1.SuspendLayout();
             this.scDetails.Panel2.SuspendLayout();
             this.scDetails.SuspendLayout();
-            this.tcSource.SuspendLayout();
+            this.tcResults.SuspendLayout();
             this.tpSourceCode.SuspendLayout();
             this.tpGeneratedCode.SuspendLayout();
+            this.tpConsoleOut.SuspendLayout();
+            this.tpConsoleError.SuspendLayout();
+            this.tpReturnValue.SuspendLayout();
             this.SuspendLayout();
             // 
             // btnClose
@@ -92,7 +101,7 @@
             // 
             // scDetails.Panel2
             // 
-            this.scDetails.Panel2.Controls.Add(this.tcSource);
+            this.scDetails.Panel2.Controls.Add(this.tcResults);
             this.scDetails.Panel2MinSize = 100;
             this.scDetails.Size = new System.Drawing.Size(542, 283);
             this.scDetails.SplitterDistance = 141;
@@ -124,17 +133,20 @@
             this.tbMessage.TabIndex = 1;
             this.tbMessage.WordWrap = false;
             // 
-            // tcSource
+            // tcResults
             // 
-            this.tcSource.Controls.Add(this.tpSourceCode);
-            this.tcSource.Controls.Add(this.tpGeneratedCode);
-            this.tcSource.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tcSource.Location = new System.Drawing.Point(0, 0);
-            this.tcSource.Name = "tcSource";
-            this.tcSource.SelectedIndex = 0;
-            this.tcSource.Size = new System.Drawing.Size(542, 138);
-            this.tcSource.TabIndex = 0;
-            this.tcSource.TabStop = false;
+            this.tcResults.Controls.Add(this.tpReturnValue);
+            this.tcResults.Controls.Add(this.tpConsoleOut);
+            this.tcResults.Controls.Add(this.tpConsoleError);
+            this.tcResults.Controls.Add(this.tpSourceCode);
+            this.tcResults.Controls.Add(this.tpGeneratedCode);
+            this.tcResults.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tcResults.Location = new System.Drawing.Point(0, 0);
+            this.tcResults.Name = "tcResults";
+            this.tcResults.SelectedIndex = 0;
+            this.tcResults.Size = new System.Drawing.Size(542, 138);
+            this.tcResults.TabIndex = 0;
+            this.tcResults.TabStop = false;
             // 
             // tpSourceCode
             // 
@@ -157,6 +169,80 @@
             this.tpGeneratedCode.TabIndex = 1;
             this.tpGeneratedCode.Text = "Generated Code";
             this.tpGeneratedCode.UseVisualStyleBackColor = true;
+            // 
+            // tpConsoleOut
+            // 
+            this.tpConsoleOut.Controls.Add(this.rtbConsoleOut);
+            this.tpConsoleOut.Location = new System.Drawing.Point(4, 22);
+            this.tpConsoleOut.Name = "tpConsoleOut";
+            this.tpConsoleOut.Padding = new System.Windows.Forms.Padding(3);
+            this.tpConsoleOut.Size = new System.Drawing.Size(534, 112);
+            this.tpConsoleOut.TabIndex = 2;
+            this.tpConsoleOut.Text = "Console.Out";
+            this.tpConsoleOut.UseVisualStyleBackColor = true;
+            // 
+            // rtbConsoleOut
+            // 
+            this.rtbConsoleOut.DetectUrls = false;
+            this.rtbConsoleOut.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.rtbConsoleOut.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.rtbConsoleOut.HideSelection = false;
+            this.rtbConsoleOut.Location = new System.Drawing.Point(3, 3);
+            this.rtbConsoleOut.Name = "rtbConsoleOut";
+            this.rtbConsoleOut.ReadOnly = true;
+            this.rtbConsoleOut.Size = new System.Drawing.Size(528, 106);
+            this.rtbConsoleOut.TabIndex = 0;
+            this.rtbConsoleOut.Text = "";
+            this.rtbConsoleOut.WordWrap = false;
+            // 
+            // tpConsoleError
+            // 
+            this.tpConsoleError.Controls.Add(this.rtbConsoleError);
+            this.tpConsoleError.Location = new System.Drawing.Point(4, 22);
+            this.tpConsoleError.Name = "tpConsoleError";
+            this.tpConsoleError.Padding = new System.Windows.Forms.Padding(3);
+            this.tpConsoleError.Size = new System.Drawing.Size(534, 112);
+            this.tpConsoleError.TabIndex = 3;
+            this.tpConsoleError.Text = "Console.Error";
+            this.tpConsoleError.UseVisualStyleBackColor = true;
+            // 
+            // rtbConsoleError
+            // 
+            this.rtbConsoleError.DetectUrls = false;
+            this.rtbConsoleError.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.rtbConsoleError.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.rtbConsoleError.HideSelection = false;
+            this.rtbConsoleError.Location = new System.Drawing.Point(3, 3);
+            this.rtbConsoleError.Name = "rtbConsoleError";
+            this.rtbConsoleError.ReadOnly = true;
+            this.rtbConsoleError.Size = new System.Drawing.Size(528, 106);
+            this.rtbConsoleError.TabIndex = 1;
+            this.rtbConsoleError.Text = "";
+            this.rtbConsoleError.WordWrap = false;
+            // 
+            // tpReturnValue
+            // 
+            this.tpReturnValue.Controls.Add(this.pgReturnValue);
+            this.tpReturnValue.Location = new System.Drawing.Point(4, 22);
+            this.tpReturnValue.Name = "tpReturnValue";
+            this.tpReturnValue.Padding = new System.Windows.Forms.Padding(3);
+            this.tpReturnValue.Size = new System.Drawing.Size(534, 112);
+            this.tpReturnValue.TabIndex = 4;
+            this.tpReturnValue.Text = "Return Value";
+            this.tpReturnValue.UseVisualStyleBackColor = true;
+            // 
+            // pgReturnValue
+            // 
+            this.pgReturnValue.CausesValidation = false;
+            this.pgReturnValue.CommandsVisibleIfAvailable = false;
+            this.pgReturnValue.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pgReturnValue.HelpVisible = false;
+            this.pgReturnValue.Location = new System.Drawing.Point(3, 3);
+            this.pgReturnValue.Name = "pgReturnValue";
+            this.pgReturnValue.PropertySort = System.Windows.Forms.PropertySort.Alphabetical;
+            this.pgReturnValue.Size = new System.Drawing.Size(528, 106);
+            this.pgReturnValue.TabIndex = 0;
+            this.pgReturnValue.ToolbarVisible = false;
             // 
             // ehSourceCode
             // 
@@ -196,9 +282,12 @@
             this.scDetails.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.scDetails)).EndInit();
             this.scDetails.ResumeLayout(false);
-            this.tcSource.ResumeLayout(false);
+            this.tcResults.ResumeLayout(false);
             this.tpSourceCode.ResumeLayout(false);
             this.tpGeneratedCode.ResumeLayout(false);
+            this.tpConsoleOut.ResumeLayout(false);
+            this.tpConsoleError.ResumeLayout(false);
+            this.tpReturnValue.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -210,12 +299,18 @@
         private System.Windows.Forms.SplitContainer scDetails;
         private System.Windows.Forms.TextBox tbMessage;
         private System.Windows.Forms.Label lblMessage;
-        private System.Windows.Forms.TabControl tcSource;
+        private System.Windows.Forms.TabControl tcResults;
         private System.Windows.Forms.TabPage tpSourceCode;
         private System.Windows.Forms.TabPage tpGeneratedCode;
         private System.Windows.Forms.Integration.ElementHost ehSourceCode;
         private TextEditorWrapper tewSourceCode;
         private System.Windows.Forms.Integration.ElementHost ehGeneratedCode;
         private TextEditorWrapper tewGeneratedCode;
+        private System.Windows.Forms.TabPage tpConsoleOut;
+        private System.Windows.Forms.RichTextBox rtbConsoleOut;
+        private System.Windows.Forms.TabPage tpConsoleError;
+        private System.Windows.Forms.RichTextBox rtbConsoleError;
+        private System.Windows.Forms.TabPage tpReturnValue;
+        private System.Windows.Forms.PropertyGrid pgReturnValue;
     }
 }

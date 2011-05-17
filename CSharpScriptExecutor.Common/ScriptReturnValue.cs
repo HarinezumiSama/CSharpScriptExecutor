@@ -1,13 +1,17 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
 namespace CSharpScriptExecutor.Common
 {
+    // TODO: Use TypeDescriptionProvider to show all properties and fields of the underlying value in a property grid
+
     [Serializable]
+    [ImmutableObject(true)]
     public sealed class ScriptReturnValue
     {
         #region Constants
@@ -37,6 +41,7 @@ namespace CSharpScriptExecutor.Common
         {
             if (ReferenceEquals(value, null))
             {
+                IsNull = true;
                 IsSimpleType = true;
                 AsString = "<null>";
                 return;
@@ -108,18 +113,26 @@ namespace CSharpScriptExecutor.Common
 
         #region Public Properties
 
+        public bool IsNull
+        {
+            get;
+            private set;
+        }
+
         public string TypeFullName
         {
             get;
             private set;
         }
 
+        [Browsable(false)]
         public AssemblyName TypeAssemblyName
         {
             get;
             private set;
         }
 
+        [Browsable(false)]
         public string TypeQualifiedName
         {
             get;

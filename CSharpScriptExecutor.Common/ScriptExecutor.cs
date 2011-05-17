@@ -74,6 +74,7 @@ namespace CSharpScriptExecutor.Common
             "System.Collections.Generic",
             "System.Collections.ObjectModel",
             "System.Data",
+            "System.Data.SqlClient",
             "System.Diagnostics",
             "System.IO",
             "System.Linq",
