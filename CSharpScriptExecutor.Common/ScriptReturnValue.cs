@@ -15,12 +15,80 @@ namespace CSharpScriptExecutor.Common
     {
         #region Nested Types
 
-        #region SubvalueCollection Class
+        #region ReferenceWrapper Structure
+
+        [DebuggerDisplay("{GetType().Name,nq}. Value = {Value}")]
+        private struct ReferenceWrapper : IEquatable<ReferenceWrapper>
+        {
+            #region Fields
+
+            private static readonly ReferenceWrapper s_null = new ReferenceWrapper();
+
+            private readonly object m_value;
+
+            #endregion
+
+            #region Constructors
+
+            internal ReferenceWrapper(object value)
+            {
+                m_value = value;
+            }
+
+            #endregion
+
+            #region Public Properties
+
+            public static ReferenceWrapper Null
+            {
+                [DebuggerStepThrough]
+                get { return s_null; }
+            }
+
+            public object Value
+            {
+                [DebuggerStepThrough]
+                get { return m_value; }
+            }
+
+            #endregion
+
+            #region Public Methods
+
+            public override bool Equals(object obj)
+            {
+                return (obj is ReferenceWrapper) && this.Equals((ReferenceWrapper)obj);
+            }
+
+            public override int GetHashCode()
+            {
+                return RuntimeHelpers.GetHashCode(m_value);
+            }
+
+            public override string ToString()
+            {
+                return object.ReferenceEquals(m_value, null) ? string.Empty : m_value.ToString();
+            }
+
+            #endregion
+
+            #region IEquatable<ReferenceWrapper> Members
+
+            public bool Equals(ReferenceWrapper other)
+            {
+                return object.ReferenceEquals(other.m_value, m_value);
+            }
+
+            #endregion
+        }
+
+        #endregion
+
+        #region MemberCollection Class
 
         [Serializable]
         [ImmutableObject(true)]
-        [TypeConverter(typeof(ExpandableObjectConverter))]
-        private sealed class SubvalueCollection : ICustomTypeDescriptor
+        private sealed class MemberCollection : ICustomTypeDescriptor
         {
             #region Nested Types
 
@@ -30,15 +98,13 @@ namespace CSharpScriptExecutor.Common
             {
                 #region Fields
 
-                private static readonly Attribute[] s_emptyAttributes = new Attribute[0];
-
-                private static readonly Attribute[] s_expandableAttributes =
+                private static readonly Attribute[] s_attributes =
                     new Attribute[]
                     {
                         new TypeConverterAttribute(typeof(ExpandableObjectConverter))
                     };
 
-                private readonly SubvalueCollection m_owner;
+                private readonly MemberCollection m_owner;
                 private readonly ScriptReturnValue m_propertyValue;
 
                 #endregion
@@ -46,10 +112,10 @@ namespace CSharpScriptExecutor.Common
                 #region Constructors
 
                 internal SubvaluePropertyDescriptor(
-                    SubvalueCollection owner,
+                    MemberCollection owner,
                     string name,
                     ScriptReturnValue propertyValue)
-                    : base(name, /*IsExpandable(propertyValue) ?*/ s_expandableAttributes /*: s_emptyAttributes*/)
+                    : base(name, s_attributes)
                 {
                     #region Argument Check
 
@@ -66,15 +132,6 @@ namespace CSharpScriptExecutor.Common
 
                     m_owner = owner;
                     m_propertyValue = propertyValue;
-                }
-
-                #endregion
-
-                #region Private Methods
-
-                private static bool IsExpandable(ScriptReturnValue propertyValue)
-                {
-                    return propertyValue != null && propertyValue.IsExpandable();
                 }
 
                 #endregion
@@ -153,7 +210,7 @@ namespace CSharpScriptExecutor.Common
 
             #region Constructors
 
-            internal SubvalueCollection(Dictionary<string, ScriptReturnValue> subvalueMap, string displayName)
+            internal MemberCollection(Dictionary<string, ScriptReturnValue> subvalueMap, string displayName)
             {
                 #region Argument Check
 
@@ -279,14 +336,14 @@ namespace CSharpScriptExecutor.Common
         {
             #region Fields
 
-            private static readonly Attribute[] s_expandableAttributes =
+            private static readonly Attribute[] s_attributes =
                 new Attribute[]
                 {
                     new TypeConverterAttribute(typeof(ExpandableObjectConverter))
                 };
 
             private readonly ScriptReturnValue m_owner;
-            private readonly SubvalueCollection m_propertyValue;
+            private readonly MemberCollection m_propertyValue;
 
             #endregion
 
@@ -295,8 +352,8 @@ namespace CSharpScriptExecutor.Common
             internal ReturnValuePropertyDescriptor(
                 ScriptReturnValue owner,
                 string name,
-                SubvalueCollection propertyValue)
-                : base(name, s_expandableAttributes)
+                MemberCollection propertyValue)
+                : base(name, s_attributes)
             {
                 #region Argument Check
 
@@ -380,75 +437,6 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
-        #region ReferenceWrapper Structure
-
-        [DebuggerDisplay("{GetType().Name,nq}. Value = {Value}")]
-        private struct ReferenceWrapper : IEquatable<ReferenceWrapper>
-        {
-            #region Fields
-
-            private static readonly ReferenceWrapper s_null = new ReferenceWrapper();
-
-            private readonly object m_value;
-
-            #endregion
-
-            #region Constructors
-
-            internal ReferenceWrapper(object value)
-            {
-                m_value = value;
-            }
-
-            #endregion
-
-            #region Public Properties
-
-            public static ReferenceWrapper Null
-            {
-                [DebuggerStepThrough]
-                get { return s_null; }
-            }
-
-            public object Value
-            {
-                [DebuggerStepThrough]
-                get { return m_value; }
-            }
-
-            #endregion
-
-            #region Public Methods
-
-            public override bool Equals(object obj)
-            {
-                return (obj is ReferenceWrapper) && this.Equals((ReferenceWrapper)obj);
-            }
-
-            public override int GetHashCode()
-            {
-                return RuntimeHelpers.GetHashCode(m_value);
-            }
-
-            public override string ToString()
-            {
-                return object.ReferenceEquals(m_value, null) ? string.Empty : m_value.ToString();
-            }
-
-            #endregion
-
-            #region IEquatable<ReferenceWrapper> Members
-
-            public bool Equals(ReferenceWrapper other)
-            {
-                return object.ReferenceEquals(other.m_value, m_value);
-            }
-
-            #endregion
-        }
-
-        #endregion
-
         #endregion
 
         #region Constants
@@ -465,10 +453,11 @@ namespace CSharpScriptExecutor.Common
         [ThreadStatic]
         private static Dictionary<ReferenceWrapper, ScriptReturnValue> s_objectsBeingProcessed;
 
-        private readonly Dictionary<string, ScriptReturnValue> m_propertyValueMap =
-            new Dictionary<string, ScriptReturnValue>();
         private readonly Dictionary<string, ScriptReturnValue> m_fieldValueMap =
             new Dictionary<string, ScriptReturnValue>();
+        private readonly Dictionary<string, ScriptReturnValue> m_propertyValueMap =
+            new Dictionary<string, ScriptReturnValue>();
+        private readonly IList<MemberCollection> m_memberCollections;
 
         [NonSerialized]
         private Type m_type;
@@ -489,6 +478,7 @@ namespace CSharpScriptExecutor.Common
                 IsNull = true;
                 IsSimpleType = true;
                 AsString = "<null>";
+                m_memberCollections = new List<MemberCollection>().AsReadOnly();
                 return;
             }
 
@@ -500,8 +490,14 @@ namespace CSharpScriptExecutor.Common
             this.TypeQualifiedName = m_type.AssemblyQualifiedName;
             this.IsSimpleType = m_type.IsPrimitive || m_type.IsEnum || m_type == typeof(char)
                 || m_type == typeof(string) || m_type == typeof(decimal);
-            this.Properties = new SubvalueCollection(m_propertyValueMap, "[Properties]");
-            this.Fields = new SubvalueCollection(m_fieldValueMap, "[Fields]");
+
+            m_memberCollections =
+                new List<MemberCollection>
+                {
+                    new MemberCollection(m_fieldValueMap, "[Fields]"),
+                    new MemberCollection(m_propertyValueMap, "[Properties]")
+                }
+                .AsReadOnly();
 
             Func<string> toStringMethod = value.ToString;
             try
@@ -522,11 +518,6 @@ namespace CSharpScriptExecutor.Common
 
         #region Private Methods
 
-        private bool IsExpandable()
-        {
-            return !this.IsSimpleType && (m_fieldValueMap.Count != 0 || m_propertyValueMap.Count != 0);
-        }
-
         private void Initialize()
         {
             if (m_type == null || m_value == null)
@@ -536,7 +527,13 @@ namespace CSharpScriptExecutor.Common
 
             if (!this.IsSimpleType || !m_type.IsSerializable)
             {
-                // TODO: Special handling for IDictionary, IEnumerable etc.
+                var fieldInfos = m_type.GetFields(c_memberBindingFlags);
+                foreach (var fieldInfo in fieldInfos)
+                {
+                    var fieldValue = fieldInfo.GetValue(m_value);
+                    var wrappedFieldValue = ScriptReturnValue.Create(fieldValue);
+                    m_fieldValueMap.Add(fieldInfo.Name, wrappedFieldValue);
+                }
 
                 var propertyInfos = m_type
                     .GetProperties(c_memberBindingFlags)
@@ -547,14 +544,6 @@ namespace CSharpScriptExecutor.Common
                     var propertyValue = propertyInfo.GetValue(m_value, null);
                     var wrappedPropertyValue = ScriptReturnValue.Create(propertyValue);
                     m_propertyValueMap.Add(propertyInfo.Name, wrappedPropertyValue);
-                }
-
-                var fieldInfos = m_type.GetFields(c_memberBindingFlags);
-                foreach (var fieldInfo in fieldInfos)
-                {
-                    var fieldValue = fieldInfo.GetValue(m_value);
-                    var wrappedFieldValue = ScriptReturnValue.Create(fieldValue);
-                    m_fieldValueMap.Add(fieldInfo.Name, wrappedFieldValue);
                 }
             }
 
@@ -650,24 +639,6 @@ namespace CSharpScriptExecutor.Common
         }
 
         public string AsString
-        {
-            get;
-            private set;
-        }
-
-        //[TypeConverter(typeof(ExpandableObjectConverter))]
-        //[DisplayName("[Properties]")]
-        [Browsable(false)]
-        public object Properties
-        {
-            get;
-            private set;
-        }
-
-        //[TypeConverter(typeof(ExpandableObjectConverter))]
-        //[DisplayName("[Fields]")]
-        [Browsable(false)]
-        public object Fields
         {
             get;
             private set;
@@ -778,14 +749,14 @@ namespace CSharpScriptExecutor.Common
         {
             var proxyResult = new List<PropertyDescriptor>(
                 TypeDescriptor.GetProperties(this, true).Cast<PropertyDescriptor>());
-            foreach (SubvalueCollection extraProperty in new[] { this.Fields, this.Properties })
+            foreach (var memberCollection in m_memberCollections)
             {
-                if (extraProperty.HasAnyValue)
+                if (memberCollection.HasAnyValue)
                 {
                     var propertyDescriptor = new ReturnValuePropertyDescriptor(
                         this,
-                        extraProperty.DisplayName,
-                        extraProperty);
+                        memberCollection.DisplayName,
+                        memberCollection);
                     proxyResult.Add(propertyDescriptor);
                 }
             }
