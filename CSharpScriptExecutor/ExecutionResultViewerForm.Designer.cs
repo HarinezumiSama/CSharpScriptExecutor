@@ -34,16 +34,16 @@
             this.lblMessage = new System.Windows.Forms.Label();
             this.tbMessage = new System.Windows.Forms.TextBox();
             this.tcResults = new System.Windows.Forms.TabControl();
-            this.tpSourceCode = new System.Windows.Forms.TabPage();
-            this.tpGeneratedCode = new System.Windows.Forms.TabPage();
+            this.tpReturnValue = new System.Windows.Forms.TabPage();
+            this.pgReturnValue = new System.Windows.Forms.PropertyGrid();
             this.tpConsoleOut = new System.Windows.Forms.TabPage();
             this.rtbConsoleOut = new System.Windows.Forms.RichTextBox();
             this.tpConsoleError = new System.Windows.Forms.TabPage();
             this.rtbConsoleError = new System.Windows.Forms.RichTextBox();
-            this.tpReturnValue = new System.Windows.Forms.TabPage();
-            this.pgReturnValue = new System.Windows.Forms.PropertyGrid();
+            this.tpSourceCode = new System.Windows.Forms.TabPage();
             this.ehSourceCode = new System.Windows.Forms.Integration.ElementHost();
             this.tewSourceCode = new CSharpScriptExecutor.TextEditorWrapper();
+            this.tpGeneratedCode = new System.Windows.Forms.TabPage();
             this.ehGeneratedCode = new System.Windows.Forms.Integration.ElementHost();
             this.tewGeneratedCode = new CSharpScriptExecutor.TextEditorWrapper();
             this.gbResult.SuspendLayout();
@@ -52,11 +52,11 @@
             this.scDetails.Panel2.SuspendLayout();
             this.scDetails.SuspendLayout();
             this.tcResults.SuspendLayout();
-            this.tpSourceCode.SuspendLayout();
-            this.tpGeneratedCode.SuspendLayout();
+            this.tpReturnValue.SuspendLayout();
             this.tpConsoleOut.SuspendLayout();
             this.tpConsoleError.SuspendLayout();
-            this.tpReturnValue.SuspendLayout();
+            this.tpSourceCode.SuspendLayout();
+            this.tpGeneratedCode.SuspendLayout();
             this.SuspendLayout();
             // 
             // btnClose
@@ -148,27 +148,29 @@
             this.tcResults.TabIndex = 0;
             this.tcResults.TabStop = false;
             // 
-            // tpSourceCode
+            // tpReturnValue
             // 
-            this.tpSourceCode.Controls.Add(this.ehSourceCode);
-            this.tpSourceCode.Location = new System.Drawing.Point(4, 22);
-            this.tpSourceCode.Name = "tpSourceCode";
-            this.tpSourceCode.Padding = new System.Windows.Forms.Padding(3);
-            this.tpSourceCode.Size = new System.Drawing.Size(534, 112);
-            this.tpSourceCode.TabIndex = 0;
-            this.tpSourceCode.Text = "Source Code";
-            this.tpSourceCode.UseVisualStyleBackColor = true;
+            this.tpReturnValue.Controls.Add(this.pgReturnValue);
+            this.tpReturnValue.Location = new System.Drawing.Point(4, 22);
+            this.tpReturnValue.Name = "tpReturnValue";
+            this.tpReturnValue.Padding = new System.Windows.Forms.Padding(3);
+            this.tpReturnValue.Size = new System.Drawing.Size(534, 112);
+            this.tpReturnValue.TabIndex = 4;
+            this.tpReturnValue.Text = "Return Value";
+            this.tpReturnValue.UseVisualStyleBackColor = true;
             // 
-            // tpGeneratedCode
+            // pgReturnValue
             // 
-            this.tpGeneratedCode.Controls.Add(this.ehGeneratedCode);
-            this.tpGeneratedCode.Location = new System.Drawing.Point(4, 22);
-            this.tpGeneratedCode.Name = "tpGeneratedCode";
-            this.tpGeneratedCode.Padding = new System.Windows.Forms.Padding(3);
-            this.tpGeneratedCode.Size = new System.Drawing.Size(534, 112);
-            this.tpGeneratedCode.TabIndex = 1;
-            this.tpGeneratedCode.Text = "Generated Code";
-            this.tpGeneratedCode.UseVisualStyleBackColor = true;
+            this.pgReturnValue.CausesValidation = false;
+            this.pgReturnValue.CommandsVisibleIfAvailable = false;
+            this.pgReturnValue.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pgReturnValue.HelpVisible = false;
+            this.pgReturnValue.Location = new System.Drawing.Point(3, 3);
+            this.pgReturnValue.Name = "pgReturnValue";
+            this.pgReturnValue.PropertySort = System.Windows.Forms.PropertySort.NoSort;
+            this.pgReturnValue.Size = new System.Drawing.Size(528, 106);
+            this.pgReturnValue.TabIndex = 0;
+            this.pgReturnValue.ToolbarVisible = false;
             // 
             // tpConsoleOut
             // 
@@ -220,29 +222,16 @@
             this.rtbConsoleError.Text = "";
             this.rtbConsoleError.WordWrap = false;
             // 
-            // tpReturnValue
+            // tpSourceCode
             // 
-            this.tpReturnValue.Controls.Add(this.pgReturnValue);
-            this.tpReturnValue.Location = new System.Drawing.Point(4, 22);
-            this.tpReturnValue.Name = "tpReturnValue";
-            this.tpReturnValue.Padding = new System.Windows.Forms.Padding(3);
-            this.tpReturnValue.Size = new System.Drawing.Size(534, 112);
-            this.tpReturnValue.TabIndex = 4;
-            this.tpReturnValue.Text = "Return Value";
-            this.tpReturnValue.UseVisualStyleBackColor = true;
-            // 
-            // pgReturnValue
-            // 
-            this.pgReturnValue.CausesValidation = false;
-            this.pgReturnValue.CommandsVisibleIfAvailable = false;
-            this.pgReturnValue.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pgReturnValue.HelpVisible = false;
-            this.pgReturnValue.Location = new System.Drawing.Point(3, 3);
-            this.pgReturnValue.Name = "pgReturnValue";
-            this.pgReturnValue.PropertySort = System.Windows.Forms.PropertySort.Alphabetical;
-            this.pgReturnValue.Size = new System.Drawing.Size(528, 106);
-            this.pgReturnValue.TabIndex = 0;
-            this.pgReturnValue.ToolbarVisible = false;
+            this.tpSourceCode.Controls.Add(this.ehSourceCode);
+            this.tpSourceCode.Location = new System.Drawing.Point(4, 22);
+            this.tpSourceCode.Name = "tpSourceCode";
+            this.tpSourceCode.Padding = new System.Windows.Forms.Padding(3);
+            this.tpSourceCode.Size = new System.Drawing.Size(534, 112);
+            this.tpSourceCode.TabIndex = 0;
+            this.tpSourceCode.Text = "Source Code";
+            this.tpSourceCode.UseVisualStyleBackColor = true;
             // 
             // ehSourceCode
             // 
@@ -252,6 +241,17 @@
             this.ehSourceCode.Size = new System.Drawing.Size(528, 106);
             this.ehSourceCode.TabIndex = 0;
             this.ehSourceCode.Child = this.tewSourceCode;
+            // 
+            // tpGeneratedCode
+            // 
+            this.tpGeneratedCode.Controls.Add(this.ehGeneratedCode);
+            this.tpGeneratedCode.Location = new System.Drawing.Point(4, 22);
+            this.tpGeneratedCode.Name = "tpGeneratedCode";
+            this.tpGeneratedCode.Padding = new System.Windows.Forms.Padding(3);
+            this.tpGeneratedCode.Size = new System.Drawing.Size(534, 112);
+            this.tpGeneratedCode.TabIndex = 1;
+            this.tpGeneratedCode.Text = "Generated Code";
+            this.tpGeneratedCode.UseVisualStyleBackColor = true;
             // 
             // ehGeneratedCode
             // 
@@ -283,11 +283,11 @@
             ((System.ComponentModel.ISupportInitialize)(this.scDetails)).EndInit();
             this.scDetails.ResumeLayout(false);
             this.tcResults.ResumeLayout(false);
-            this.tpSourceCode.ResumeLayout(false);
-            this.tpGeneratedCode.ResumeLayout(false);
+            this.tpReturnValue.ResumeLayout(false);
             this.tpConsoleOut.ResumeLayout(false);
             this.tpConsoleError.ResumeLayout(false);
-            this.tpReturnValue.ResumeLayout(false);
+            this.tpSourceCode.ResumeLayout(false);
+            this.tpGeneratedCode.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }

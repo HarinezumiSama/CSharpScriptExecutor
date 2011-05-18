@@ -93,6 +93,47 @@ namespace CSharpScriptExecutor
 
         #endregion
 
+        #region ReadOnlyBackgroundRenderer Class
+
+        private sealed class ReadOnlyBackgroundRenderer : IBackgroundRenderer
+        {
+            #region Fields
+
+            public static readonly ReadOnlyBackgroundRenderer Instance = new ReadOnlyBackgroundRenderer();
+
+            #endregion
+
+            #region Constructors
+
+            private ReadOnlyBackgroundRenderer()
+            {
+                // Nothing to do
+            }
+
+            #endregion
+
+            #region IBackgroundRenderer Members
+
+            public void Draw(TextView textView, DrawingContext drawingContext)
+            {
+                drawingContext.DrawRectangle(
+                    new SolidColorBrush(Colors.WhiteSmoke),
+                    null,
+                    new Rect(
+                        new System.Windows.Point(),
+                        new System.Windows.Size(textView.ActualWidth, textView.ActualHeight)));
+            }
+
+            public KnownLayer Layer
+            {
+                get { return KnownLayer.Background; }
+            }
+
+            #endregion
+        }
+
+        #endregion
+
         #endregion
 
         #region Fields
@@ -110,11 +151,8 @@ namespace CSharpScriptExecutor
 
             this.Text = string.Format("Execution Result — {0}", Program.ProgramName);
 
-            tewSourceCode.InnerEditor.IsReadOnly = true;
-            tewSourceCode.Background = new SolidColorBrush(Colors.Gainsboro);
-
-            tewGeneratedCode.InnerEditor.IsReadOnly = true;
-            tewGeneratedCode.Background = new SolidColorBrush(Colors.Gainsboro);
+            MakeEditorReadOnly(tewSourceCode);
+            MakeEditorReadOnly(tewGeneratedCode);
 
             tewSourceCode.InnerEditor.MouseHover += CodeEditor_MouseHover;
             tewSourceCode.InnerEditor.MouseHoverStopped += CodeEditor_MouseHoverStopped;
@@ -126,6 +164,12 @@ namespace CSharpScriptExecutor
         #endregion
 
         #region Private Methods
+
+        private static void MakeEditorReadOnly(TextEditorWrapper editor)
+        {
+            editor.InnerEditor.IsReadOnly = true;
+            editor.InnerEditor.TextArea.TextView.BackgroundRenderers.Add(ReadOnlyBackgroundRenderer.Instance);
+        }
 
         private void SetTabPageVisibility(TabPage page, bool visible)
         {
