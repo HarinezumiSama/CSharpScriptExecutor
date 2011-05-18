@@ -5,15 +5,452 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace CSharpScriptExecutor.Common
 {
-    // TODO: Use TypeDescriptionProvider to show all properties and fields of the underlying value in a property grid
-
     [Serializable]
     [ImmutableObject(true)]
-    public sealed class ScriptReturnValue
+    public sealed class ScriptReturnValue : ICustomTypeDescriptor
     {
+        #region Nested Types
+
+        #region SubvalueCollection Class
+
+        [Serializable]
+        [ImmutableObject(true)]
+        [TypeConverter(typeof(ExpandableObjectConverter))]
+        private sealed class SubvalueCollection : ICustomTypeDescriptor
+        {
+            #region Nested Types
+
+            #region SubvaluePropertyDescriptor Class
+
+            private sealed class SubvaluePropertyDescriptor : PropertyDescriptor
+            {
+                #region Fields
+
+                private static readonly Attribute[] s_emptyAttributes = new Attribute[0];
+
+                private static readonly Attribute[] s_expandableAttributes =
+                    new Attribute[]
+                    {
+                        new TypeConverterAttribute(typeof(ExpandableObjectConverter))
+                    };
+
+                private readonly SubvalueCollection m_owner;
+                private readonly ScriptReturnValue m_propertyValue;
+
+                #endregion
+
+                #region Constructors
+
+                internal SubvaluePropertyDescriptor(
+                    SubvalueCollection owner,
+                    string name,
+                    ScriptReturnValue propertyValue)
+                    : base(name, /*IsExpandable(propertyValue) ?*/ s_expandableAttributes /*: s_emptyAttributes*/)
+                {
+                    #region Argument Check
+
+                    if (owner == null)
+                    {
+                        throw new ArgumentNullException("owner");
+                    }
+                    if (propertyValue == null)
+                    {
+                        throw new ArgumentNullException("propertyValue");
+                    }
+
+                    #endregion
+
+                    m_owner = owner;
+                    m_propertyValue = propertyValue;
+                }
+
+                #endregion
+
+                #region Private Methods
+
+                private static bool IsExpandable(ScriptReturnValue propertyValue)
+                {
+                    return propertyValue != null && propertyValue.IsExpandable();
+                }
+
+                #endregion
+
+                #region Public Properties
+
+                public override Type ComponentType
+                {
+                    [DebuggerNonUserCode]
+                    get { return m_owner.GetType(); }
+                }
+
+                public override bool IsReadOnly
+                {
+                    [DebuggerStepThrough]
+                    get { return true; }
+                }
+
+                public override Type PropertyType
+                {
+                    [DebuggerNonUserCode]
+                    get { return m_propertyValue.GetType(); }
+                }
+
+                #endregion
+
+                #region Public Methods
+
+                [DebuggerNonUserCode]
+                public override bool CanResetValue(object component)
+                {
+                    return false;
+                }
+
+                [DebuggerNonUserCode]
+                public override object GetValue(object component)
+                {
+                    if (component == m_owner)
+                    {
+                        return m_propertyValue;
+                    }
+                    return null;
+                }
+
+                [DebuggerNonUserCode]
+                public override void ResetValue(object component)
+                {
+                    throw new InvalidOperationException("The property is non-resettable.");
+                }
+
+                [DebuggerNonUserCode]
+                public override void SetValue(object component, object value)
+                {
+                    throw new InvalidOperationException("The property is read-only.");
+                }
+
+                [DebuggerNonUserCode]
+                public override bool ShouldSerializeValue(object component)
+                {
+                    return false;
+                }
+
+                #endregion
+            }
+
+            #endregion
+
+            #endregion
+
+            #region Fields
+
+            private readonly Dictionary<string, ScriptReturnValue> m_subvalueMap;
+            private readonly string m_displayName;
+
+            #endregion
+
+            #region Constructors
+
+            internal SubvalueCollection(Dictionary<string, ScriptReturnValue> subvalueMap, string displayName)
+            {
+                #region Argument Check
+
+                if (subvalueMap == null)
+                {
+                    throw new ArgumentNullException("subvalueMap");
+                }
+                if (string.IsNullOrEmpty(displayName))
+                {
+                    throw new ArgumentException("The value can be neither empty string nor null.", "displayName");
+                }
+
+                #endregion
+
+                m_subvalueMap = subvalueMap;
+                m_displayName = displayName;
+            }
+
+            #endregion
+
+            #region Public Properties
+
+            public string DisplayName
+            {
+                [DebuggerStepThrough]
+                get { return m_displayName; }
+            }
+
+            public bool HasAnyValue
+            {
+                [DebuggerNonUserCode]
+                get { return m_subvalueMap.Count != 0; }
+            }
+
+            #endregion
+
+            #region Public Methods
+
+            public override string ToString()
+            {
+                return string.Format("Count = {0}", m_subvalueMap.Count);
+            }
+
+            #endregion
+
+            #region ICustomTypeDescriptor Members
+
+            AttributeCollection ICustomTypeDescriptor.GetAttributes()
+            {
+                return TypeDescriptor.GetAttributes(this, true);
+            }
+
+            string ICustomTypeDescriptor.GetClassName()
+            {
+                return TypeDescriptor.GetClassName(this, true);
+            }
+
+            string ICustomTypeDescriptor.GetComponentName()
+            {
+                return TypeDescriptor.GetComponentName(this, true);
+            }
+
+            TypeConverter ICustomTypeDescriptor.GetConverter()
+            {
+                return TypeDescriptor.GetConverter(this, true);
+            }
+
+            EventDescriptor ICustomTypeDescriptor.GetDefaultEvent()
+            {
+                return TypeDescriptor.GetDefaultEvent(this, true);
+            }
+
+            PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty()
+            {
+                return TypeDescriptor.GetDefaultProperty(this, true);
+            }
+
+            object ICustomTypeDescriptor.GetEditor(Type editorBaseType)
+            {
+                return TypeDescriptor.GetEditor(this, editorBaseType, true);
+            }
+
+            EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes)
+            {
+                return TypeDescriptor.GetEvents(this, attributes, true);
+            }
+
+            EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
+            {
+                return TypeDescriptor.GetEvents(this, true);
+            }
+
+            PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes)
+            {
+                return ((ICustomTypeDescriptor)this).GetProperties();
+            }
+
+            PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
+            {
+                var proxyResult = new List<PropertyDescriptor>(m_subvalueMap.Count);
+                foreach (var pair in m_subvalueMap)
+                {
+                    var propertyDescriptor = new SubvaluePropertyDescriptor(this, pair.Key, pair.Value);
+                    proxyResult.Add(propertyDescriptor);
+                }
+
+                return new PropertyDescriptorCollection(proxyResult.ToArray(), true);
+            }
+
+            object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd)
+            {
+                return this;
+            }
+
+            #endregion
+        }
+
+        #endregion
+
+        #region ReturnValuePropertyDescriptor Class
+
+        private sealed class ReturnValuePropertyDescriptor : PropertyDescriptor
+        {
+            #region Fields
+
+            private static readonly Attribute[] s_expandableAttributes =
+                new Attribute[]
+                {
+                    new TypeConverterAttribute(typeof(ExpandableObjectConverter))
+                };
+
+            private readonly ScriptReturnValue m_owner;
+            private readonly SubvalueCollection m_propertyValue;
+
+            #endregion
+
+            #region Constructors
+
+            internal ReturnValuePropertyDescriptor(
+                ScriptReturnValue owner,
+                string name,
+                SubvalueCollection propertyValue)
+                : base(name, s_expandableAttributes)
+            {
+                #region Argument Check
+
+                if (owner == null)
+                {
+                    throw new ArgumentNullException("owner");
+                }
+                if (propertyValue == null)
+                {
+                    throw new ArgumentNullException("propertyValue");
+                }
+
+                #endregion
+
+                m_owner = owner;
+                m_propertyValue = propertyValue;
+            }
+
+            #endregion
+
+            #region Public Properties
+
+            public override Type ComponentType
+            {
+                [DebuggerNonUserCode]
+                get { return m_owner.GetType(); }
+            }
+
+            public override bool IsReadOnly
+            {
+                [DebuggerStepThrough]
+                get { return true; }
+            }
+
+            public override Type PropertyType
+            {
+                [DebuggerNonUserCode]
+                get { return m_propertyValue.GetType(); }
+            }
+
+            #endregion
+
+            #region Public Methods
+
+            [DebuggerNonUserCode]
+            public override bool CanResetValue(object component)
+            {
+                return false;
+            }
+
+            [DebuggerNonUserCode]
+            public override object GetValue(object component)
+            {
+                if (component == m_owner)
+                {
+                    return m_propertyValue;
+                }
+                return null;
+            }
+
+            [DebuggerNonUserCode]
+            public override void ResetValue(object component)
+            {
+                throw new InvalidOperationException("The property is non-resettable.");
+            }
+
+            [DebuggerNonUserCode]
+            public override void SetValue(object component, object value)
+            {
+                throw new InvalidOperationException("The property is read-only.");
+            }
+
+            [DebuggerNonUserCode]
+            public override bool ShouldSerializeValue(object component)
+            {
+                return false;
+            }
+
+            #endregion
+        }
+
+        #endregion
+
+        #region ReferenceWrapper Structure
+
+        [DebuggerDisplay("{GetType().Name,nq}. Value = {Value}")]
+        private struct ReferenceWrapper : IEquatable<ReferenceWrapper>
+        {
+            #region Fields
+
+            private static readonly ReferenceWrapper s_null = new ReferenceWrapper();
+
+            private readonly object m_value;
+
+            #endregion
+
+            #region Constructors
+
+            internal ReferenceWrapper(object value)
+            {
+                m_value = value;
+            }
+
+            #endregion
+
+            #region Public Properties
+
+            public static ReferenceWrapper Null
+            {
+                [DebuggerStepThrough]
+                get { return s_null; }
+            }
+
+            public object Value
+            {
+                [DebuggerStepThrough]
+                get { return m_value; }
+            }
+
+            #endregion
+
+            #region Public Methods
+
+            public override bool Equals(object obj)
+            {
+                return (obj is ReferenceWrapper) && this.Equals((ReferenceWrapper)obj);
+            }
+
+            public override int GetHashCode()
+            {
+                return RuntimeHelpers.GetHashCode(m_value);
+            }
+
+            public override string ToString()
+            {
+                return object.ReferenceEquals(m_value, null) ? string.Empty : m_value.ToString();
+            }
+
+            #endregion
+
+            #region IEquatable<ReferenceWrapper> Members
+
+            public bool Equals(ReferenceWrapper other)
+            {
+                return object.ReferenceEquals(other.m_value, m_value);
+            }
+
+            #endregion
+        }
+
+        #endregion
+
+        #endregion
+
         #region Constants
 
         private const BindingFlags c_memberBindingFlags =
@@ -25,10 +462,18 @@ namespace CSharpScriptExecutor.Common
 
         private static readonly ScriptReturnValue s_null = new ScriptReturnValue(null);
 
+        [ThreadStatic]
+        private static Dictionary<ReferenceWrapper, ScriptReturnValue> s_objectsBeingProcessed;
+
         private readonly Dictionary<string, ScriptReturnValue> m_propertyValueMap =
             new Dictionary<string, ScriptReturnValue>();
         private readonly Dictionary<string, ScriptReturnValue> m_fieldValueMap =
             new Dictionary<string, ScriptReturnValue>();
+
+        [NonSerialized]
+        private Type m_type;
+        [NonSerialized]
+        private object m_value;
 
         #endregion
 
@@ -47,13 +492,16 @@ namespace CSharpScriptExecutor.Common
                 return;
             }
 
-            var type = value.GetType();
+            m_value = value;
+            m_type = value.GetType();
 
-            this.TypeFullName = type.FullName;
-            this.TypeAssemblyName = type.Assembly.GetName();
-            this.TypeQualifiedName = type.AssemblyQualifiedName;
-            this.IsSimpleType = type.IsPrimitive || type.IsEnum || type == typeof(char) || type == typeof(string)
-                || type == typeof(decimal) || type == typeof(DateTime) || type == typeof(DateTimeOffset);
+            this.TypeFullName = m_type.FullName;
+            this.TypeAssemblyName = m_type.Assembly.GetName();
+            this.TypeQualifiedName = m_type.AssemblyQualifiedName;
+            this.IsSimpleType = m_type.IsPrimitive || m_type.IsEnum || m_type == typeof(char)
+                || m_type == typeof(string) || m_type == typeof(decimal);
+            this.Properties = new SubvalueCollection(m_propertyValueMap, "[Properties]");
+            this.Fields = new SubvalueCollection(m_fieldValueMap, "[Fields]");
 
             Func<string> toStringMethod = value.ToString;
             try
@@ -68,37 +516,51 @@ namespace CSharpScriptExecutor.Common
                     toStringMethod.Method.Name,
                     ex.Message);
             }
-
-            if (!this.IsSimpleType)
-            {
-                // TODO: Special handling for IDictionary, IEnumerable etc.
-
-                var propertyInfos = type
-                    .GetProperties(c_memberBindingFlags)
-                    .Where(item => item.CanRead && !item.GetIndexParameters().Any())
-                    .ToList();
-                foreach (var propertyInfo in propertyInfos)
-                {
-                    var propertyValue = propertyInfo.GetValue(value, null);
-                    var wrappedPropertyValue = new ScriptReturnValue(propertyValue);
-                    m_propertyValueMap.Add(propertyInfo.Name, wrappedPropertyValue);
-                }
-
-                var fieldInfos = type.GetFields(c_memberBindingFlags);
-                foreach (var fieldInfo in fieldInfos)
-                {
-                    var fieldValue = fieldInfo.GetValue(value);
-                    var wrappedFieldValue = new ScriptReturnValue(fieldValue);
-                    m_propertyValueMap.Add(fieldInfo.Name, wrappedFieldValue);
-                }
-            }
         }
 
         #endregion
 
         #region Private Methods
 
-        //
+        private bool IsExpandable()
+        {
+            return !this.IsSimpleType && (m_fieldValueMap.Count != 0 || m_propertyValueMap.Count != 0);
+        }
+
+        private void Initialize()
+        {
+            if (m_type == null || m_value == null)
+            {
+                throw new InvalidOperationException("Initialization is called too late or twice.");
+            }
+
+            if (!this.IsSimpleType || !m_type.IsSerializable)
+            {
+                // TODO: Special handling for IDictionary, IEnumerable etc.
+
+                var propertyInfos = m_type
+                    .GetProperties(c_memberBindingFlags)
+                    .Where(item => item.CanRead && !item.GetIndexParameters().Any())
+                    .ToList();
+                foreach (var propertyInfo in propertyInfos)
+                {
+                    var propertyValue = propertyInfo.GetValue(m_value, null);
+                    var wrappedPropertyValue = ScriptReturnValue.Create(propertyValue);
+                    m_propertyValueMap.Add(propertyInfo.Name, wrappedPropertyValue);
+                }
+
+                var fieldInfos = m_type.GetFields(c_memberBindingFlags);
+                foreach (var fieldInfo in fieldInfos)
+                {
+                    var fieldValue = fieldInfo.GetValue(m_value);
+                    var wrappedFieldValue = ScriptReturnValue.Create(fieldValue);
+                    m_fieldValueMap.Add(fieldInfo.Name, wrappedFieldValue);
+                }
+            }
+
+            m_type = null;
+            m_value = null;
+        }
 
         #endregion
 
@@ -106,7 +568,49 @@ namespace CSharpScriptExecutor.Common
 
         internal static ScriptReturnValue Create(object returnValue)
         {
-            return ReferenceEquals(returnValue, null) ? s_null : new ScriptReturnValue(returnValue);
+            if (ReferenceEquals(returnValue, null))
+            {
+                return s_null;
+            }
+
+            var objectsBeingProcessedCreated = false;
+            try
+            {
+                if (s_objectsBeingProcessed == null)
+                {
+                    objectsBeingProcessedCreated = true;
+                    s_objectsBeingProcessed = new Dictionary<ReferenceWrapper, ScriptReturnValue>();
+                }
+
+                var isReferenceType = !returnValue.GetType().IsValueType;
+                if (isReferenceType)
+                {
+                    var reference = new ReferenceWrapper(returnValue);
+                    ScriptReturnValue preResult;
+                    if (s_objectsBeingProcessed.TryGetValue(reference, out preResult))
+                    {
+                        return preResult;
+                    }
+                }
+
+                var result = new ScriptReturnValue(returnValue);
+                if (isReferenceType)
+                {
+                    s_objectsBeingProcessed.Add(new ReferenceWrapper(returnValue), result);
+                }
+
+                // Initialization must be performed only after reference is added to processed objects map
+                result.Initialize();
+
+                return result;
+            }
+            finally
+            {
+                if (objectsBeingProcessedCreated)
+                {
+                    s_objectsBeingProcessed = null;
+                }
+            }
         }
 
         #endregion
@@ -139,13 +643,31 @@ namespace CSharpScriptExecutor.Common
             private set;
         }
 
+        public bool IsSimpleType
+        {
+            get;
+            private set;
+        }
+
         public string AsString
         {
             get;
             private set;
         }
 
-        public bool IsSimpleType
+        //[TypeConverter(typeof(ExpandableObjectConverter))]
+        //[DisplayName("[Properties]")]
+        [Browsable(false)]
+        public object Properties
+        {
+            get;
+            private set;
+        }
+
+        //[TypeConverter(typeof(ExpandableObjectConverter))]
+        //[DisplayName("[Fields]")]
+        [Browsable(false)]
+        public object Fields
         {
             get;
             private set;
@@ -155,7 +677,126 @@ namespace CSharpScriptExecutor.Common
 
         #region Public Methods
 
-        //
+        public override string ToString()
+        {
+            return this.AsString;
+        }
+
+        public List<string> GetPropertyNames()
+        {
+            return m_propertyValueMap.Keys.ToList();
+        }
+
+        public ScriptReturnValue GetPropertyValue(string name)
+        {
+            #region Argument Check
+
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentException("The value can be neither empty string nor null.", "name");
+            }
+
+            #endregion
+
+            return m_propertyValueMap[name];
+        }
+
+        public List<string> GetFieldNames()
+        {
+            return m_fieldValueMap.Keys.ToList();
+        }
+
+        public ScriptReturnValue GetFieldValue(string name)
+        {
+            #region Argument Check
+
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentException("The value can be neither empty string nor null.", "name");
+            }
+
+            #endregion
+
+            return m_fieldValueMap[name];
+        }
+
+        #endregion
+
+        #region ICustomTypeDescriptor Members
+
+        AttributeCollection ICustomTypeDescriptor.GetAttributes()
+        {
+            return TypeDescriptor.GetAttributes(this, true);
+        }
+
+        string ICustomTypeDescriptor.GetClassName()
+        {
+            return TypeDescriptor.GetClassName(this, true);
+        }
+
+        string ICustomTypeDescriptor.GetComponentName()
+        {
+            return TypeDescriptor.GetComponentName(this, true);
+        }
+
+        TypeConverter ICustomTypeDescriptor.GetConverter()
+        {
+            return TypeDescriptor.GetConverter(this, true);
+        }
+
+        EventDescriptor ICustomTypeDescriptor.GetDefaultEvent()
+        {
+            return TypeDescriptor.GetDefaultEvent(this, true);
+        }
+
+        PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty()
+        {
+            return TypeDescriptor.GetDefaultProperty(this, true);
+        }
+
+        object ICustomTypeDescriptor.GetEditor(Type editorBaseType)
+        {
+            return TypeDescriptor.GetEditor(this, editorBaseType, true);
+        }
+
+        EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes)
+        {
+            return TypeDescriptor.GetEvents(this, attributes, true);
+        }
+
+        EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
+        {
+            return TypeDescriptor.GetEvents(this, true);
+        }
+
+        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes)
+        {
+            return ((ICustomTypeDescriptor)this).GetProperties();
+        }
+
+        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
+        {
+            var proxyResult = new List<PropertyDescriptor>(
+                TypeDescriptor.GetProperties(this, true).Cast<PropertyDescriptor>());
+            foreach (SubvalueCollection extraProperty in new[] { this.Fields, this.Properties })
+            {
+                if (extraProperty.HasAnyValue)
+                {
+                    var propertyDescriptor = new ReturnValuePropertyDescriptor(
+                        this,
+                        extraProperty.DisplayName,
+                        extraProperty);
+                    proxyResult.Add(propertyDescriptor);
+                }
+            }
+
+            return new PropertyDescriptorCollection(proxyResult.ToArray(), true);
+        }
+
+        object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd)
+        {
+            return this;
+        }
 
         #endregion
     }

@@ -23,3 +23,5 @@ if (arguments.Length != 0)
 }
 
 
+//return new { A = 1, B = "b", C = new { X = 1, Y = 100 } };
+return new { A = 1, B = "b", C = new { X = 1, Y = 100, OffsetArray = new[] { 1, -1 }, OffsetMap = new Dictionary<int, string> { { 89, "89" } } } }
