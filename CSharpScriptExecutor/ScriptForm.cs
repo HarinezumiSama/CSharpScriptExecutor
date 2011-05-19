@@ -195,6 +195,7 @@ namespace CSharpScriptExecutor
             tewTextEditor.InnerEditor.Focus();
 
             SetControlStates();
+            this.Activate();
 
             // If the caller sets non-default cursor, resetting it
             Cursor.Current = Cursors.Default;

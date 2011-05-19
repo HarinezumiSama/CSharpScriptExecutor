@@ -1,4 +1,5 @@
 glob:*/bin/*
 glob:*/obj/*
+glob:_Build_/*
 glob:*.suo
 glob:*.csproj.user
