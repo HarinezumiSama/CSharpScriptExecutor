@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace CSharpScriptExecutor.Common
 {
@@ -31,12 +32,15 @@ namespace CSharpScriptExecutor.Common
 
             #region Constructors
 
-            internal unsafe ReferenceWrapper(object value)
+            internal ReferenceWrapper(object value)
             {
                 if (value is Pointer)
                 {
                     m_value = null;
-                    m_address = new IntPtr(Pointer.Unbox(value));
+                    unsafe
+                    {
+                        m_address = new IntPtr(Pointer.Unbox(value));
+                    }
                 }
                 else
                 {
@@ -349,6 +353,12 @@ namespace CSharpScriptExecutor.Common
         [ImmutableObject(true)]
         public sealed class TypeWrapper
         {
+            #region Fields
+
+            private readonly string m_asString;
+
+            #endregion
+
             #region Constructors
 
             public TypeWrapper(Type type)
@@ -367,6 +377,7 @@ namespace CSharpScriptExecutor.Common
                 this.AssemblyName = type.Assembly.GetName().Name;
                 this.AssemblyFullName = type.Assembly.GetName().FullName;
                 this.AssemblyQualifiedName = type.AssemblyQualifiedName;
+                m_asString = type.ToString();
             }
 
             #endregion
@@ -409,7 +420,7 @@ namespace CSharpScriptExecutor.Common
 
             public override string ToString()
             {
-                return this.Name;
+                return m_asString;
             }
 
             #endregion
@@ -417,23 +428,71 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
-        #region ValuePropertyAccessException Class
+        #region ValueAccessException Class
 
         [Serializable]
-        public sealed class ValuePropertyAccessException : Exception
+        internal sealed class ValueAccessException : Exception
         {
+            #region Fields
+
+            internal static readonly ValueAccessException FieldRecursionLimitExceeded =
+                new ValueAccessException(s_fieldRecursionLimitExceededMessage, null);
+            internal static readonly ValueAccessException PropertyRecursionLimitExceeded =
+                new ValueAccessException(s_propertyRecursionLimitExceededMessage, null);
+
+            private readonly string m_asString;
+
+            #endregion
+
             #region Constructors and Destructors
 
-            public ValuePropertyAccessException(string message, Exception innerException)
-                : base(message, innerException)
+            internal ValueAccessException(string message, Exception innerException)
+                : base(message)
+            {
+                StringBuilder asStringBuilder = new StringBuilder(message);
+
+                if (innerException != null)
+                {
+                    InnerExceptionType = new TypeWrapper(innerException.GetType());
+                    InnerExceptionMessage = innerException.Message;
+                    if (!string.IsNullOrWhiteSpace(InnerExceptionMessage))
+                    {
+                        asStringBuilder.AppendFormat(" [{0}] {1}", InnerExceptionType, InnerExceptionMessage);
+                    }
+                }
+
+                m_asString = asStringBuilder.ToString();
+            }
+
+            private ValueAccessException(SerializationInfo info, StreamingContext context)
+                : base(info, context)
             {
                 // Nothing to do
             }
 
-            private ValuePropertyAccessException(SerializationInfo info, StreamingContext context)
-                : base(info, context)
+            #endregion
+
+            #region Public Properties
+
+            public TypeWrapper InnerExceptionType
             {
-                // Nothing to do
+                get;
+                private set;
+            }
+
+            public string InnerExceptionMessage
+            {
+                get;
+                private set;
+            }
+
+            #endregion
+
+            #region Public Methods
+
+            public override string ToString()
+            {
+                return m_asString;
             }
 
             #endregion
@@ -447,19 +506,35 @@ namespace CSharpScriptExecutor.Common
 
         private const BindingFlags c_memberBindingFlags =
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        private const int c_maxRecursionCount = 128;
 
         #endregion
 
         #region Fields
 
         private static readonly ScriptReturnValue s_null = new ScriptReturnValue(null);
+        private static readonly string s_toStringMethodName = new Func<string>(new object().ToString).Method.Name;
+        private static readonly string s_pointerStringFormat = GetPointerStringFormat();
+        private static readonly HashSet<Assembly> s_safeAssemblies = GetSafeAssemblies();
+
+        private static readonly string s_fieldRecursionLimitExceededMessage = string.Format(
+            "Skipped reading the field: recursion limit {0} is reached.",
+            c_maxRecursionCount);
+        private static readonly string s_propertyRecursionLimitExceededMessage = string.Format(
+            "Skipped reading the property: recursion limit {0} is reached.",
+            c_maxRecursionCount);
+
         [ThreadStatic]
         private static Dictionary<ReferenceWrapper, ScriptReturnValue> s_objectsBeingProcessed;
+        [ThreadStatic]
+        private static int? s_recursionCount;
+
+        [ThreadStatic]
+        private static ulong s_instanceCount;
 
         private readonly List<MemberCollection> m_memberCollections = new List<MemberCollection>();
-        [NonSerialized]
-        private Type m_type;
-        [NonSerialized]
+        private bool m_isInitialized;
+        private Type m_systemType;
         private object m_value;
 
         #endregion
@@ -469,40 +544,59 @@ namespace CSharpScriptExecutor.Common
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptReturnValue"/> class.
         /// </summary>
-        private unsafe ScriptReturnValue(object value)
+        private ScriptReturnValue(object value)
         {
+            checked
+            {
+                s_instanceCount++;
+            }
+            if (s_instanceCount % 10 == 0)
+            {
+                Debug.WriteLine("{0} instances: {1}+", GetType().Name, s_instanceCount);
+            }
+
             if (ReferenceEquals(value, null))
             {
                 IsNull = true;
                 IsSimpleType = true;
                 AsString = "<null>";
+                m_isInitialized = true;
                 return;
             }
 
             m_value = value;
-            m_type = value.GetType();
+            m_systemType = value.GetType();
 
-            this.Type = new TypeWrapper(m_type);
-            this.IsSimpleType = m_type.IsPrimitive
-                || m_type.IsEnum
-                || m_type.IsPointer
-                || m_type == typeof(char)
-                || m_type == typeof(string)
-                || m_type == typeof(decimal)
-                || m_type == typeof(Pointer);
+            this.Type = new TypeWrapper(m_systemType);
+            this.IsSimpleType = m_systemType.IsPrimitive
+                || m_systemType.IsEnum
+                || m_systemType.IsPointer
+                || m_systemType == typeof(char)
+                || m_systemType == typeof(string)
+                || m_systemType == typeof(decimal)
+                || m_systemType == typeof(Pointer)
+                || typeof(Delegate).IsAssignableFrom(m_systemType);
 
-            var toStringableValue = m_type == typeof(Pointer) ? new IntPtr(Pointer.Unbox(value)) : value;
-            Func<string> toStringMethod = toStringableValue.ToString;
             try
             {
-                this.AsString = toStringMethod();
+                if (m_systemType == typeof(Pointer))
+                {
+                    unsafe
+                    {
+                        this.AsString = string.Format(s_pointerStringFormat, (long)Pointer.Unbox(value));
+                    }
+                }
+                else
+                {
+                    this.AsString = value.ToString();
+                }
             }
             catch (Exception ex)
             {
                 this.AsString = string.Format(
                     "An exception {0} occurred on calling value's {1} method: {2}",
                     ex.GetType().FullName,
-                    toStringMethod.Method.Name,
+                    s_toStringMethodName,
                     ex.Message);
             }
         }
@@ -511,10 +605,71 @@ namespace CSharpScriptExecutor.Common
 
         #region Private Methods
 
+        private static unsafe string GetPointerStringFormat()
+        {
+            return string.Format("0x{{0:X{0}}}", sizeof(IntPtr) * 2);
+        }
+
+        private static HashSet<Assembly> GetSafeAssemblies()
+        {
+            return new HashSet<Assembly>
+            {
+                // mscorlib
+                typeof(void).Assembly,
+
+                // System
+                typeof(object).Assembly,
+
+                // System.Core
+                typeof(global::System.Linq.Enumerable).Assembly,
+
+                // System.Data
+                typeof(global::System.Data.DataTable).Assembly,
+
+                // This assembly
+                typeof(global::CSharpScriptExecutor.Common.ScriptReturnValue).Assembly
+            };
+        }
+
+        [DebuggerStepThrough]
+        private static object AutoWrapIfSpecialType(object value)
+        {
+            var type = value as Type;
+            if (type != null)
+            {
+                return new TypeWrapper(type);
+            }
+
+            return value;
+        }
+
+        [DebuggerStepThrough]
+        private object GetFieldValueInternal(FieldInfo fieldInfo)
+        {
+            object result;
+
+            if (s_recursionCount.GetValueOrDefault() > c_maxRecursionCount)
+            {
+                result = ValueAccessException.FieldRecursionLimitExceeded;
+                return result;
+            }
+
+            result = fieldInfo.GetValue(m_value);
+            result = AutoWrapIfSpecialType(result);
+            return result;
+        }
+
         [DebuggerStepThrough]
         private object GetPropertyValueInternal(PropertyInfo propertyInfo)
         {
             object result;
+
+            if (s_recursionCount.GetValueOrDefault() > c_maxRecursionCount)
+            {
+                result = ValueAccessException.PropertyRecursionLimitExceeded;
+                return result;
+            }
+
             try
             {
                 result = propertyInfo.GetValue(m_value, null);
@@ -523,42 +678,60 @@ namespace CSharpScriptExecutor.Common
             {
                 var baseException = ex.GetBaseException();
 
-                result = new ValuePropertyAccessException(
-                    string.Format(
-                        "Cannot read the property '{0}' of the type '{1}': [{2}] {3}",
-                        propertyInfo.Name,
-                        m_type.FullName,
-                        baseException.GetType().FullName,
-                        baseException.Message),
-                    ex);
+                result = new ValueAccessException("Cannot read the property.", ex);
             }
+
+            result = AutoWrapIfSpecialType(result);
             return result;
         }
 
-        private void Initialize()
+        private static bool IsLazy(Type type)
         {
-            if (m_type == null || m_value == null)
+            return type != null && type.IsGenericType && (type.GetGenericTypeDefinition() == typeof(Lazy<>));
+        }
+
+        private bool CanInitializationBeSkipped(bool allowLazy)
+        {
+            return allowLazy
+                && !IsLazy(m_systemType)
+                && m_systemType.IsSerializable
+                && s_safeAssemblies.Contains(m_systemType.Assembly);
+        }
+
+        private void Initialize(bool allowLazy)
+        {
+            if (m_isInitialized)
             {
-                throw new InvalidOperationException("Initialization is called too late or twice.");
+                return;
+            }
+
+            if (m_systemType == null || m_value == null)
+            {
+                throw new InvalidOperationException("Initialization is called too late.");
             }
 
             if (!this.IsSimpleType)
             {
+                if (CanInitializationBeSkipped(allowLazy))
+                {
+                    return;
+                }
+
                 var fieldValueMap = new Dictionary<string, ScriptReturnValue>();
-                m_memberCollections.Add(new MemberCollection(fieldValueMap, "Fields"));
-                var fieldInfos = m_type.GetFields(c_memberBindingFlags);
+                var fieldInfos = m_systemType.GetFields(c_memberBindingFlags);
                 foreach (var fieldInfo in fieldInfos)
                 {
-                    var fieldValue = fieldInfo.GetValue(m_value);
+                    var fieldValue = GetFieldValueInternal(fieldInfo);
                     var wrappedFieldValue = Create(fieldValue);
                     fieldValueMap.Add(fieldInfo.Name, wrappedFieldValue);
                 }
+                m_memberCollections.Add(new MemberCollection(fieldValueMap, "Fields"));
 
                 var propertyValueMap = new Dictionary<string, ScriptReturnValue>();
-                var propertyInfos = m_type
+                var propertyInfos = m_systemType
                     .GetProperties(c_memberBindingFlags)
                     .Where(item => item.CanRead && !item.GetIndexParameters().Any())
-                    .ToList();
+                    .ToArray();
                 foreach (var propertyInfo in propertyInfos)
                 {
                     var propertyValue = GetPropertyValueInternal(propertyInfo);
@@ -568,19 +741,29 @@ namespace CSharpScriptExecutor.Common
                 m_memberCollections.Add(new MemberCollection(propertyValueMap, "Properties"));
             }
 
-            var enumerable = m_value as IEnumerable;
-            if (enumerable != null)
+            if (!(m_value is string))
             {
-                var elementMap = enumerable
-                    .Cast<object>()
-                    .Select(
-                        (item, index) => new { Key = string.Format("[{0}]", index), Value = Create(item) })
-                    .ToDictionary(item => item.Key, item => item.Value);
-                m_memberCollections.Add(new MemberCollection(elementMap, "Elements"));
+                var enumerable = m_value as IEnumerable;
+                if (enumerable != null)
+                {
+                    if (CanInitializationBeSkipped(allowLazy))
+                    {
+                        return;
+                    }
+
+                    var elementMap = enumerable
+                        .Cast<object>()
+                        .Select(
+                            (item, index) =>
+                                new { Key = string.Format("[{0}]", index), Value = Create(item) })
+                        .ToDictionary(item => item.Key, item => item.Value);
+                    m_memberCollections.Add(new MemberCollection(elementMap, "Elements"));
+                }
             }
 
-            m_type = null;
+            m_systemType = null;
             m_value = null;
+            m_isInitialized = true;
         }
 
         #endregion
@@ -595,6 +778,7 @@ namespace CSharpScriptExecutor.Common
             }
 
             var objectsBeingProcessedCreated = false;
+            var recursionCountInitialized = false;
             try
             {
                 if (s_objectsBeingProcessed == null)
@@ -602,6 +786,13 @@ namespace CSharpScriptExecutor.Common
                     objectsBeingProcessedCreated = true;
                     s_objectsBeingProcessed = new Dictionary<ReferenceWrapper, ScriptReturnValue>();
                 }
+                if (!s_recursionCount.HasValue)
+                {
+                    recursionCountInitialized = true;
+                    s_recursionCount = 0;
+                }
+
+                // TODO: Look into why SyncRoot property of int[] instance (array) causes eternal recursion
 
                 var isReferenceType = !value.GetType().IsValueType;
                 if (isReferenceType)
@@ -621,12 +812,24 @@ namespace CSharpScriptExecutor.Common
                 }
 
                 // Initialization must be performed only after reference is added to processed objects map
-                result.Initialize();
+                s_recursionCount = s_recursionCount.Value + 1;
+                try
+                {
+                    result.Initialize(true);
+                }
+                finally
+                {
+                    s_recursionCount = s_recursionCount.Value - 1;
+                }
 
                 return result;
             }
             finally
             {
+                if (recursionCountInitialized)
+                {
+                    s_recursionCount = null;
+                }
                 if (objectsBeingProcessedCreated)
                 {
                     s_objectsBeingProcessed = null;
@@ -727,6 +930,13 @@ namespace CSharpScriptExecutor.Common
 
         PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
         {
+            this.Initialize(false);
+            if (!m_isInitialized)
+            {
+                throw new InvalidOperationException(
+                    string.Format("{0}: initialization has failed.", GetType().FullName));
+            }
+
             var predefinedProperties = new List<PropertyDescriptor>();
             if (this.IsNull)
             {
@@ -739,7 +949,6 @@ namespace CSharpScriptExecutor.Common
             }
 
             var runTimeProperties = m_memberCollections
-                .Where(item => item.HasAnyValue)
                 .Select(item => new ValuePropertyDescriptor(this, item.DisplayName, item, true));
 
             return new PropertyDescriptorCollection(predefinedProperties.Concat(runTimeProperties).ToArray(), true);

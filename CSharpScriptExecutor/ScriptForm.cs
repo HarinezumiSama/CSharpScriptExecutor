@@ -127,6 +127,7 @@ namespace CSharpScriptExecutor
                     ? oldResultImage
                     : executionResult.IsSuccess ? Resources.OKShield_32x32 : Resources.ErrorCircle_32x32;
                 m_executionResult = executionResult ?? oldExecutionResult;
+                SetControlStates();
                 pbResult.Show();
 
                 Cursor.Current = oldCursor;
@@ -152,6 +153,8 @@ namespace CSharpScriptExecutor
             btnDebug.Enabled = canRun;
             tsmiExecute.Enabled = canRun;
             tsmiDebug.Enabled = canRun;
+
+            tsmiShowResult.Enabled = m_executionResult != null;
         }
 
         #endregion
@@ -250,11 +253,11 @@ namespace CSharpScriptExecutor
             }
         }
 
-        #endregion
-
         private void tsmiShowResult_Click(object sender, EventArgs e)
         {
-
+            ShowExecutionResult(m_executionResult);
         }
+
+        #endregion
     }
 }

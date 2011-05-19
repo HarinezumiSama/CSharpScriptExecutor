@@ -261,9 +261,10 @@ namespace CSharpScriptExecutor
                     throw new NotImplementedException();
             }
 
-            var hasReturnValue = m_executionResult.IsSuccess && !m_executionResult.ReturnValue.IsNull();
+            var hasReturnValue = m_executionResult.IsSuccess; // && !m_executionResult.ReturnValue.IsNull();
 
             SetTabPageVisibility(tpReturnValue, hasReturnValue);
+            pgReturnValue.PropertySort = PropertySort.NoSort;
             pgReturnValue.SelectedObject = hasReturnValue ? m_executionResult.ReturnValue : null;
 
             rtbConsoleOut.Text = m_executionResult.ConsoleOut;

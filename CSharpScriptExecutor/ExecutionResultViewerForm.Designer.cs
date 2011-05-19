@@ -13,10 +13,14 @@
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing )
             {
-                components.Dispose();
+                if (components != null)
+                {
+                    components.Dispose();
+                }
             }
+
             base.Dispose(disposing);
         }
 
@@ -58,9 +62,9 @@
             this.tpSourceCode.SuspendLayout();
             this.tpGeneratedCode.SuspendLayout();
             this.SuspendLayout();
-            // 
+            //
             // btnClose
-            // 
+            //
             this.btnClose.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnClose.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.btnClose.Location = new System.Drawing.Point(497, 327);
@@ -70,11 +74,11 @@
             this.btnClose.Text = "&Close";
             this.btnClose.UseVisualStyleBackColor = true;
             this.btnClose.Click += new System.EventHandler(this.btnClose_Click);
-            // 
+            //
             // gbResult
-            // 
-            this.gbResult.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            //
+            this.gbResult.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.gbResult.Controls.Add(this.scDetails);
             this.gbResult.Location = new System.Drawing.Point(12, 12);
@@ -82,44 +86,44 @@
             this.gbResult.Size = new System.Drawing.Size(560, 309);
             this.gbResult.TabIndex = 2;
             this.gbResult.TabStop = false;
-            // 
+            //
             // scDetails
-            // 
-            this.scDetails.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            //
+            this.scDetails.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.scDetails.Location = new System.Drawing.Point(12, 20);
             this.scDetails.MinimumSize = new System.Drawing.Size(100, 210);
             this.scDetails.Name = "scDetails";
             this.scDetails.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
+            //
             // scDetails.Panel1
-            // 
+            //
             this.scDetails.Panel1.Controls.Add(this.lblMessage);
             this.scDetails.Panel1.Controls.Add(this.tbMessage);
             this.scDetails.Panel1MinSize = 100;
-            // 
+            //
             // scDetails.Panel2
-            // 
+            //
             this.scDetails.Panel2.Controls.Add(this.tcResults);
             this.scDetails.Panel2MinSize = 100;
             this.scDetails.Size = new System.Drawing.Size(542, 283);
             this.scDetails.SplitterDistance = 141;
             this.scDetails.TabIndex = 1;
-            // 
+            //
             // lblMessage
-            // 
+            //
             this.lblMessage.AutoSize = true;
             this.lblMessage.Location = new System.Drawing.Point(3, 0);
             this.lblMessage.Name = "lblMessage";
             this.lblMessage.Size = new System.Drawing.Size(78, 13);
             this.lblMessage.TabIndex = 2;
             this.lblMessage.Text = "Error &Message:";
-            // 
+            //
             // tbMessage
-            // 
-            this.tbMessage.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            //
+            this.tbMessage.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tbMessage.HideSelection = false;
             this.tbMessage.Location = new System.Drawing.Point(3, 16);
@@ -132,9 +136,9 @@
             this.tbMessage.Size = new System.Drawing.Size(536, 113);
             this.tbMessage.TabIndex = 1;
             this.tbMessage.WordWrap = false;
-            // 
+            //
             // tcResults
-            // 
+            //
             this.tcResults.Controls.Add(this.tpReturnValue);
             this.tcResults.Controls.Add(this.tpConsoleOut);
             this.tcResults.Controls.Add(this.tpConsoleError);
@@ -147,9 +151,9 @@
             this.tcResults.Size = new System.Drawing.Size(542, 138);
             this.tcResults.TabIndex = 0;
             this.tcResults.TabStop = false;
-            // 
+            //
             // tpReturnValue
-            // 
+            //
             this.tpReturnValue.Controls.Add(this.pgReturnValue);
             this.tpReturnValue.Location = new System.Drawing.Point(4, 22);
             this.tpReturnValue.Name = "tpReturnValue";
@@ -158,9 +162,9 @@
             this.tpReturnValue.TabIndex = 4;
             this.tpReturnValue.Text = "Return Value";
             this.tpReturnValue.UseVisualStyleBackColor = true;
-            // 
+            //
             // pgReturnValue
-            // 
+            //
             this.pgReturnValue.CausesValidation = false;
             this.pgReturnValue.CommandsVisibleIfAvailable = false;
             this.pgReturnValue.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -171,9 +175,9 @@
             this.pgReturnValue.Size = new System.Drawing.Size(528, 106);
             this.pgReturnValue.TabIndex = 0;
             this.pgReturnValue.ToolbarVisible = false;
-            // 
+            //
             // tpConsoleOut
-            // 
+            //
             this.tpConsoleOut.Controls.Add(this.rtbConsoleOut);
             this.tpConsoleOut.Location = new System.Drawing.Point(4, 22);
             this.tpConsoleOut.Name = "tpConsoleOut";
@@ -182,9 +186,9 @@
             this.tpConsoleOut.TabIndex = 2;
             this.tpConsoleOut.Text = "Console.Out";
             this.tpConsoleOut.UseVisualStyleBackColor = true;
-            // 
+            //
             // rtbConsoleOut
-            // 
+            //
             this.rtbConsoleOut.DetectUrls = false;
             this.rtbConsoleOut.Dock = System.Windows.Forms.DockStyle.Fill;
             this.rtbConsoleOut.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
@@ -196,9 +200,9 @@
             this.rtbConsoleOut.TabIndex = 0;
             this.rtbConsoleOut.Text = "";
             this.rtbConsoleOut.WordWrap = false;
-            // 
+            //
             // tpConsoleError
-            // 
+            //
             this.tpConsoleError.Controls.Add(this.rtbConsoleError);
             this.tpConsoleError.Location = new System.Drawing.Point(4, 22);
             this.tpConsoleError.Name = "tpConsoleError";
@@ -207,9 +211,9 @@
             this.tpConsoleError.TabIndex = 3;
             this.tpConsoleError.Text = "Console.Error";
             this.tpConsoleError.UseVisualStyleBackColor = true;
-            // 
+            //
             // rtbConsoleError
-            // 
+            //
             this.rtbConsoleError.DetectUrls = false;
             this.rtbConsoleError.Dock = System.Windows.Forms.DockStyle.Fill;
             this.rtbConsoleError.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
@@ -221,9 +225,9 @@
             this.rtbConsoleError.TabIndex = 1;
             this.rtbConsoleError.Text = "";
             this.rtbConsoleError.WordWrap = false;
-            // 
+            //
             // tpSourceCode
-            // 
+            //
             this.tpSourceCode.Controls.Add(this.ehSourceCode);
             this.tpSourceCode.Location = new System.Drawing.Point(4, 22);
             this.tpSourceCode.Name = "tpSourceCode";
@@ -232,18 +236,18 @@
             this.tpSourceCode.TabIndex = 0;
             this.tpSourceCode.Text = "Source Code";
             this.tpSourceCode.UseVisualStyleBackColor = true;
-            // 
+            //
             // ehSourceCode
-            // 
+            //
             this.ehSourceCode.Dock = System.Windows.Forms.DockStyle.Fill;
             this.ehSourceCode.Location = new System.Drawing.Point(3, 3);
             this.ehSourceCode.Name = "ehSourceCode";
             this.ehSourceCode.Size = new System.Drawing.Size(528, 106);
             this.ehSourceCode.TabIndex = 0;
             this.ehSourceCode.Child = this.tewSourceCode;
-            // 
+            //
             // tpGeneratedCode
-            // 
+            //
             this.tpGeneratedCode.Controls.Add(this.ehGeneratedCode);
             this.tpGeneratedCode.Location = new System.Drawing.Point(4, 22);
             this.tpGeneratedCode.Name = "tpGeneratedCode";
@@ -252,18 +256,18 @@
             this.tpGeneratedCode.TabIndex = 1;
             this.tpGeneratedCode.Text = "Generated Code";
             this.tpGeneratedCode.UseVisualStyleBackColor = true;
-            // 
+            //
             // ehGeneratedCode
-            // 
+            //
             this.ehGeneratedCode.Dock = System.Windows.Forms.DockStyle.Fill;
             this.ehGeneratedCode.Location = new System.Drawing.Point(3, 3);
             this.ehGeneratedCode.Name = "ehGeneratedCode";
             this.ehGeneratedCode.Size = new System.Drawing.Size(528, 106);
             this.ehGeneratedCode.TabIndex = 0;
             this.ehGeneratedCode.Child = this.tewGeneratedCode;
-            // 
+            //
             // ExecutionResultViewerForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.btnClose;
@@ -289,7 +293,6 @@
             this.tpSourceCode.ResumeLayout(false);
             this.tpGeneratedCode.ResumeLayout(false);
             this.ResumeLayout(false);
-
         }
 
         #endregion

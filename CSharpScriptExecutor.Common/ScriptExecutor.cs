@@ -19,9 +19,7 @@ namespace CSharpScriptExecutor.Common
 {
     // TODO: Implement Referenced .cs files that can be referenced and used from main code
 
-    // TODO: Implement Assembly Reference through directive in the code
-
-    // TODO: `##Reference` script directive (reference to an assembly)
+    // TODO: Implement Assembly Reference through directive in the code (for instance, `##Reference`)
 
     public sealed class ScriptExecutor : MarshalByRefObject, IScriptExecutor
     {
