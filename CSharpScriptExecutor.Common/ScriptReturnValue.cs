@@ -124,10 +124,10 @@ namespace CSharpScriptExecutor.Common
 
             internal ValuePropertyDescriptor(
                 object owner,
-                string name,
+                MemberKey memberKey,
                 object propertyValue,
                 bool expandable)
-                : base(name, expandable ? s_expandableAttributes : s_emptyAttributes)
+                : base(memberKey.Name, expandable ? s_expandableAttributes : s_emptyAttributes)
             {
                 #region Argument Check
 
@@ -140,6 +140,7 @@ namespace CSharpScriptExecutor.Common
 
                 m_owner = owner;
                 m_propertyValue = propertyValue;
+                this.OrderIndex = memberKey.OrderIndex;
             }
 
             #endregion
@@ -162,6 +163,12 @@ namespace CSharpScriptExecutor.Common
             {
                 [DebuggerNonUserCode]
                 get { return m_propertyValue == null ? null : m_propertyValue.GetType(); }
+            }
+
+            public int OrderIndex
+            {
+                get;
+                private set;
             }
 
             #endregion
@@ -207,6 +214,49 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
+        #region MemberKey Structure
+
+        private struct MemberKey
+        {
+            #region Constructors
+
+            public MemberKey(string name, int orderIndex = 0)
+                : this()
+            {
+                #region Fields
+
+                if (name == null)
+                {
+                    throw new ArgumentNullException("name");
+                }
+
+                #endregion
+
+                this.Name = name;
+                this.OrderIndex = orderIndex;
+            }
+
+            #endregion
+
+            #region Public Properties
+
+            public string Name
+            {
+                get;
+                private set;
+            }
+
+            public int OrderIndex
+            {
+                get;
+                private set;
+            }
+
+            #endregion
+        }
+
+        #endregion
+
         #region MemberCollection Class
 
         [Serializable]
@@ -215,14 +265,14 @@ namespace CSharpScriptExecutor.Common
         {
             #region Fields
 
-            private readonly Dictionary<string, ScriptReturnValue> m_valueMap;
+            private readonly Dictionary<MemberKey, ScriptReturnValue> m_valueMap;
             private readonly string m_displayName;
 
             #endregion
 
             #region Constructors
 
-            internal MemberCollection(Dictionary<string, ScriptReturnValue> valueMap, string displayName)
+            internal MemberCollection(Dictionary<MemberKey, ScriptReturnValue> valueMap, string displayName)
             {
                 #region Argument Check
 
@@ -325,12 +375,13 @@ namespace CSharpScriptExecutor.Common
                 return new PropertyDescriptorCollection(
                     m_valueMap
                         .Select(
-                            pair => (PropertyDescriptor)new ValuePropertyDescriptor(
+                            pair => new ValuePropertyDescriptor(
                                 this,
                                 pair.Key,
                                 pair.Value,
                                 true))
-                        .OrderBy(item => item.DisplayName)
+                        .OrderBy(item => item.OrderIndex)
+                        .ThenBy(item => item.DisplayName)
                         .ThenBy(item => item.Name)
                         .ToArray(),
                     true);
@@ -512,6 +563,8 @@ namespace CSharpScriptExecutor.Common
 
         #region Fields
 
+        #region Static Fields
+
         private static readonly ScriptReturnValue s_null = new ScriptReturnValue(null);
         private static readonly string s_toStringMethodName = new Func<string>(new object().ToString).Method.Name;
         private static readonly string s_pointerStringFormat = GetPointerStringFormat();
@@ -524,6 +577,10 @@ namespace CSharpScriptExecutor.Common
             "Skipped reading the property: recursion limit {0} is reached.",
             c_maxRecursionCount);
 
+        private static readonly MemberKey s_isNullMemberKey = new MemberKey("(IsNull)");
+        private static readonly MemberKey s_typeMemberKey = new MemberKey("(Type)");
+        private static readonly MemberKey s_asStringMemberKey = new MemberKey("(AsString)");
+
         [ThreadStatic]
         private static Dictionary<ReferenceWrapper, ScriptReturnValue> s_objectsBeingProcessed;
         [ThreadStatic]
@@ -532,11 +589,17 @@ namespace CSharpScriptExecutor.Common
         [ThreadStatic]
         private static ulong s_instanceCount;
 
+        #endregion
+
+        #region Instance Fields
+
         private readonly List<MemberCollection> m_memberCollections = new List<MemberCollection>();
         private readonly bool m_isSimpleType;
         private bool m_isInitialized;
         private Type m_systemType;
         private object m_value;
+
+        #endregion
 
         #endregion
 
@@ -718,17 +781,17 @@ namespace CSharpScriptExecutor.Common
                     return;
                 }
 
-                var fieldValueMap = new Dictionary<string, ScriptReturnValue>();
+                var fieldValueMap = new Dictionary<MemberKey, ScriptReturnValue>();
                 var fieldInfos = m_systemType.GetFields(c_memberBindingFlags);
                 foreach (var fieldInfo in fieldInfos)
                 {
                     var fieldValue = GetFieldValueInternal(fieldInfo);
                     var wrappedFieldValue = Create(fieldValue);
-                    fieldValueMap.Add(fieldInfo.Name, wrappedFieldValue);
+                    fieldValueMap.Add(new MemberKey(fieldInfo.Name), wrappedFieldValue);
                 }
                 m_memberCollections.Add(new MemberCollection(fieldValueMap, "Fields"));
 
-                var propertyValueMap = new Dictionary<string, ScriptReturnValue>();
+                var propertyValueMap = new Dictionary<MemberKey, ScriptReturnValue>();
                 var propertyInfos = m_systemType
                     .GetProperties(c_memberBindingFlags)
                     .Where(item => item.CanRead && !item.GetIndexParameters().Any())
@@ -737,7 +800,7 @@ namespace CSharpScriptExecutor.Common
                 {
                     var propertyValue = GetPropertyValueInternal(propertyInfo);
                     var wrappedPropertyValue = Create(propertyValue);
-                    propertyValueMap.Add(propertyInfo.Name, wrappedPropertyValue);
+                    propertyValueMap.Add(new MemberKey(propertyInfo.Name), wrappedPropertyValue);
                 }
                 m_memberCollections.Add(new MemberCollection(propertyValueMap, "Properties"));
             }
@@ -756,8 +819,13 @@ namespace CSharpScriptExecutor.Common
                         .Cast<object>()
                         .Select(
                             (item, index) =>
-                                new { Key = string.Format("[{0}]", index), Value = Create(item) })
-                        .ToDictionary(item => item.Key, item => item.Value);
+                                new
+                                {
+                                    Index = index,
+                                    Name = string.Format("[{0}]", index),
+                                    Value = Create(item)
+                                })
+                        .ToDictionary(item => new MemberKey(item.Name, item.Index), item => item.Value);
                     m_memberCollections.Add(new MemberCollection(elementMap, "Elements"));
                 }
             }
@@ -935,16 +1003,16 @@ namespace CSharpScriptExecutor.Common
             var predefinedProperties = new List<PropertyDescriptor>();
             if (this.IsNull)
             {
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, "(IsNull)", this.IsNull, false));
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, s_isNullMemberKey, this.IsNull, false));
             }
             else
             {
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, "(Type)", this.Type, false));
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, "(AsString)", this.AsString, false));
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, s_typeMemberKey, this.Type, false));
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, s_asStringMemberKey, this.AsString, false));
             }
 
             var runTimeProperties = m_memberCollections
-                .Select(item => new ValuePropertyDescriptor(this, item.DisplayName, item, true));
+                .Select(item => new ValuePropertyDescriptor(this, new MemberKey(item.DisplayName), item, true));
 
             return new PropertyDescriptorCollection(predefinedProperties.Concat(runTimeProperties).ToArray(), true);
         }
