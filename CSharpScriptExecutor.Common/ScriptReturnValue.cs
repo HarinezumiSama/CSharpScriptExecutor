@@ -533,6 +533,7 @@ namespace CSharpScriptExecutor.Common
         private static ulong s_instanceCount;
 
         private readonly List<MemberCollection> m_memberCollections = new List<MemberCollection>();
+        private readonly bool m_isSimpleType;
         private bool m_isInitialized;
         private Type m_systemType;
         private object m_value;
@@ -558,7 +559,7 @@ namespace CSharpScriptExecutor.Common
             if (ReferenceEquals(value, null))
             {
                 IsNull = true;
-                IsSimpleType = true;
+                m_isSimpleType = true;
                 AsString = "<null>";
                 m_isInitialized = true;
                 return;
@@ -568,7 +569,7 @@ namespace CSharpScriptExecutor.Common
             m_systemType = value.GetType();
 
             this.Type = new TypeWrapper(m_systemType);
-            this.IsSimpleType = m_systemType.IsPrimitive
+            this.m_isSimpleType = m_systemType.IsPrimitive
                 || m_systemType.IsEnum
                 || m_systemType.IsPointer
                 || m_systemType == typeof(char)
@@ -710,7 +711,7 @@ namespace CSharpScriptExecutor.Common
                 throw new InvalidOperationException("Initialization is called too late.");
             }
 
-            if (!this.IsSimpleType)
+            if (!this.m_isSimpleType)
             {
                 if (CanInitializationBeSkipped(allowLazy))
                 {
@@ -848,12 +849,6 @@ namespace CSharpScriptExecutor.Common
         }
 
         public TypeWrapper Type
-        {
-            get;
-            private set;
-        }
-
-        public bool IsSimpleType
         {
             get;
             private set;
