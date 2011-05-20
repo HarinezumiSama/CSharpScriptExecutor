@@ -216,6 +216,7 @@ namespace CSharpScriptExecutor.Common
 
         #region MemberKey Structure
 
+        [Serializable]
         private struct MemberKey
         {
             #region Constructors
