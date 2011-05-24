@@ -67,6 +67,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
+    <Compile Include="InternalHelper.cs" />
+    <Compile Include="IScriptReturnValue.cs" />
+    <Compile Include="MemberKey.cs" />
+    <Compile Include="ReferenceWrapper.cs" />
     <Compile Include="ScriptExecutorException.cs" />
     <Compile Include="IScriptExecutor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -76,8 +80,12 @@
     <Compile Include="ScriptExecutorParameters.cs" />
     <Compile Include="ScriptExecutorProxy.cs" />
     <Compile Include="ScriptReturnValue.cs" />
-    <Compile Include="ScriptReturnValueExtensions.cs" />
+    <Compile Include="IScriptReturnValueExtensions.cs" />
+    <Compile Include="ScriptReturnValueProxy.cs" />
     <Compile Include="TemporaryFileList.cs" />
+    <Compile Include="TypeWrapper.cs" />
+    <Compile Include="ValueAccessException.cs" />
+    <Compile Include="ValuePropertyDescriptor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CSharpScriptExecutor.Common.snk" />

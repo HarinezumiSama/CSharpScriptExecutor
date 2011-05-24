@@ -16,7 +16,7 @@ namespace CSharpScriptExecutor.Common
         private static readonly IList<CompilerError> s_emptyCompilerErrors = new List<CompilerError>().AsReadOnly();
 
         private readonly ScriptExecutionResultType m_type;
-        private readonly ScriptReturnValue m_returnValue;
+        private readonly IScriptReturnValue m_returnValue;
         private readonly string m_message;
         private readonly string m_consoleOut;
         private readonly string m_consoleError;
@@ -200,7 +200,7 @@ namespace CSharpScriptExecutor.Common
             get { return m_type == ScriptExecutionResultType.Success; }
         }
 
-        public ScriptReturnValue ReturnValue
+        public IScriptReturnValue ReturnValue
         {
             [DebuggerStepThrough]
             get { return m_returnValue; }

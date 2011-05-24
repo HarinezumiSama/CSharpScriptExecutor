@@ -102,7 +102,6 @@ namespace CSharpScriptExecutor.Common
         #region Instance
 
         private readonly Guid m_scriptId;
-        private readonly AppDomain m_domain;
         private readonly string m_script;
         private readonly string[] m_arguments;
         private readonly bool m_isDebugMode;
@@ -140,7 +139,6 @@ namespace CSharpScriptExecutor.Common
             #endregion
 
             m_scriptId = scriptId;
-            m_domain = domain;
             m_script = parameters.Script;
             m_arguments = parameters.ScriptArguments.ToArray();
             m_isDebugMode = parameters.IsDebugMode;
@@ -195,41 +193,7 @@ namespace CSharpScriptExecutor.Common
                 }
             }
 
-            //int startLineIndex = 0;
-            //for (int lineIndex = 0; lineIndex < scriptLines.Count; lineIndex++)
-            //{
-            //    string scriptLine = scriptLines[lineIndex];
-
-            //    string fixedLine = scriptLine.Trim();
-            //    if (!fixedLine.StartsWith(c_directivePrefix))
-            //    {
-            //        startLineIndex = lineIndex;
-            //        break;
-            //    }
-
-            //    string directive = fixedLine.Substring(c_directivePrefix.Length);
-            //    if (s_directiveComparer.Equals(directive, c_codeDirective))
-            //    {
-            //        outputScriptType = ScriptType.Code;
-            //    }
-            //    else if (s_directiveComparer.Equals(directive, c_classDirective))
-            //    {
-            //        outputScriptType = ScriptType.Class;
-            //    }
-            //    else
-            //    {
-            //        throw new ScriptExecutorException(
-            //            string.Format(
-            //                "Invalid script directive: \"{0}\" at line {1}.",
-            //                directive,
-            //                lineIndex + 1),
-            //            script);
-            //    }
-            //}
-
-            //outputScriptLines = scriptLines.Skip(startLineIndex).ToList();
             outputScriptLines = scriptLines;
-
             outputScriptLines.TrimExcess();
         }
 
@@ -652,6 +616,11 @@ namespace CSharpScriptExecutor.Common
 
         internal void ExecuteInternal()
         {
+            if (m_executionResult != null)
+            {
+                throw new InvalidOperationException(string.Format("'{0}' cannot be reused.", GetType().FullName));
+            }
+
             try
             {
                 GenerateAndRunScript();
@@ -713,13 +682,13 @@ namespace CSharpScriptExecutor.Common
 
             ScriptExecutorProxy result;
 
-            Guid scriptId = Guid.NewGuid();
-            AppDomain domain = AppDomain.CreateDomain(
-                string.Format("{0}_Domain_{1:N}", typeof(ScriptExecutor).Name, scriptId));
+            var scriptId = Guid.NewGuid();
+            var domainName = string.Format("{0}_Domain_{1:N}", typeof(ScriptExecutor).Name, scriptId);
+            var domain = AppDomain.CreateDomain(domainName);
             try
             {
-                Type scriptExecutorType = typeof(ScriptExecutor);
-                ScriptExecutor scriptExecutor = (ScriptExecutor)domain.CreateInstanceAndUnwrap(
+                var scriptExecutorType = typeof(ScriptExecutor);
+                var scriptExecutor = (ScriptExecutor)domain.CreateInstanceAndUnwrap(
                     scriptExecutorType.Assembly.FullName,
                     scriptExecutorType.FullName,
                     false,

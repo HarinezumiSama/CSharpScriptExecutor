@@ -63,7 +63,7 @@ namespace CSharpScriptExecutor.Common
         #region IScriptExecutor Members
 
         [MethodImpl(MethodImplOptions.Synchronized)]
-        public ScriptExecutionResult Execute()
+        ScriptExecutionResult IScriptExecutor.Execute()
         {
             EnsureNotDisposed();
 

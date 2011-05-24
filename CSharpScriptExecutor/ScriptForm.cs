@@ -27,12 +27,11 @@ namespace CSharpScriptExecutor
 
     // TODO: Shortcuts for often used texts such as Console.WriteLine and so on
 
-    // TODO: Allow script to return a value, and then parse this value properties and/or fields and show them in UI
-
     public partial class ScriptForm : Form
     {
         #region Fields
 
+        private IScriptExecutor m_scriptExecutor;
         private ScriptExecutionResult m_executionResult;
 
         #endregion
@@ -44,7 +43,7 @@ namespace CSharpScriptExecutor
             InitializeComponent();
 
             this.Text = string.Format("Script — {0}", Program.ProgramName);
-            //tewTextEditor.KeyDown += this.tewTextEditor_KeyDown;
+            tewTextEditor.KeyDown += this.tewTextEditor_KeyDown;
             pbResult.Visible = false;
         }
 
@@ -97,10 +96,14 @@ namespace CSharpScriptExecutor
 
                 try
                 {
-                    using (var executor = ScriptExecutor.Create(parameters))
+                    if (m_scriptExecutor != null)
                     {
-                        executionResult = executor.Execute();
+                        m_scriptExecutor.Dispose();
+                        m_scriptExecutor = null;
                     }
+
+                    m_scriptExecutor = ScriptExecutor.Create(parameters);
+                    executionResult = m_scriptExecutor.Execute();
                 }
                 catch (Exception ex)
                 {
@@ -161,6 +164,25 @@ namespace CSharpScriptExecutor
 
         #region Protected Methods
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (components != null)
+                {
+                    components.Dispose();
+                }
+
+                if (m_scriptExecutor != null)
+                {
+                    m_scriptExecutor.Dispose();
+                    m_scriptExecutor = null;
+                }
+            }
+
+            base.Dispose(disposing);
+        }
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -197,7 +219,7 @@ namespace CSharpScriptExecutor
             SetControlStates();
             this.Activate();
 
-            // If the caller sets non-default cursor, resetting it
+            // If the caller did set non-default cursor, resetting it
             Cursor.Current = Cursors.Default;
         }
 

@@ -229,72 +229,72 @@ namespace CSharpScriptExecutor
             var scriptSource = File.ReadAllText(scriptFilePath);
             var executorParameters = new ScriptExecutorParameters(scriptSource, scriptArguments, s_isDebugMode);
 
-            ScriptExecutionResult executionResult;
-            try
+            using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
             {
-                using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
+                ScriptExecutionResult executionResult;
+                try
                 {
                     executionResult = scriptExecutor.Execute();
                 }
-            }
-            catch (Exception ex)
-            {
-                executionResult = ScriptExecutionResult.CreateInternalError(
-                    ex,
-                    string.Empty,
-                    string.Empty,
-                    scriptSource,
-                    null);
-            }
+                catch (Exception ex)
+                {
+                    executionResult = ScriptExecutionResult.CreateInternalError(
+                        ex,
+                        string.Empty,
+                        string.Empty,
+                        scriptSource,
+                        null);
+                }
 
-            Console.WriteLine(executionResult.ConsoleOut);
-            Console.WriteLine(executionResult.ConsoleError);
+                Console.WriteLine(executionResult.ConsoleOut);
+                Console.WriteLine(executionResult.ConsoleError);
 
-            switch (executionResult.Type)
-            {
-                case ScriptExecutionResultType.InternalError:
-                case ScriptExecutionResultType.CompilationError:
-                case ScriptExecutionResultType.ExecutionError:
-                    {
-                        Console.WriteLine();
-                        Console.WriteLine("* Error processing script file \"{0}\":", scriptFilePath);
-                        Console.WriteLine("* Error type: {0}", executionResult.Type.ToString());
-                        Console.WriteLine(executionResult.Message);
-                        if (executionResult.Type == ScriptExecutionResultType.CompilationError)
+                switch (executionResult.Type)
+                {
+                    case ScriptExecutionResultType.InternalError:
+                    case ScriptExecutionResultType.CompilationError:
+                    case ScriptExecutionResultType.ExecutionError:
                         {
-                            foreach (var compilerError in executionResult.CompilerErrors)
+                            Console.WriteLine();
+                            Console.WriteLine("* Error processing script file \"{0}\":", scriptFilePath);
+                            Console.WriteLine("* Error type: {0}", executionResult.Type.ToString());
+                            Console.WriteLine(executionResult.Message);
+                            if (executionResult.Type == ScriptExecutionResultType.CompilationError)
                             {
-                                Console.WriteLine(compilerError.ToString());
+                                foreach (var compilerError in executionResult.CompilerErrors)
+                                {
+                                    Console.WriteLine(compilerError.ToString());
+                                }
                             }
-                        }
-                        if (!string.IsNullOrEmpty(executionResult.SourceCode))
-                        {
+                            if (!string.IsNullOrEmpty(executionResult.SourceCode))
+                            {
+                                Console.WriteLine();
+                                Console.WriteLine(" * Source code <START");
+                                Console.WriteLine(executionResult.SourceCode);
+                                Console.WriteLine(" * Source code END>");
+                            }
+                            if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
+                            {
+                                Console.WriteLine();
+                                Console.WriteLine(" * Generated code <START");
+                                Console.WriteLine(executionResult.GeneratedCode);
+                                Console.WriteLine(" * Generated code END>");
+                            }
                             Console.WriteLine();
-                            Console.WriteLine(" * Source code <START");
-                            Console.WriteLine(executionResult.SourceCode);
-                            Console.WriteLine(" * Source code END>");
+
+                            return 200;
                         }
-                        if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
-                        {
-                            Console.WriteLine();
-                            Console.WriteLine(" * Generated code <START");
-                            Console.WriteLine(executionResult.GeneratedCode);
-                            Console.WriteLine(" * Generated code END>");
-                        }
-                        Console.WriteLine();
 
-                        return 200;
-                    }
+                    case ScriptExecutionResultType.Success:
+                        // Nothing to do
+                        break;
 
-                case ScriptExecutionResultType.Success:
-                    // Nothing to do
-                    break;
-
-                default:
-                    throw new NotImplementedException(
-                        string.Format(
-                            "Not implemented script execution result type ({0}).",
-                            executionResult.Type.ToString()));
+                    default:
+                        throw new NotImplementedException(
+                            string.Format(
+                                "Not implemented script execution result type ({0}).",
+                                executionResult.Type.ToString()));
+                }
             }
 
             return 0;

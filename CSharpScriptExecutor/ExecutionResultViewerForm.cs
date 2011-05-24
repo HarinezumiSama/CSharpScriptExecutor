@@ -188,7 +188,7 @@ namespace CSharpScriptExecutor
             {
                 if (!contains)
                 {
-                    tcResults.TabPages.Add(page);  // TODO: Insert at right position automatically
+                    tcResults.TabPages.Add(page);  // TODO: Insert tab page at right position automatically
                 }
             }
             else

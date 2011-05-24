@@ -6,11 +6,11 @@ using System.Linq;
 
 namespace CSharpScriptExecutor.Common
 {
-    public static class ScriptReturnValueExtensions
+    public static class IScriptReturnValueExtensions
     {
         #region Public Methods
 
-        public static bool IsNull(this ScriptReturnValue value)
+        public static bool IsNull(this IScriptReturnValue value)
         {
             return value == null || value.IsNull;
         }
