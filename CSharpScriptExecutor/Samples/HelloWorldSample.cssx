@@ -27,6 +27,7 @@ return new { A = 1, B = "b", C = new { X = 1, Y = 100 } };
 return typeof(void).Assembly.GetTypes()
 return new { A = 1, B = "b", C = new { X = 1, Y = 100, OffsetArray = new[] { 1, -1 }, OffsetMap = new Dictionary<int, string> { { 89, "89" } } } }
 return new object[] { new { a = 'a' }, new { b = 'b' } }
-return typeof(void).Assembly.GetTypes().Take(5).ToArray();
 return typeof(void).Assembly.GetTypes().First();
+return typeof(void).Assembly.GetTypes().Take(5).ToArray();
+return typeof(void).Assembly.GetTypes();
 return new[] { 1, -1 };
