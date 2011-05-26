@@ -17,9 +17,9 @@ using Microsoft.CSharp.RuntimeBinder;
 
 namespace CSharpScriptExecutor.Common
 {
-    // TODO: Implement Referenced .cs files that can be referenced and used from main code
-
+    // TODO: Implement Referenced .cs files (allowed to contain types) that can be referenced and used from main code
     // TODO: Implement Assembly Reference through directive in the code (for instance, `##Reference`)
+    // TODO: Implement Namespace Import through directive in the code (for instance, `##Using`)
 
     public sealed class ScriptExecutor : MarshalByRefObject, IScriptExecutor
     {
@@ -55,6 +55,7 @@ namespace CSharpScriptExecutor.Common
         #region Static
 
         private static readonly string s_sourceFileExtension = GetSourceFileExtension();
+        private static readonly string s_scriptFileExtension = ".cssx";
         private static readonly string s_userCodeIndentation = new string(' ', 8);
 
         private static readonly Regex s_prohibitedDirectiveRegex = new Regex(
@@ -657,6 +658,12 @@ namespace CSharpScriptExecutor.Common
         {
             [DebuggerStepThrough]
             get { return s_sourceFileExtension; }
+        }
+
+        public static string ScriptFileExtension
+        {
+            [DebuggerStepThrough]
+            get { return s_scriptFileExtension; }
         }
 
         public string Script

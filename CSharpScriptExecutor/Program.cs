@@ -42,6 +42,10 @@ namespace CSharpScriptExecutor
             s_programVersion,
             s_programCopyright);
 
+        private static readonly string s_unexpectedExceptionCaption = string.Format(
+            "Unexpected Exception — {0}",
+            s_programName);
+
         private static string[] s_switches;
         private static bool s_makePause;
         private static bool s_isDebugMode;
@@ -156,6 +160,15 @@ namespace CSharpScriptExecutor
             }
         }
 
+        private static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)
+        {
+            MessageBox.Show(
+                e.Exception.ToString(),
+                s_unexpectedExceptionCaption,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+
         private static void AutoWaitForKey()
         {
             if (Debugger.IsAttached || s_makePause)
@@ -173,6 +186,7 @@ namespace CSharpScriptExecutor
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Application.ThreadException += Application_ThreadException;
 
             // TODO: Use pre-load of AvalonEdit's editor in background thread to speed up first load on user request
 
