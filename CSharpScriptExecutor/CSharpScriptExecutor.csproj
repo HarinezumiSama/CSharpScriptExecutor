@@ -81,6 +81,9 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\SolutionItems\GlobalVersion.cs">
+      <Link>Properties\GlobalVersion.cs</Link>
+    </Compile>
     <Compile Include="ExecutionResultViewerForm.cs">
       <SubType>Form</SubType>
     </Compile>

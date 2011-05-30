@@ -5,6 +5,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSharpScriptExecutor", "CSh
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSharpScriptExecutor.Common", "CSharpScriptExecutor.Common\CSharpScriptExecutor.Common.csproj", "{C7764540-2BC9-4CCC-BFC4-3B245DE55B0E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{823F6914-CA98-4648-9DB9-B74FE2D0474E}"
+	ProjectSection(SolutionItems) = preProject
+		SolutionItems\BaseVersion.txt = SolutionItems\BaseVersion.txt
+		SolutionItems\GlobalVersion.cs = SolutionItems\GlobalVersion.cs
+		SolutionItems\Revision.txt = SolutionItems\Revision.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

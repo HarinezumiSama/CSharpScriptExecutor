@@ -1,5 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0"
+         DefaultTargets="Build"
+         xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -72,6 +74,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\SolutionItems\GlobalVersion.cs">
+      <Link>Properties\GlobalVersion.cs</Link>
+    </Compile>
     <Compile Include="Constants.cs" />
     <Compile Include="InternalHelper.cs" />
     <Compile Include="IScriptReturnValue.cs" />
@@ -114,10 +119,55 @@
     </BootstrapperPackage>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
+  <PropertyGroup>
+    <CompileDependsOn>UpdateGlobalVersion;$(CompileDependsOn)</CompileDependsOn>
+    <CleanDependsOn>UpdateGlobalVersion;$(CleanDependsOn)</CleanDependsOn>
+    <BuildDependsOn>UpdateGlobalVersion;$(BuildDependsOn)</BuildDependsOn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+  </PropertyGroup>
+  <Target Name="UpdateGlobalVersion">
+    <PropertyGroup>
+      <BaseVersionFile>$(SolutionDir)SolutionItems\BaseVersion.txt</BaseVersionFile>
+      <RevisionFile>$(SolutionDir)SolutionItems\Revision.txt</RevisionFile>
+    </PropertyGroup>
+    <Message Importance="high"
+             Text="* Reading base version from '$(BaseVersionFile)'..." />
+    <ReadLinesFromFile File="$(BaseVersionFile)">
+      <Output TaskParameter="Lines"
+              PropertyName="BaseVersion" />
+    </ReadLinesFromFile>
+    <Message Importance="high"
+             Text="* Base version: '$(BaseVersion)'" />
+    <Exec Command="hg.exe identify -n -r tip &gt;&quot;$(RevisionFile)&quot;" />
+    <Message Importance="high"
+             Text="* Reading HG revision number from '$(RevisionFile)'..." />
+    <ReadLinesFromFile File="$(RevisionFile)">
+      <Output TaskParameter="Lines"
+              PropertyName="Revision" />
+    </ReadLinesFromFile>
+    <Message Importance="high"
+             Text="* Revision number: '$(Revision)'" />
+    <PropertyGroup>
+      <GlobalVersion>$(BaseVersion).0.$(Revision)</GlobalVersion>
+    </PropertyGroup>
+    <Message Importance="high"
+             Text="* Global version: '$(GlobalVersion)'" />
+    <ItemGroup>
+      <AssemblyVersion Include="global::System.Reflection.AssemblyVersion">
+        <_Parameter1>$(GlobalVersion)</_Parameter1>
+      </AssemblyVersion>
+      <AssemblyFileVersion Include="global::System.Reflection.AssemblyFileVersion">
+        <_Parameter1>$(GlobalVersion)</_Parameter1>
+      </AssemblyFileVersion>
+    </ItemGroup>
+    <WriteCodeFragment Language="C#"
+                       OutputFile="..\SolutionItems\GlobalVersion.cs"
+                       AssemblyAttributes="@(AssemblyVersion);@(AssemblyFileVersion)" />
   </Target>
+  <!--
   <Target Name="AfterBuild">
   </Target>
   -->

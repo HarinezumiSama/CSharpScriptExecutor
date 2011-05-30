@@ -3,3 +3,6 @@ glob:*/obj/*
 glob:_Build_/*
 glob:*.suo
 glob:*.csproj.user
+glob:SolutionItems/GlobalVersion.cs
+glob:SolutionItems/Revision.txt
+glob:build*.log
