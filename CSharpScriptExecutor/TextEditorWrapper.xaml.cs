@@ -33,6 +33,7 @@ namespace CSharpScriptExecutor
             innerEditor.Options.ConvertTabsToSpaces = true;
             innerEditor.Options.CutCopyWholeLine = true;
             innerEditor.Options.IndentationSize = 4;
+            innerEditor.ShowLineNumbers = true;
         }
 
         #endregion

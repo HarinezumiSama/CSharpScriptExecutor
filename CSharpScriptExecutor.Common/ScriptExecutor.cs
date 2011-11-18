@@ -3,6 +3,7 @@ using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
+using System.Configuration.Assemblies;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -17,9 +18,11 @@ using Microsoft.CSharp.RuntimeBinder;
 
 namespace CSharpScriptExecutor.Common
 {
-    // TODO: Implement Namespace Import through directive in the code (for instance, `##Using`)
+    // TODO: Implement Compile feature (compile only without execution)
 
     // TODO: Implement Referenced .cs files (allowed to contain types) that can be referenced and used from main code
+
+    // TODO: Add public API to ScriptExecutor for parsing and using custom directives (to use in GUI)
 
     public sealed class ScriptExecutor : MarshalByRefObject, IScriptExecutor
     {
@@ -29,21 +32,74 @@ namespace CSharpScriptExecutor.Common
 
         private sealed class ScriptOptions
         {
+            #region Fields
+
+            private readonly Dictionary<string, string> m_assemblyReferences;
+
+            #endregion
+
             #region Constructors
 
             internal ScriptOptions()
             {
-                this.AssemblyReferences = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                m_assemblyReferences = s_predefinedReferences
+                    .Select(
+                        item => new
+                        {
+                            Name = Path.GetFileNameWithoutExtension(item),
+                            Path = item
+                        })
+                    .ToDictionary(item => item.Name, item => item.Path, StringComparer.OrdinalIgnoreCase);
+
+                this.NamespaceImports = new HashSet<string>(s_predefinedImports);  // Case-sensitive
             }
 
             #endregion
 
             #region Public Properties
 
-            public HashSet<string> AssemblyReferences
+            public HashSet<string> NamespaceImports
             {
                 get;
                 private set;
+            }
+
+            #endregion
+
+            #region Public Methods
+
+            public void AddAssemblyReferencePath(string assemblyPath)
+            {
+                #region Argument Check
+
+                if (string.IsNullOrEmpty(assemblyPath))
+                {
+                    throw new ArgumentException("The value can be neither empty string nor null.", "assemblyPath");
+                }
+
+                #endregion
+
+                var name = Path.GetFileNameWithoutExtension(assemblyPath);
+                m_assemblyReferences[name] = assemblyPath;
+            }
+
+            public string[] GetAllAssemblyReferencePaths()
+            {
+                return m_assemblyReferences.Values.ToArray();
+            }
+
+            public string GetAssemblyReferencePath(string name)
+            {
+                #region Argument Check
+
+                if (string.IsNullOrEmpty(name))
+                {
+                    throw new ArgumentException("The value can be neither empty string nor null.", "name");
+                }
+
+                #endregion
+
+                return m_assemblyReferences.GetValueOrDefault(name);
             }
 
             #endregion
@@ -55,9 +111,11 @@ namespace CSharpScriptExecutor.Common
 
         #region Constants
 
-        private const string c_directiveGroupName = "DIR";
-        private const string c_directivePrefix = "//##";
+        private const string c_customDirectivePrefix = "//##";
+        private const string c_customDirectiveNameGroupName = "Name";
+        private const string c_customDirectiveValueGroupName = "Value";
         private const string c_referenceDirective = "Ref";
+        private const string c_usingDirective = "Using";
 
         private const BindingFlags c_anyMemberBindingFlags = BindingFlags.Static | BindingFlags.Instance
             | BindingFlags.Public | BindingFlags.NonPublic;
@@ -76,6 +134,8 @@ namespace CSharpScriptExecutor.Common
 
         private const string c_bracingStyle = "C";
 
+        private const string c_assemblyFileExtension = ".dll";
+
         //TODO: Check max script size
         //private const ulong c_maxScriptFileSize = 8 * Constants.Megabyte;
 
@@ -91,19 +151,23 @@ namespace CSharpScriptExecutor.Common
         private static readonly string s_userCodeIndentation = new string(' ', 8);
 
         private static readonly Regex s_prohibitedDirectiveRegex = new Regex(
-            @"^\s* \# \s* line \b",
+            @"^ \s* \# \s* line \b",
             RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
 
-        private static readonly Regex s_referenceDirectiveRegex = new Regex(
+        private static readonly Regex s_customDirectiveRegex = new Regex(
             string.Format(
-                @"^ \s* {0}{1} \s+ (?<{2}>\S*) \s* $",
-                Regex.Escape(c_directivePrefix),
-                Regex.Escape(c_referenceDirective),
-                c_directiveGroupName),
-            RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline
-                | RegexOptions.IgnoreCase);
+                @"^ \s* {0}(?<{1}>\S*) \s+ (?<{2}>.*?) \s* $",
+                Regex.Escape(c_customDirectivePrefix),
+                c_customDirectiveNameGroupName,
+                c_customDirectiveValueGroupName),
+            RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
 
-        private static readonly StringComparer s_directiveComparer = StringComparer.OrdinalIgnoreCase;
+        private static readonly Dictionary<string, Func<ScriptOptions, string, string>> s_customDirectiveActionMap =
+            new Dictionary<string, Func<ScriptOptions, string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { c_referenceDirective, AddCustomAssemblyReference },
+                { c_usingDirective, AddCustomNamespaceImport }
+            };
 
         private static readonly char[] s_specialNameChars = new[] { '<', '>' };
 
@@ -115,6 +179,7 @@ namespace CSharpScriptExecutor.Common
             "System.Collections.ObjectModel",
             "System.Data",
             "System.Data.Common",
+            "System.Data.Linq",
             "System.Data.SqlClient",
             "System.Diagnostics",
             "System.IO",
@@ -129,16 +194,19 @@ namespace CSharpScriptExecutor.Common
             "System.Xml"
         };
 
-        private static readonly string[] s_predefinedReferences = new string[]
-        {
-            "System.dll",
-            Assembly.GetAssembly(typeof(Enumerable)).Location,  // System.Linq.dll
-            Assembly.GetAssembly(typeof(RuntimeBinderException)).Location,  // Microsoft.CSharp.dll, for 'dynamic'
-            "System.Data.dll",
-            "System.Web.dll",
-            "System.Windows.Forms.dll",
-            "System.Xml.dll"
-        };
+        private static readonly IList<string> s_predefinedReferences =
+            new List<string>
+            {
+                "System.dll",
+                Assembly.GetAssembly(typeof(Enumerable)).Location,  // System.Linq.dll
+                "System.Data.dll",
+                Assembly.GetAssembly(typeof(System.Data.Linq.DataContext)).Location,  // System.Data.Linq.dll
+                "System.Web.dll",
+                "System.Windows.Forms.dll",
+                "System.Xml.dll",
+                Assembly.GetAssembly(typeof(RuntimeBinderException)).Location  // Microsoft.CSharp.dll, for 'dynamic'
+            }
+                .AsReadOnly();
 
         #endregion
 
@@ -149,7 +217,7 @@ namespace CSharpScriptExecutor.Common
         private readonly string[] m_arguments;
         private readonly bool m_isDebugMode;
         private readonly List<string> m_scriptLines;
-        private readonly ScriptOptions m_scriptOptions = new ScriptOptions();
+        private readonly ScriptOptions m_options = new ScriptOptions();
         private readonly TemporaryFileList m_tempFiles = new TemporaryFileList();
 
         private ScriptExecutionResult m_executionResult;
@@ -187,7 +255,9 @@ namespace CSharpScriptExecutor.Common
             m_arguments = parameters.ScriptArguments.ToArray();
             m_isDebugMode = parameters.IsDebugMode;
 
-            LoadData(m_script, m_scriptOptions, out m_scriptLines);
+            domain.AssemblyResolve += this.Domain_AssemblyResolve;
+
+            LoadData(m_script, m_options, out m_scriptLines);
         }
 
         #endregion
@@ -202,6 +272,40 @@ namespace CSharpScriptExecutor.Common
                 result = "." + result;
             }
             return result;
+        }
+
+        private static string GetLineNumberPrefix(int lineNumber)
+        {
+            return string.Format("Line {0}: ", lineNumber);
+        }
+
+        private static string AddCustomAssemblyReference(ScriptOptions options, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "[Reference Directive] Assembly path or name must be specified.";
+            }
+
+            string errorMessage;
+            string fixedValue = value.TryExtractFromQuotes(out errorMessage);
+            if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                return "[Reference Directive] " + errorMessage;
+            }
+
+            options.AddAssemblyReferencePath(fixedValue);
+            return null;
+        }
+
+        private static string AddCustomNamespaceImport(ScriptOptions options, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "[Using Directive] Namespace import must be specified.";
+            }
+
+            options.NamespaceImports.Add(value);
+            return null;
         }
 
         private static void LoadData(
@@ -226,6 +330,7 @@ namespace CSharpScriptExecutor.Common
             using (var reader = new StringReader(script))
             {
                 var customDirectiveAllowed = true;
+                var lineNumber = 0;
                 while (true)
                 {
                     var line = reader.ReadLine();
@@ -233,31 +338,47 @@ namespace CSharpScriptExecutor.Common
                     {
                         break;
                     }
+                    lineNumber++;
 
                     if (s_prohibitedDirectiveRegex.IsMatch(line))
                     {
                         throw new ScriptExecutorException(
-                            "Directive '#line' is prohibited to use in a script"
-                                + " (even in the multiline comment block).");
+                            string.Format(
+                                "{0}Directive '#line' is prohibited to use in a script"
+                                    + " (even in the multiline comment block).",
+                                GetLineNumberPrefix(lineNumber)));
                     }
 
                     var isCustomDirective = false;
                     if (customDirectiveAllowed)
                     {
-                        var referenceMatch = s_referenceDirectiveRegex.Match(line);
-                        if (referenceMatch != null && referenceMatch.Success)
+                        var customDirectiveMatch = s_customDirectiveRegex.Match(line);
+                        if (customDirectiveMatch != null && customDirectiveMatch.Success)
                         {
                             isCustomDirective = true;
-                            var referencedAssembly = referenceMatch.Groups[c_directiveGroupName].Value.Trim();
-                            if (string.IsNullOrWhiteSpace(referencedAssembly))
+
+                            var customDirectiveName = customDirectiveMatch
+                                .Groups[c_customDirectiveNameGroupName]
+                                .Value;
+                            var customDirectiveValue = customDirectiveMatch
+                                .Groups[c_customDirectiveValueGroupName]
+                                .Value;
+
+                            var action = s_customDirectiveActionMap.GetValueOrDefault(customDirectiveName);
+                            if (action == null)
                             {
                                 throw new ScriptExecutorException(
                                     string.Format(
-                                        "Invalid custom directive \"{0}\". Assembly path or name must be specified.",
-                                        line.Trim()),
-                                    script);
+                                        "{0}Unknown custom directive \"{1}\".",
+                                        GetLineNumberPrefix(lineNumber),
+                                        customDirectiveName));
                             }
-                            options.AssemblyReferences.Add(referencedAssembly);
+
+                            var errorMessage = action(options, customDirectiveValue);
+                            if (!string.IsNullOrWhiteSpace(errorMessage))
+                            {
+                                throw new ScriptExecutorException(GetLineNumberPrefix(lineNumber) + errorMessage);
+                            }
                         }
                     }
 
@@ -272,6 +393,39 @@ namespace CSharpScriptExecutor.Common
 
             outputScriptLines = scriptLines;
             outputScriptLines.TrimExcess();
+        }
+
+        private Assembly Domain_AssemblyResolve(object sender, ResolveEventArgs e)
+        {
+            var assemblyName = new AssemblyName(e.Name);
+            var assemblyPath = m_options.GetAssemblyReferencePath(assemblyName.Name);
+
+            try
+            {
+                if (!File.Exists(assemblyPath))
+                {
+                    return null;
+                }
+
+                var publicKeyToken = assemblyName.GetPublicKeyToken();
+
+                var assembly = Assembly.LoadFrom(assemblyPath);
+                if (assembly != null && assembly.GetName().Version == assemblyName.Version)
+                {
+                    var loadedAssemblyName = assembly.GetName();
+                    if (assembly != null && loadedAssemblyName.Version == assemblyName.Version
+                        && publicKeyToken.BytesEqual(loadedAssemblyName.GetPublicKeyToken()))
+                    {
+                        return assembly;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Nothing to do
+            }
+
+            return null;
         }
 
         private CodeConstructor CreatePredefinedConstructor()
@@ -431,14 +585,7 @@ namespace CSharpScriptExecutor.Common
                         m_scriptId.GetHashCode().ToString("X8").ToLowerInvariant()));
             }
 
-            var referencedAssemblies = new HashSet<string>(
-                s_predefinedReferences,
-                StringComparer.InvariantCultureIgnoreCase);
-            foreach (var assemblyReferences in m_scriptOptions.AssemblyReferences)
-            {
-                referencedAssemblies.Add(assemblyReferences);
-            }
-            compilerParameters.ReferencedAssemblies.AddRange(referencedAssemblies.ToArray());
+            compilerParameters.ReferencedAssemblies.AddRange(m_options.GetAllAssemblyReferencePaths());
 
             Func<string> generateRandomId = () => Guid.NewGuid().ToString("N");
             var offsetWarningId = string.Join(string.Empty, Enumerable.Range(0, 4).Select(i => generateRandomId()));
@@ -462,7 +609,10 @@ namespace CSharpScriptExecutor.Common
 
             var rootNamespace = new CodeNamespace(string.Empty);
             rootNamespace.Imports.AddRange(
-                s_predefinedImports.Select(item => new CodeNamespaceImport(item)).ToArray());
+                m_options
+                    .NamespaceImports
+                    .Select(item => new CodeNamespaceImport(item))
+                    .ToArray());
             rootNamespace.Types.Add(wrapperCodeType);
 
             var compileUnit = new CodeCompileUnit();

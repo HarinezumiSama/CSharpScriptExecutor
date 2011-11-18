@@ -46,6 +46,7 @@
             this.ehTextEditor = new System.Windows.Forms.Integration.ElementHost();
             this.tewTextEditor = new CSharpScriptExecutor.TextEditorWrapper();
             this.ofdOpenScript = new System.Windows.Forms.OpenFileDialog();
+            this.tsmiInsertUsingDirective = new System.Windows.Forms.ToolStripMenuItem();
             this.msMainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbResult)).BeginInit();
             this.cmsEditorContextMenu.SuspendLayout();
@@ -212,8 +213,9 @@
             // tsmiShowResult
             // 
             this.tsmiShowResult.Name = "tsmiShowResult";
-            this.tsmiShowResult.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.R)));
-            this.tsmiShowResult.Size = new System.Drawing.Size(188, 22);
+            this.tsmiShowResult.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Alt) 
+            | System.Windows.Forms.Keys.R)));
+            this.tsmiShowResult.Size = new System.Drawing.Size(211, 22);
             this.tsmiShowResult.Text = "Show &Result...";
             this.tsmiShowResult.Click += new System.EventHandler(this.tsmiShowResult_Click);
             // 
@@ -241,7 +243,8 @@
             this.tsmiInsertReturn,
             this.tsmiInsertConsoleWriteLine,
             this.tssContextSeparator1,
-            this.tsmiInsertReferenceDirective});
+            this.tsmiInsertReferenceDirective,
+            this.tsmiInsertUsingDirective});
             this.tsmiInsertSnippet.Name = "tsmiInsertSnippet";
             this.tsmiInsertSnippet.Size = new System.Drawing.Size(152, 22);
             this.tsmiInsertSnippet.Text = "&Insert Snippet";
@@ -299,6 +302,14 @@
             this.ofdOpenScript.AddExtension = false;
             this.ofdOpenScript.Filter = "C# scripts|*.cssx|C# code files|*.cs|All files|*.*";
             this.ofdOpenScript.SupportMultiDottedExtensions = true;
+            // 
+            // tsmiInsertUsingDirective
+            // 
+            this.tsmiInsertUsingDirective.Name = "tsmiInsertUsingDirective";
+            this.tsmiInsertUsingDirective.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.U)));
+            this.tsmiInsertUsingDirective.Size = new System.Drawing.Size(211, 22);
+            this.tsmiInsertUsingDirective.Text = "//##USING";
+            this.tsmiInsertUsingDirective.Click += new System.EventHandler(this.tsmiInsertUsingDirective_Click);
             // 
             // ScriptForm
             // 
@@ -364,5 +375,6 @@
         private System.Windows.Forms.ToolStripSeparator tssSeparatorExit;
         private System.Windows.Forms.ToolStripMenuItem tsmiInsertReferenceDirective;
         private System.Windows.Forms.ToolStripSeparator tssContextSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem tsmiInsertUsingDirective;
     }
 }

@@ -21,11 +21,13 @@ namespace CSharpScriptExecutor
 {
     // TODO: Make possible to enter arguments from GUI
 
+    // TODO: Insert new directive(s) along with existing ones or at the very beginning of document
+
+    // TODO: Add/delete assembly reference via GUI (auto-change directives in the code)
+
     // TODO: Highlighting error 'as you type'
 
     // TODO: Fix drag and drop (*.cs and *.cssx) under Windows 7 (and probably under Vista as well)
-
-    // TODO: Auto-save history to user's AppData folder
 
     public partial class ScriptForm : Form
     {
@@ -558,8 +560,12 @@ namespace CSharpScriptExecutor
 
         private void tsmiInsertReferenceDirective_Click(object sender, EventArgs e)
         {
-            //TODO: Insert new directive(s) along with existing ones or at the very beginning of document
             InsertTextInEditor("//##REF ");
+        }
+
+        private void tsmiInsertUsingDirective_Click(object sender, EventArgs e)
+        {
+            InsertTextInEditor("//##USING ");
         }
 
         private void tsmiClearHistory_Click(object sender, EventArgs e)
@@ -654,5 +660,6 @@ namespace CSharpScriptExecutor
         }
 
         #endregion
+
     }
 }
