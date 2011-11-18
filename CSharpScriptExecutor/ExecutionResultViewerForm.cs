@@ -220,6 +220,26 @@ namespace CSharpScriptExecutor
                 compilerError.ErrorText);
         }
 
+        private void SetActiveControl(System.Windows.Forms.Control control)
+        {
+            #region Argument Check
+
+            if (control == null)
+            {
+                throw new ArgumentNullException("control");
+            }
+
+            #endregion
+
+            this.ActiveControl = control;
+            var textBox = control as TextBoxBase;
+            if (textBox != null)
+            {
+                textBox.SelectionStart = 0;
+                textBox.SelectionLength = 0;
+            }
+        }
+
         private void ParseExecutionResult()
         {
             if (m_executionResult == null)
@@ -261,6 +281,7 @@ namespace CSharpScriptExecutor
                     throw new NotImplementedException();
             }
 
+            //TODO: Recognize no-return-value case
             var hasReturnValue = m_executionResult.IsSuccess; // && !m_executionResult.ReturnValue.IsNull();
 
             SetTabPageVisibility(tpReturnValue, hasReturnValue);
@@ -268,10 +289,12 @@ namespace CSharpScriptExecutor
             pgReturnValue.SelectedObject = hasReturnValue ? m_executionResult.ReturnValue : null;
 
             rtbConsoleOut.Text = m_executionResult.ConsoleOut;
-            SetTabPageVisibility(tpConsoleOut, !string.IsNullOrEmpty(m_executionResult.ConsoleOut));
+            var hasConsoleOut = !string.IsNullOrEmpty(m_executionResult.ConsoleOut);
+            SetTabPageVisibility(tpConsoleOut, hasConsoleOut);
 
             rtbConsoleError.Text = m_executionResult.ConsoleError;
-            SetTabPageVisibility(tpConsoleError, !string.IsNullOrEmpty(m_executionResult.ConsoleError));
+            var hasConsoleError = !string.IsNullOrEmpty(m_executionResult.ConsoleError);
+            SetTabPageVisibility(tpConsoleError, hasConsoleError);
 
             tbMessage.Text = string.Format(
                 "{0}{1}{2}",
@@ -283,6 +306,23 @@ namespace CSharpScriptExecutor
             scDetails.Panel1Collapsed = m_executionResult.IsSuccess;
             tewSourceCode.InnerEditor.Text = m_executionResult.SourceCode;
             tewGeneratedCode.InnerEditor.Text = m_executionResult.GeneratedCode;
+
+            if (!m_executionResult.IsSuccess)
+            {
+                SetActiveControl(tbMessage);
+            }
+            else if (hasReturnValue)
+            {
+                SetActiveControl(pgReturnValue);
+            }
+            else if (hasConsoleOut)
+            {
+                SetActiveControl(rtbConsoleOut);
+            }
+            else if (hasConsoleError)
+            {
+                SetActiveControl(rtbConsoleError);
+            }
         }
 
         #endregion

@@ -1,7 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0"
-         DefaultTargets="Build"
-         xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -50,6 +48,7 @@
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <DocumentationFile>..\_Build_\Debug\CSharpScriptExecutor.Common.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -133,28 +132,21 @@
       <BaseVersionFile>$(SolutionDir)SolutionItems\BaseVersion.txt</BaseVersionFile>
       <RevisionFile>$(SolutionDir)SolutionItems\Revision.txt</RevisionFile>
     </PropertyGroup>
-    <Message Importance="high"
-             Text="* Reading base version from '$(BaseVersionFile)'..." />
+    <Message Importance="high" Text="* Reading base version from '$(BaseVersionFile)'..." />
     <ReadLinesFromFile File="$(BaseVersionFile)">
-      <Output TaskParameter="Lines"
-              PropertyName="BaseVersion" />
+      <Output TaskParameter="Lines" PropertyName="BaseVersion" />
     </ReadLinesFromFile>
-    <Message Importance="high"
-             Text="* Base version: '$(BaseVersion)'" />
+    <Message Importance="high" Text="* Base version: '$(BaseVersion)'" />
     <Exec Command="hg.exe identify -n -r tip &gt;&quot;$(RevisionFile)&quot;" />
-    <Message Importance="high"
-             Text="* Reading HG revision number from '$(RevisionFile)'..." />
+    <Message Importance="high" Text="* Reading HG revision number from '$(RevisionFile)'..." />
     <ReadLinesFromFile File="$(RevisionFile)">
-      <Output TaskParameter="Lines"
-              PropertyName="Revision" />
+      <Output TaskParameter="Lines" PropertyName="Revision" />
     </ReadLinesFromFile>
-    <Message Importance="high"
-             Text="* Revision number: '$(Revision)'" />
+    <Message Importance="high" Text="* Revision number: '$(Revision)'" />
     <PropertyGroup>
       <GlobalVersion>$(BaseVersion).0.$(Revision)</GlobalVersion>
     </PropertyGroup>
-    <Message Importance="high"
-             Text="* Global version: '$(GlobalVersion)'" />
+    <Message Importance="high" Text="* Global version: '$(GlobalVersion)'" />
     <ItemGroup>
       <AssemblyVersion Include="global::System.Reflection.AssemblyVersion">
         <_Parameter1>$(GlobalVersion)</_Parameter1>
@@ -163,9 +155,7 @@
         <_Parameter1>$(GlobalVersion)</_Parameter1>
       </AssemblyFileVersion>
     </ItemGroup>
-    <WriteCodeFragment Language="C#"
-                       OutputFile="..\SolutionItems\GlobalVersion.cs"
-                       AssemblyAttributes="@(AssemblyVersion);@(AssemblyFileVersion)" />
+    <WriteCodeFragment Language="C#" OutputFile="..\SolutionItems\GlobalVersion.cs" AssemblyAttributes="@(AssemblyVersion);@(AssemblyFileVersion)" />
   </Target>
   <!--
   <Target Name="AfterBuild">

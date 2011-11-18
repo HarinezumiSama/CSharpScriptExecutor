@@ -17,16 +17,47 @@ using Microsoft.CSharp.RuntimeBinder;
 
 namespace CSharpScriptExecutor.Common
 {
-    // TODO: Implement Referenced .cs files (allowed to contain types) that can be referenced and used from main code
-    // TODO: Implement Assembly Reference through directive in the code (for instance, `##Reference`)
     // TODO: Implement Namespace Import through directive in the code (for instance, `##Using`)
+
+    // TODO: Implement Referenced .cs files (allowed to contain types) that can be referenced and used from main code
 
     public sealed class ScriptExecutor : MarshalByRefObject, IScriptExecutor
     {
+        #region Nested Types
+
+        #region ScriptOptions Class
+
+        private sealed class ScriptOptions
+        {
+            #region Constructors
+
+            internal ScriptOptions()
+            {
+                this.AssemblyReferences = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+            }
+
+            #endregion
+
+            #region Public Properties
+
+            public HashSet<string> AssemblyReferences
+            {
+                get;
+                private set;
+            }
+
+            #endregion
+        }
+
+        #endregion
+
+        #endregion
+
         #region Constants
 
-        //private const string c_directivePrefix = "//###";
-        //private const string c_referenceDirective = "Ref";
+        private const string c_directiveGroupName = "DIR";
+        private const string c_directivePrefix = "//##";
+        private const string c_referenceDirective = "Ref";
 
         private const BindingFlags c_anyMemberBindingFlags = BindingFlags.Static | BindingFlags.Instance
             | BindingFlags.Public | BindingFlags.NonPublic;
@@ -44,9 +75,9 @@ namespace CSharpScriptExecutor.Common
             BindingFlags.DeclaredOnly | c_anyMemberBindingFlags;
 
         private const string c_bracingStyle = "C";
-        private const string c_indentString = "    ";
 
-        private const ulong c_maxScriptFileSize = 8 * Constants.Megabyte;
+        //TODO: Check max script size
+        //private const ulong c_maxScriptFileSize = 8 * Constants.Megabyte;
 
         #endregion
 
@@ -56,11 +87,21 @@ namespace CSharpScriptExecutor.Common
 
         private static readonly string s_sourceFileExtension = GetSourceFileExtension();
         private static readonly string s_scriptFileExtension = ".cssx";
+        private static readonly string s_indentString = new string(' ', 4);
         private static readonly string s_userCodeIndentation = new string(' ', 8);
 
         private static readonly Regex s_prohibitedDirectiveRegex = new Regex(
             @"^\s* \# \s* line \b",
             RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
+
+        private static readonly Regex s_referenceDirectiveRegex = new Regex(
+            string.Format(
+                @"^ \s* {0}{1} \s+ (?<{2}>\S*) \s* $",
+                Regex.Escape(c_directivePrefix),
+                Regex.Escape(c_referenceDirective),
+                c_directiveGroupName),
+            RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline
+                | RegexOptions.IgnoreCase);
 
         private static readonly StringComparer s_directiveComparer = StringComparer.OrdinalIgnoreCase;
 
@@ -73,6 +114,7 @@ namespace CSharpScriptExecutor.Common
             "System.Collections.Generic",
             "System.Collections.ObjectModel",
             "System.Data",
+            "System.Data.Common",
             "System.Data.SqlClient",
             "System.Diagnostics",
             "System.IO",
@@ -107,6 +149,7 @@ namespace CSharpScriptExecutor.Common
         private readonly string[] m_arguments;
         private readonly bool m_isDebugMode;
         private readonly List<string> m_scriptLines;
+        private readonly ScriptOptions m_scriptOptions = new ScriptOptions();
         private readonly TemporaryFileList m_tempFiles = new TemporaryFileList();
 
         private ScriptExecutionResult m_executionResult;
@@ -144,7 +187,7 @@ namespace CSharpScriptExecutor.Common
             m_arguments = parameters.ScriptArguments.ToArray();
             m_isDebugMode = parameters.IsDebugMode;
 
-            LoadData(m_script, out m_scriptLines);
+            LoadData(m_script, m_scriptOptions, out m_scriptLines);
         }
 
         #endregion
@@ -153,7 +196,7 @@ namespace CSharpScriptExecutor.Common
 
         private static string GetSourceFileExtension()
         {
-            var result = new CSharpCodeProvider().FileExtension;
+            var result = new CSharpCodeProvider().UseDisposable(obj => obj.FileExtension);
             if (!result.StartsWith("."))
             {
                 result = "." + result;
@@ -161,7 +204,10 @@ namespace CSharpScriptExecutor.Common
             return result;
         }
 
-        private static void LoadData(string script, out List<string> outputScriptLines)
+        private static void LoadData(
+            string script,
+            ScriptOptions options,
+            out List<string> outputScriptLines)
         {
             #region Argument Check
 
@@ -169,12 +215,17 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentNullException("script");
             }
+            if (options == null)
+            {
+                throw new ArgumentNullException("options");
+            }
 
             #endregion
 
             List<string> scriptLines = new List<string>();
             using (var reader = new StringReader(script))
             {
+                var customDirectiveAllowed = true;
                 while (true)
                 {
                     var line = reader.ReadLine();
@@ -188,6 +239,31 @@ namespace CSharpScriptExecutor.Common
                         throw new ScriptExecutorException(
                             "Directive '#line' is prohibited to use in a script"
                                 + " (even in the multiline comment block).");
+                    }
+
+                    var isCustomDirective = false;
+                    if (customDirectiveAllowed)
+                    {
+                        var referenceMatch = s_referenceDirectiveRegex.Match(line);
+                        if (referenceMatch != null && referenceMatch.Success)
+                        {
+                            isCustomDirective = true;
+                            var referencedAssembly = referenceMatch.Groups[c_directiveGroupName].Value.Trim();
+                            if (string.IsNullOrWhiteSpace(referencedAssembly))
+                            {
+                                throw new ScriptExecutorException(
+                                    string.Format(
+                                        "Invalid custom directive \"{0}\". Assembly path or name must be specified.",
+                                        line.Trim()),
+                                    script);
+                            }
+                            options.AssemblyReferences.Add(referencedAssembly);
+                        }
+                    }
+
+                    if (customDirectiveAllowed && !isCustomDirective && !string.IsNullOrWhiteSpace(line))
+                    {
+                        customDirectiveAllowed = false;
                     }
 
                     scriptLines.Add(line);
@@ -341,6 +417,7 @@ namespace CSharpScriptExecutor.Common
                 GenerateInMemory = !isDebuggable,
                 IncludeDebugInformation = isDebuggable,
                 TreatWarningsAsErrors = false,
+                // TODO: Implement `unsafe` option
                 CompilerOptions = string.Format("/unsafe- /optimize{0}", isDebuggable ? "-" : "+")
             };
             if (isDebuggable)
@@ -353,7 +430,15 @@ namespace CSharpScriptExecutor.Common
                         DateTime.Now,
                         m_scriptId.GetHashCode().ToString("X8").ToLowerInvariant()));
             }
-            compilerParameters.ReferencedAssemblies.AddRange(s_predefinedReferences);
+
+            var referencedAssemblies = new HashSet<string>(
+                s_predefinedReferences,
+                StringComparer.InvariantCultureIgnoreCase);
+            foreach (var assemblyReferences in m_scriptOptions.AssemblyReferences)
+            {
+                referencedAssemblies.Add(assemblyReferences);
+            }
+            compilerParameters.ReferencedAssemblies.AddRange(referencedAssemblies.ToArray());
 
             Func<string> generateRandomId = () => Guid.NewGuid().ToString("N");
             var offsetWarningId = string.Join(string.Empty, Enumerable.Range(0, 4).Select(i => generateRandomId()));
@@ -394,7 +479,7 @@ namespace CSharpScriptExecutor.Common
                         BlankLinesBetweenMembers = true,
                         BracingStyle = c_bracingStyle,
                         ElseOnClosing = false,
-                        IndentString = c_indentString,
+                        IndentString = s_indentString,
                         VerbatimOrder = true
                     };
                     codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
@@ -426,8 +511,8 @@ namespace CSharpScriptExecutor.Common
                         .Errors
                         .Cast<CompilerError>()
                         .Where(item => item.IsWarning && item.ErrorText.Contains(offsetWarningId))
-                        .Single();
-                    var sourceCodeLineOffset = offsetWarning.Line;
+                        .SingleOrDefault();
+                    var sourceCodeLineOffset = offsetWarning == null ? 0 : offsetWarning.Line;
 
                     m_executionResult = ScriptExecutionResult.CreateError(
                         ScriptExecutionResultType.CompilationError,

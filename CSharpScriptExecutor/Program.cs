@@ -42,6 +42,11 @@ namespace CSharpScriptExecutor
             s_programVersion,
             s_programCopyright);
 
+        private static readonly string s_userAppDataPath = Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData,
+            Environment.SpecialFolderOption.None);
+        private static readonly string s_programDataPath = Path.Combine(s_userAppDataPath, s_programName);
+
         private static readonly string s_unexpectedExceptionCaption = string.Format(
             "Unexpected Exception — {0}",
             s_programName);
@@ -329,6 +334,12 @@ namespace CSharpScriptExecutor
             [DebuggerStepThrough]
             get { return s_fullProgramName; }
         }
+
+        internal static string ProgramDataPath
+        {
+            [DebuggerStepThrough]
+            get { return s_programDataPath; }
+        } 
 
         #endregion
 

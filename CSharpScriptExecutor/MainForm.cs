@@ -4,9 +4,11 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using CSharpScriptExecutor.Common;
 using CSharpScriptExecutor.Properties;
 
 namespace CSharpScriptExecutor
@@ -14,6 +16,10 @@ namespace CSharpScriptExecutor
     public partial class MainForm : Form
     {
         #region Fields
+
+        private static readonly string s_lastScriptFilePath = Path.Combine(
+            Program.ProgramDataPath,
+            "LastScript" + ScriptExecutor.ScriptFileExtension);
 
         private bool m_isScriptFormActive;
         private ScriptForm m_scriptForm;
@@ -66,6 +72,7 @@ namespace CSharpScriptExecutor
                 return;
             }
 
+            bool exit;
             var workingArea = Screen.FromControl(this).WorkingArea;
 
             Cursor oldCursor = Cursor.Current;
@@ -90,7 +97,7 @@ namespace CSharpScriptExecutor
                         workingArea.Height - m_scriptForm.Size.Height);
                     m_scriptForm.Script = m_lastScriptFormScript;
 
-                    m_scriptForm.ShowDialog(this);
+                    exit = m_scriptForm.ShowDialog(this) == DialogResult.Abort;
                     Cursor.Current = Cursors.AppStarting;
 
                     m_lastScriptFormSize = m_scriptForm.Size;
@@ -106,6 +113,11 @@ namespace CSharpScriptExecutor
                 m_scriptForm = null;
                 m_isScriptFormActive = false;
             }
+
+            if (exit)
+            {
+                Close();
+            }
         }
 
         [DebuggerStepThrough]
@@ -114,6 +126,63 @@ namespace CSharpScriptExecutor
             if (!Debugger.IsAttached)
             {
                 Debugger.Launch();
+            }
+        }
+
+        private void TryLoadLastScript()
+        {
+            try
+            {
+                if (!File.Exists(s_lastScriptFilePath))
+                {
+                    return;
+                }
+
+                m_lastScriptFormScript = File.ReadAllText(s_lastScriptFilePath);
+            }
+            catch (Exception)
+            {
+                // Nothing to do
+            }
+        }
+
+        private void TrySaveLastScript()
+        {
+            try
+            {
+                var directory = Path.GetDirectoryName(s_lastScriptFilePath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                var lastScriptFile = new FileInfo(s_lastScriptFilePath);
+                if (lastScriptFile.Exists)
+                {
+                    lastScriptFile.Attributes = FileAttributes.Normal;
+                }
+
+                var lastScript = m_isScriptFormActive && m_scriptForm != null
+                    ? m_scriptForm.Script
+                    : m_lastScriptFormScript;
+
+                if (string.IsNullOrWhiteSpace(lastScript))
+                {
+                    lastScriptFile.Refresh();
+                    if (lastScriptFile.Exists)
+                    {
+                        lastScriptFile.Delete();
+                        lastScriptFile = null;
+                    }
+                }
+                else
+                {
+                    File.WriteAllText(s_lastScriptFilePath, lastScript, Encoding.UTF8);
+                }
+            }
+            catch (Exception)
+            {
+                // Nothing to do
             }
         }
 
@@ -126,6 +195,14 @@ namespace CSharpScriptExecutor
             base.OnLoad(e);
 
             DoHide();
+            TryLoadLastScript();
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            TrySaveLastScript();
+
+            base.OnFormClosing(e);
         }
 
         #endregion

@@ -21,10 +21,15 @@
             this.btnDebug = new System.Windows.Forms.Button();
             this.msMainMenu = new System.Windows.Forms.MenuStrip();
             this.tsmiFile = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmiOpenScript = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmiSaveAs = new System.Windows.Forms.ToolStripMenuItem();
+            this.tssSeparatorExecute = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiExecute = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiDebug = new System.Windows.Forms.ToolStripMenuItem();
-            this.tssSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.tssSeparatorClose = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiClose = new System.Windows.Forms.ToolStripMenuItem();
+            this.tssSeparatorExit = new System.Windows.Forms.ToolStripSeparator();
+            this.tsmiExit = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiHistory = new System.Windows.Forms.ToolStripMenuItem();
             this.tssClearHistorySeparator = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiClearHistory = new System.Windows.Forms.ToolStripMenuItem();
@@ -35,8 +40,12 @@
             this.tsmiInsertSnippet = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiInsertReturn = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiInsertConsoleWriteLine = new System.Windows.Forms.ToolStripMenuItem();
+            this.tssContextSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.tsmiInsertReferenceDirective = new System.Windows.Forms.ToolStripMenuItem();
+            this.sfdSaveScript = new System.Windows.Forms.SaveFileDialog();
             this.ehTextEditor = new System.Windows.Forms.Integration.ElementHost();
             this.tewTextEditor = new CSharpScriptExecutor.TextEditorWrapper();
+            this.ofdOpenScript = new System.Windows.Forms.OpenFileDialog();
             this.msMainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbResult)).BeginInit();
             this.cmsEditorContextMenu.SuspendLayout();
@@ -91,19 +100,46 @@
             // tsmiFile
             // 
             this.tsmiFile.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.tsmiOpenScript,
+            this.tsmiSaveAs,
+            this.tssSeparatorExecute,
             this.tsmiExecute,
             this.tsmiDebug,
-            this.tssSeparator1,
-            this.tsmiClose});
+            this.tssSeparatorClose,
+            this.tsmiClose,
+            this.tssSeparatorExit,
+            this.tsmiExit});
             this.tsmiFile.Name = "tsmiFile";
             this.tsmiFile.Size = new System.Drawing.Size(37, 20);
             this.tsmiFile.Text = "&File";
+            // 
+            // tsmiOpenScript
+            // 
+            this.tsmiOpenScript.Name = "tsmiOpenScript";
+            this.tsmiOpenScript.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
+            this.tsmiOpenScript.Size = new System.Drawing.Size(186, 22);
+            this.tsmiOpenScript.Text = "&Open...";
+            this.tsmiOpenScript.Click += new System.EventHandler(this.tsmiOpenScript_Click);
+            // 
+            // tsmiSaveAs
+            // 
+            this.tsmiSaveAs.Name = "tsmiSaveAs";
+            this.tsmiSaveAs.ShortcutKeys = ((System.Windows.Forms.Keys)(((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Alt) 
+            | System.Windows.Forms.Keys.S)));
+            this.tsmiSaveAs.Size = new System.Drawing.Size(186, 22);
+            this.tsmiSaveAs.Text = "Save &As...";
+            this.tsmiSaveAs.Click += new System.EventHandler(this.tsmiSaveAs_Click);
+            // 
+            // tssSeparatorExecute
+            // 
+            this.tssSeparatorExecute.Name = "tssSeparatorExecute";
+            this.tssSeparatorExecute.Size = new System.Drawing.Size(183, 6);
             // 
             // tsmiExecute
             // 
             this.tsmiExecute.Name = "tsmiExecute";
             this.tsmiExecute.ShortcutKeys = System.Windows.Forms.Keys.F5;
-            this.tsmiExecute.Size = new System.Drawing.Size(148, 22);
+            this.tsmiExecute.Size = new System.Drawing.Size(186, 22);
             this.tsmiExecute.Text = "E&xecute";
             this.tsmiExecute.Click += new System.EventHandler(this.tsmiExecute_Click);
             // 
@@ -111,22 +147,36 @@
             // 
             this.tsmiDebug.Name = "tsmiDebug";
             this.tsmiDebug.ShortcutKeys = System.Windows.Forms.Keys.F8;
-            this.tsmiDebug.Size = new System.Drawing.Size(148, 22);
+            this.tsmiDebug.Size = new System.Drawing.Size(186, 22);
             this.tsmiDebug.Text = "&Debug";
             this.tsmiDebug.Click += new System.EventHandler(this.tsmiDebug_Click);
             // 
-            // tssSeparator1
+            // tssSeparatorClose
             // 
-            this.tssSeparator1.Name = "tssSeparator1";
-            this.tssSeparator1.Size = new System.Drawing.Size(145, 6);
+            this.tssSeparatorClose.Name = "tssSeparatorClose";
+            this.tssSeparatorClose.Size = new System.Drawing.Size(183, 6);
             // 
             // tsmiClose
             // 
             this.tsmiClose.Name = "tsmiClose";
+            this.tsmiClose.ShortcutKeyDisplayString = "";
             this.tsmiClose.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.W)));
-            this.tsmiClose.Size = new System.Drawing.Size(148, 22);
+            this.tsmiClose.Size = new System.Drawing.Size(186, 22);
             this.tsmiClose.Text = "&Close";
             this.tsmiClose.Click += new System.EventHandler(this.tsmiClose_Click);
+            // 
+            // tssSeparatorExit
+            // 
+            this.tssSeparatorExit.Name = "tssSeparatorExit";
+            this.tssSeparatorExit.Size = new System.Drawing.Size(183, 6);
+            // 
+            // tsmiExit
+            // 
+            this.tsmiExit.Name = "tsmiExit";
+            this.tsmiExit.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Q)));
+            this.tsmiExit.Size = new System.Drawing.Size(186, 22);
+            this.tsmiExit.Text = "E&xit";
+            this.tsmiExit.Click += new System.EventHandler(this.tsmiExit_Click);
             // 
             // tsmiHistory
             // 
@@ -189,7 +239,9 @@
             // 
             this.tsmiInsertSnippet.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsmiInsertReturn,
-            this.tsmiInsertConsoleWriteLine});
+            this.tsmiInsertConsoleWriteLine,
+            this.tssContextSeparator1,
+            this.tsmiInsertReferenceDirective});
             this.tsmiInsertSnippet.Name = "tsmiInsertSnippet";
             this.tsmiInsertSnippet.Size = new System.Drawing.Size(152, 22);
             this.tsmiInsertSnippet.Text = "&Insert Snippet";
@@ -207,8 +259,27 @@
             this.tsmiInsertConsoleWriteLine.Name = "tsmiInsertConsoleWriteLine";
             this.tsmiInsertConsoleWriteLine.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Alt | System.Windows.Forms.Keys.W)));
             this.tsmiInsertConsoleWriteLine.Size = new System.Drawing.Size(211, 22);
-            this.tsmiInsertConsoleWriteLine.Text = "Console.WriteLine";
+            this.tsmiInsertConsoleWriteLine.Text = "Console.&WriteLine";
             this.tsmiInsertConsoleWriteLine.Click += new System.EventHandler(this.tsmiInsertConsoleWriteLine_Click);
+            // 
+            // tssContextSeparator1
+            // 
+            this.tssContextSeparator1.Name = "tssContextSeparator1";
+            this.tssContextSeparator1.Size = new System.Drawing.Size(208, 6);
+            // 
+            // tsmiInsertReferenceDirective
+            // 
+            this.tsmiInsertReferenceDirective.Name = "tsmiInsertReferenceDirective";
+            this.tsmiInsertReferenceDirective.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.R)));
+            this.tsmiInsertReferenceDirective.Size = new System.Drawing.Size(211, 22);
+            this.tsmiInsertReferenceDirective.Text = "//##RE&F";
+            this.tsmiInsertReferenceDirective.Click += new System.EventHandler(this.tsmiInsertReferenceDirective_Click);
+            // 
+            // sfdSaveScript
+            // 
+            this.sfdSaveScript.DefaultExt = "cssx";
+            this.sfdSaveScript.Filter = "C# scripts|*.cssx";
+            this.sfdSaveScript.SupportMultiDottedExtensions = true;
             // 
             // ehTextEditor
             // 
@@ -222,6 +293,12 @@
             this.ehTextEditor.Size = new System.Drawing.Size(460, 284);
             this.ehTextEditor.TabIndex = 7;
             this.ehTextEditor.Child = this.tewTextEditor;
+            // 
+            // ofdOpenScript
+            // 
+            this.ofdOpenScript.AddExtension = false;
+            this.ofdOpenScript.Filter = "C# scripts|*.cssx|C# code files|*.cs|All files|*.*";
+            this.ofdOpenScript.SupportMultiDottedExtensions = true;
             // 
             // ScriptForm
             // 
@@ -266,7 +343,7 @@
         private System.Windows.Forms.ToolStripMenuItem tsmiClose;
         private System.Windows.Forms.ToolStripMenuItem tsmiShowResult;
         private System.Windows.Forms.PictureBox pbResult;
-        private System.Windows.Forms.ToolStripSeparator tssSeparator1;
+        private System.Windows.Forms.ToolStripSeparator tssSeparatorClose;
         private System.Windows.Forms.ToolStripMenuItem tsmiExecute;
         private System.Windows.Forms.ToolStripMenuItem tsmiDebug;
         private System.Windows.Forms.Integration.ElementHost ehTextEditor;
@@ -278,5 +355,14 @@
         private System.Windows.Forms.ToolStripMenuItem tsmiHistory;
         private System.Windows.Forms.ToolStripMenuItem tsmiClearHistory;
         private System.Windows.Forms.ToolStripSeparator tssClearHistorySeparator;
+        private System.Windows.Forms.SaveFileDialog sfdSaveScript;
+        private System.Windows.Forms.ToolStripMenuItem tsmiSaveAs;
+        private System.Windows.Forms.ToolStripSeparator tssSeparatorExecute;
+        private System.Windows.Forms.OpenFileDialog ofdOpenScript;
+        private System.Windows.Forms.ToolStripMenuItem tsmiOpenScript;
+        private System.Windows.Forms.ToolStripMenuItem tsmiExit;
+        private System.Windows.Forms.ToolStripSeparator tssSeparatorExit;
+        private System.Windows.Forms.ToolStripMenuItem tsmiInsertReferenceDirective;
+        private System.Windows.Forms.ToolStripSeparator tssContextSeparator1;
     }
 }

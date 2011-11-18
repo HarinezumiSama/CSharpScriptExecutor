@@ -29,6 +29,10 @@ namespace CSharpScriptExecutor
 
             innerEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinitionByExtension(
                 ScriptExecutor.SourceFileExtension);
+
+            innerEditor.Options.ConvertTabsToSpaces = true;
+            innerEditor.Options.CutCopyWholeLine = true;
+            innerEditor.Options.IndentationSize = 4;
         }
 
         #endregion

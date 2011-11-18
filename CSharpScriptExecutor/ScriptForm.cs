@@ -23,8 +23,9 @@ namespace CSharpScriptExecutor
 
     // TODO: Highlighting error 'as you type'
 
-    // TODO: File | Open and File | Save As...
     // TODO: Fix drag and drop (*.cs and *.cssx) under Windows 7 (and probably under Vista as well)
+
+    // TODO: Auto-save history to user's AppData folder
 
     public partial class ScriptForm : Form
     {
@@ -106,9 +107,9 @@ namespace CSharpScriptExecutor
             return string.IsNullOrWhiteSpace(caption) ? this.Text : caption;
         }
 
-        private void CloseForm()
+        private void CloseForm(bool exit)
         {
-            this.DialogResult = DialogResult.Cancel;
+            this.DialogResult = exit ? DialogResult.Abort : DialogResult.Cancel;
             Close();
         }
 
@@ -444,6 +445,7 @@ namespace CSharpScriptExecutor
         {
             base.OnLoad(e);
 
+            this.DialogResult = DialogResult.None;
             tewTextEditor.InnerEditor.TextChanged += this.tewTextEditor_InnerEditor_TextChanged;
         }
 
@@ -465,7 +467,7 @@ namespace CSharpScriptExecutor
 
         private void btnClose_Click(object sender, EventArgs e)
         {
-            CloseForm();
+            CloseForm(false);
         }
 
         private void ScriptForm_Shown(object sender, EventArgs e)
@@ -498,7 +500,12 @@ namespace CSharpScriptExecutor
 
         private void tsmiClose_Click(object sender, EventArgs e)
         {
-            CloseForm();
+            CloseForm(false);
+        }
+
+        private void tsmiExit_Click(object sender, EventArgs e)
+        {
+            CloseForm(true);
         }
 
         private void tsmiExecute_Click(object sender, EventArgs e)
@@ -521,7 +528,7 @@ namespace CSharpScriptExecutor
             if (e.KeyData == (Keys.Escape | Keys.Shift))
             {
                 e.Handled = true;
-                CloseForm();
+                CloseForm(false);
             }
         }
 
@@ -530,7 +537,7 @@ namespace CSharpScriptExecutor
             if (e.Key == Key.Escape && e.KeyboardDevice.Modifiers == System.Windows.Input.ModifierKeys.Shift)
             {
                 e.Handled = true;
-                CloseForm();
+                CloseForm(false);
             }
         }
 
@@ -547,6 +554,12 @@ namespace CSharpScriptExecutor
         private void tsmiInsertConsoleWriteLine_Click(object sender, EventArgs e)
         {
             InsertTextInEditor("Console.WriteLine");
+        }
+
+        private void tsmiInsertReferenceDirective_Click(object sender, EventArgs e)
+        {
+            //TODO: Insert new directive(s) along with existing ones or at the very beginning of document
+            InsertTextInEditor("//##REF ");
         }
 
         private void tsmiClearHistory_Click(object sender, EventArgs e)
@@ -589,6 +602,55 @@ namespace CSharpScriptExecutor
         private void ScriptForm_DragDrop(object sender, DragEventArgs e)
         {
             QueryWindowDragDrop(e, true);
+        }
+
+        private void tsmiSaveAs_Click(object sender, EventArgs e)
+        {
+            if (sfdSaveScript.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var filePath = sfdSaveScript.FileName;
+            try
+            {
+                File.WriteAllText(filePath, this.Script, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                ShowError(
+                    string.Format(
+                        "Cannot save script to the file \"{0}\":\n"
+                            + "{1}",
+                        filePath,
+                        ex.Message));
+                return;
+            }
+        }
+
+        private void tsmiOpenScript_Click(object sender, EventArgs e)
+        {
+            if (ofdOpenScript.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var filePath = ofdOpenScript.FileName;
+            try
+            {
+                var script = File.ReadAllText(filePath);
+                this.Script = script;
+            }
+            catch (Exception ex)
+            {
+                ShowError(
+                   string.Format(
+                       "Cannot open a script from \"{0}\":\n"
+                           + "{1}",
+                       filePath,
+                       ex.Message));
+                return;
+            }
         }
 
         #endregion

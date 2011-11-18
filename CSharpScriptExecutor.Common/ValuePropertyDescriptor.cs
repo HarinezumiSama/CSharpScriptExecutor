@@ -53,14 +53,14 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentException(
                     string.Format(
-                        "The specified value must not be marshaled by reference unless it is '{0}'.",
+                        "The specified value must not be marshalled by reference unless it is '{0}'.",
                         typeof(ScriptReturnValue).FullName),
                     "owner");
             }
             if (propertyValue is MarshalByRefObject)
             {
                 throw new ArgumentException(
-                    "The specified value must not be marshaled by reference.",
+                    "The specified value must not be marshalled by reference.",
                     "propertyValue");
             }
 
