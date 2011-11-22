@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -90,7 +91,10 @@ namespace CSharpScriptExecutor
             //        .AssertWinApiResult();
             //}
 
-            this.Text = string.Format("Script — {0}", Program.ProgramName);
+            this.Text = string.Format(
+                "Script — {0}{1}",
+                Program.ProgramName,
+                IsAdministrator() ? " [Administrator]" : string.Empty);
 
             tewTextEditor.KeyDown += this.tewTextEditor_KeyDown;
             tewTextEditor.AllowDrop = true;
@@ -465,6 +469,15 @@ namespace CSharpScriptExecutor
 
         #endregion
 
+        #region Public Methods
+
+        public static bool IsAdministrator()
+        {
+            return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        #endregion
+
         #region Event Handlers
 
         private void btnClose_Click(object sender, EventArgs e)
@@ -660,6 +673,5 @@ namespace CSharpScriptExecutor
         }
 
         #endregion
-
     }
 }

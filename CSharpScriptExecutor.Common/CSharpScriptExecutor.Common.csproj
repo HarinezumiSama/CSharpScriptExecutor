@@ -97,6 +97,7 @@
     <Compile Include="TypeWrapper.cs" />
     <Compile Include="ValueAccessException.cs" />
     <Compile Include="ValuePropertyDescriptor.cs" />
+    <Compile Include="WinApi.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CSharpScriptExecutor.Common.snk" />
