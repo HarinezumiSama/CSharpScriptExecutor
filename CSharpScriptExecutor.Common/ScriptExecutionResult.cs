@@ -100,8 +100,8 @@ namespace CSharpScriptExecutor.Common
             m_type = type;
             m_returnValue = type == ScriptExecutionResultType.Success ? ScriptReturnValue.Create(returnValue) : null;
             m_message = message;
-            m_consoleOut = consoleOut;
-            m_consoleError = consoleError;
+            m_consoleOut = consoleOut ?? string.Empty;
+            m_consoleError = consoleError ?? string.Empty;
             m_sourceCode = sourceCode ?? string.Empty;
             m_generatedCode = generatedCode ?? string.Empty;
             m_compilerErrors = compilerErrors == null ? s_emptyCompilerErrors : compilerErrors.ToList().AsReadOnly();
@@ -115,10 +115,10 @@ namespace CSharpScriptExecutor.Common
         internal static ScriptExecutionResult CreateError(
             ScriptExecutionResultType type,
             Exception exception,
-            string consoleOut,
-            string consoleError,
             string sourceCode,
             string generatedSource,
+            string consoleOut,
+            string consoleError,
             IEnumerable<CompilerError> compilerErrors,
             int? sourceCodeLineOffset)
         {
@@ -167,10 +167,10 @@ namespace CSharpScriptExecutor.Common
 
         internal static ScriptExecutionResult CreateSuccess(
             object returnValue,
-            string consoleOut,
-            string consoleError,
             string sourceCode,
-            string generatedSource)
+            string generatedSource,
+            string consoleOut,
+            string consoleError)
         {
             return new ScriptExecutionResult(
                 ScriptExecutionResultType.Success,
@@ -258,48 +258,15 @@ namespace CSharpScriptExecutor.Common
 
         #region Public Methods
 
-        public static ScriptExecutionResult CreateInternalError(
-            Exception exception,
-            string consoleOut,
-            string consoleError,
-            string sourceCode,
-            string generatedSource)
+        public static ScriptExecutionResult CreateInternalError(Exception exception, string sourceCode)
         {
-            #region Argument Check
-
-            if (exception == null)
-            {
-                throw new ArgumentNullException("exception");
-            }
-
-            #endregion
-
-            if ((exception is TargetInvocationException) && (exception.InnerException != null))
-            {
-                exception = exception.InnerException;
-            }
-
-            var scriptExecutorException = exception as ScriptExecutorException;
-            if (scriptExecutorException != null)
-            {
-                if (sourceCode == null)
-                {
-                    sourceCode = scriptExecutorException.SourceCode;
-                }
-                if (generatedSource == null)
-                {
-                    generatedSource = scriptExecutorException.GeneratedCode;
-                }
-            }
-
-            return new ScriptExecutionResult(
+            return CreateError(
                 ScriptExecutionResultType.InternalError,
-                null,
-                exception.ToString(),
-                consoleOut,
-                consoleError,
+                exception,
                 sourceCode,
-                generatedSource,
+                null,
+                null,
+                null,
                 null,
                 null);
         }

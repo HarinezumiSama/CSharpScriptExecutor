@@ -91,6 +91,7 @@
     <Compile Include="ExecutionResultViewerForm.Designer.cs">
       <DependentUpon>ExecutionResultViewerForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="LocalHelper.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>

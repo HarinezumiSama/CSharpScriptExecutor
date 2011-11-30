@@ -667,10 +667,10 @@ namespace CSharpScriptExecutor.Common
                     m_executionResult = ScriptExecutionResult.CreateError(
                         ScriptExecutionResultType.CompilationError,
                         new ScriptExecutorException("Error compiling script"),
-                        string.Empty,
-                        string.Empty,
                         m_script,
                         generatedCode,
+                        string.Empty,
+                        string.Empty,
                         onlyErrors,
                         sourceCodeLineOffset);
                     return;
@@ -798,10 +798,10 @@ namespace CSharpScriptExecutor.Common
                             m_executionResult = ScriptExecutionResult.CreateError(
                                 ScriptExecutionResultType.ExecutionError,
                                 ex,
-                                consoleOutBuilder.ToString(),
-                                consoleErrorBuilder.ToString(),
                                 m_script,
                                 generatedCode,
+                                consoleOutBuilder.ToString(),
+                                consoleErrorBuilder.ToString(),
                                 null,
                                 null);
                             return;
@@ -813,10 +813,10 @@ namespace CSharpScriptExecutor.Common
                     m_executionResult = ScriptExecutionResult.CreateError(
                         ScriptExecutionResultType.InternalError,
                         ex,
-                        string.Empty,
-                        string.Empty,
                         m_script,
                         generatedCode,
+                        null,
+                        null,
                         null,
                         null);
                     return;
@@ -829,10 +829,10 @@ namespace CSharpScriptExecutor.Common
 
                 m_executionResult = ScriptExecutionResult.CreateSuccess(
                     scriptReturnValue,
-                    consoleOutBuilder.ToString(),
-                    consoleErrorBuilder.ToString(),
                     m_script,
-                    generatedCode);
+                    generatedCode,
+                    consoleOutBuilder.ToString(),
+                    consoleErrorBuilder.ToString());
             }
         }
 
@@ -866,9 +866,9 @@ namespace CSharpScriptExecutor.Common
                 m_executionResult = ScriptExecutionResult.CreateError(
                     ScriptExecutionResultType.InternalError,
                     ex,
-                    string.Empty,
-                    string.Empty,
                     m_script,
+                    null,
+                    null,
                     null,
                     null,
                     null);

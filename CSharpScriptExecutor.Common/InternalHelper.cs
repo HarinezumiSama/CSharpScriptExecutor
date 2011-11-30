@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace CSharpScriptExecutor.Common
@@ -11,8 +12,14 @@ namespace CSharpScriptExecutor.Common
     {
         #region Constants
 
+        private const RegexOptions c_defaultRegexOptions = RegexOptions.Compiled
+            | RegexOptions.IgnorePatternWhitespace
+            | RegexOptions.ExplicitCapture;
+
         private const string c_quotedStringGroupName = "value";
         private const string c_quote = "\"";
+
+        private const string c_parameterGroupName = "p";
 
         #endregion
 
@@ -23,7 +30,15 @@ namespace CSharpScriptExecutor.Common
                 @"^ \s* {0} (?<{1}>[^{0}]*) {0} \s* $",
                 Regex.Escape(c_quote),
                 c_quotedStringGroupName),
-            RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnorePatternWhitespace);
+            c_defaultRegexOptions | RegexOptions.Singleline);
+
+        private static readonly Regex s_commandLineRegex = new Regex(
+            string.Format(
+                @"\s* (((?<{0}>[^ ""]+)? (\"" (?<{0}>[^""]*) (\"" | $))*)+) \s*",
+                c_parameterGroupName),
+            c_defaultRegexOptions | RegexOptions.Singleline);
+
+        private static readonly string[] s_noCommandLineParameters = new string[0];
 
         #endregion
 
@@ -172,6 +187,57 @@ namespace CSharpScriptExecutor.Common
             }
 
             return true;
+        }
+
+        public static TAttribute GetSoleAttribute<TAttribute>(
+            this ICustomAttributeProvider customAttributeProvider)
+            where TAttribute : Attribute
+        {
+            #region Argument Check
+
+            if (customAttributeProvider == null)
+            {
+                throw new ArgumentNullException("customAttributeProvider");
+            }
+
+            #endregion
+
+            TAttribute[] attributes = (TAttribute[])customAttributeProvider.GetCustomAttributes(
+                typeof(TAttribute),
+                true);
+            if ((attributes == null) || (attributes.Length != 1))
+            {
+                throw new InvalidProgramException(
+                    string.Format("Invalid definition of the attribute '{0}'.", typeof(TAttribute).FullName));
+            }
+
+            return attributes[0];
+        }
+
+        public static string[] ParseCommandLineParameters(string commandLine)
+        {
+            if (string.IsNullOrEmpty(commandLine))
+            {
+                return s_noCommandLineParameters;
+            }
+
+            var matches = s_commandLineRegex.Matches(commandLine);
+
+            var result = matches
+                .Cast<Match>()
+                .Where(match => match.Success)
+                .Select(match => match.Groups[c_parameterGroupName])
+                .Where(group => group != null && group.Success)
+                .Select(
+                    group => string.Join(
+                        string.Empty,
+                        group
+                            .Captures
+                            .Cast<Capture>()
+                            .OrderBy(capture => capture.Index)
+                            .Select(capture => capture.Value)))
+                .ToArray();
+            return result;
         }
 
         #endregion

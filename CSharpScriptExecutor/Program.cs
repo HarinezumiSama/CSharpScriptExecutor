@@ -14,6 +14,8 @@ using CSharpScriptExecutor.Common;
 
 namespace CSharpScriptExecutor
 {
+    // TODO: Split UI application into GUI and Console applications
+
     internal static class Program
     {
         #region Constants
@@ -62,16 +64,8 @@ namespace CSharpScriptExecutor
         private static TAttribute GetSoleAssemblyAttribute<TAttribute>()
             where TAttribute : Attribute
         {
-            Assembly assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
-            TAttribute[] attributes = (TAttribute[])assembly.GetCustomAttributes(typeof(TAttribute), true);
-            if ((attributes == null) || (attributes.Length != 1))
-            {
-                throw new InvalidProgramException(string.Format(
-                    "Invalid definition of '{0}' attribute.",
-                    typeof(TAttribute).Name));
-            }
-
-            return attributes[0];
+            var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+            return assembly.GetSoleAttribute<TAttribute>();
         }
 
         private static void ShowHelp(bool isConsoleMode)
@@ -245,8 +239,8 @@ namespace CSharpScriptExecutor
 
             string scriptFilePath = Path.GetFullPath(arguments[0]);
             var scriptArguments = arguments.Skip(1).ToArray();
-            var scriptSource = File.ReadAllText(scriptFilePath);
-            var executorParameters = new ScriptExecutorParameters(scriptSource, scriptArguments, s_isDebugMode);
+            var script = File.ReadAllText(scriptFilePath);
+            var executorParameters = new ScriptExecutorParameters(script, scriptArguments, s_isDebugMode);
 
             using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
             {
@@ -257,12 +251,7 @@ namespace CSharpScriptExecutor
                 }
                 catch (Exception ex)
                 {
-                    executionResult = ScriptExecutionResult.CreateInternalError(
-                        ex,
-                        string.Empty,
-                        string.Empty,
-                        scriptSource,
-                        null);
+                    executionResult = ScriptExecutionResult.CreateInternalError(ex, script);
                 }
 
                 Console.WriteLine(executionResult.ConsoleOut);
@@ -339,7 +328,7 @@ namespace CSharpScriptExecutor
         {
             [DebuggerStepThrough]
             get { return s_programDataPath; }
-        } 
+        }
 
         #endregion
 

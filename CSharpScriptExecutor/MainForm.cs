@@ -19,7 +19,7 @@ namespace CSharpScriptExecutor
 
         private static readonly string s_lastScriptFilePath = Path.Combine(
             Program.ProgramDataPath,
-            "LastScript" + ScriptExecutor.ScriptFileExtension);
+            "~LastScript" + ScriptExecutor.ScriptFileExtension);
 
         private bool m_isScriptFormActive;
         private ScriptForm m_scriptForm;
@@ -131,59 +131,15 @@ namespace CSharpScriptExecutor
 
         private void TryLoadLastScript()
         {
-            try
-            {
-                if (!File.Exists(s_lastScriptFilePath))
-                {
-                    return;
-                }
-
-                m_lastScriptFormScript = File.ReadAllText(s_lastScriptFilePath);
-            }
-            catch (Exception)
-            {
-                // Nothing to do
-            }
+            m_lastScriptFormScript = LocalHelper.TryLoadScript(s_lastScriptFilePath);
         }
 
         private void TrySaveLastScript()
         {
-            try
-            {
-                var directory = Path.GetDirectoryName(s_lastScriptFilePath);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                var lastScriptFile = new FileInfo(s_lastScriptFilePath);
-                if (lastScriptFile.Exists)
-                {
-                    lastScriptFile.Attributes = FileAttributes.Normal;
-                }
-
-                var lastScript = m_isScriptFormActive && m_scriptForm != null
-                    ? m_scriptForm.Script
-                    : m_lastScriptFormScript;
-
-                if (string.IsNullOrWhiteSpace(lastScript))
-                {
-                    lastScriptFile.Refresh();
-                    if (lastScriptFile.Exists)
-                    {
-                        lastScriptFile.Delete();
-                        lastScriptFile = null;
-                    }
-                }
-                else
-                {
-                    File.WriteAllText(s_lastScriptFilePath, lastScript, Encoding.UTF8);
-                }
-            }
-            catch (Exception)
-            {
-                // Nothing to do
-            }
+            var lastScript = m_isScriptFormActive && m_scriptForm != null
+                ? m_scriptForm.Script
+                : m_lastScriptFormScript;
+            LocalHelper.TrySaveScript(s_lastScriptFilePath, lastScript);
         }
 
         #endregion

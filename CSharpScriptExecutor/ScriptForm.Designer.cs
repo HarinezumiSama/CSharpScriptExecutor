@@ -42,14 +42,17 @@
             this.tsmiInsertConsoleWriteLine = new System.Windows.Forms.ToolStripMenuItem();
             this.tssContextSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.tsmiInsertReferenceDirective = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmiInsertUsingDirective = new System.Windows.Forms.ToolStripMenuItem();
             this.sfdSaveScript = new System.Windows.Forms.SaveFileDialog();
             this.ehTextEditor = new System.Windows.Forms.Integration.ElementHost();
             this.tewTextEditor = new CSharpScriptExecutor.TextEditorWrapper();
             this.ofdOpenScript = new System.Windows.Forms.OpenFileDialog();
-            this.tsmiInsertUsingDirective = new System.Windows.Forms.ToolStripMenuItem();
+            this.gbCommandLine = new System.Windows.Forms.GroupBox();
+            this.tbCommandLine = new System.Windows.Forms.TextBox();
             this.msMainMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbResult)).BeginInit();
             this.cmsEditorContextMenu.SuspendLayout();
+            this.gbCommandLine.SuspendLayout();
             this.SuspendLayout();
             // 
             // btnExecute
@@ -278,11 +281,20 @@
             this.tsmiInsertReferenceDirective.Text = "//##RE&F";
             this.tsmiInsertReferenceDirective.Click += new System.EventHandler(this.tsmiInsertReferenceDirective_Click);
             // 
+            // tsmiInsertUsingDirective
+            // 
+            this.tsmiInsertUsingDirective.Name = "tsmiInsertUsingDirective";
+            this.tsmiInsertUsingDirective.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.U)));
+            this.tsmiInsertUsingDirective.Size = new System.Drawing.Size(211, 22);
+            this.tsmiInsertUsingDirective.Text = "//##USING";
+            this.tsmiInsertUsingDirective.Click += new System.EventHandler(this.tsmiInsertUsingDirective_Click);
+            // 
             // sfdSaveScript
             // 
             this.sfdSaveScript.DefaultExt = "cssx";
             this.sfdSaveScript.Filter = "C# scripts|*.cssx";
             this.sfdSaveScript.SupportMultiDottedExtensions = true;
+            this.sfdSaveScript.Title = "Save Script";
             // 
             // ehTextEditor
             // 
@@ -293,8 +305,8 @@
             this.ehTextEditor.ContextMenuStrip = this.cmsEditorContextMenu;
             this.ehTextEditor.Location = new System.Drawing.Point(12, 27);
             this.ehTextEditor.Name = "ehTextEditor";
-            this.ehTextEditor.Size = new System.Drawing.Size(460, 284);
-            this.ehTextEditor.TabIndex = 7;
+            this.ehTextEditor.Size = new System.Drawing.Size(460, 225);
+            this.ehTextEditor.TabIndex = 0;
             this.ehTextEditor.Child = this.tewTextEditor;
             // 
             // ofdOpenScript
@@ -302,14 +314,28 @@
             this.ofdOpenScript.AddExtension = false;
             this.ofdOpenScript.Filter = "C# scripts|*.cssx|C# code files|*.cs|All files|*.*";
             this.ofdOpenScript.SupportMultiDottedExtensions = true;
+            this.ofdOpenScript.Title = "Open Script";
             // 
-            // tsmiInsertUsingDirective
+            // gbCommandLine
             // 
-            this.tsmiInsertUsingDirective.Name = "tsmiInsertUsingDirective";
-            this.tsmiInsertUsingDirective.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.U)));
-            this.tsmiInsertUsingDirective.Size = new System.Drawing.Size(211, 22);
-            this.tsmiInsertUsingDirective.Text = "//##USING";
-            this.tsmiInsertUsingDirective.Click += new System.EventHandler(this.tsmiInsertUsingDirective_Click);
+            this.gbCommandLine.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.gbCommandLine.Controls.Add(this.tbCommandLine);
+            this.gbCommandLine.Location = new System.Drawing.Point(12, 258);
+            this.gbCommandLine.Name = "gbCommandLine";
+            this.gbCommandLine.Size = new System.Drawing.Size(460, 53);
+            this.gbCommandLine.TabIndex = 1;
+            this.gbCommandLine.TabStop = false;
+            this.gbCommandLine.Text = "Command-line parameters (optional)";
+            // 
+            // tbCommandLine
+            // 
+            this.tbCommandLine.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.tbCommandLine.Location = new System.Drawing.Point(7, 20);
+            this.tbCommandLine.Name = "tbCommandLine";
+            this.tbCommandLine.Size = new System.Drawing.Size(447, 20);
+            this.tbCommandLine.TabIndex = 0;
             // 
             // ScriptForm
             // 
@@ -317,6 +343,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(484, 362);
+            this.Controls.Add(this.gbCommandLine);
             this.Controls.Add(this.ehTextEditor);
             this.Controls.Add(this.pbResult);
             this.Controls.Add(this.btnDebug);
@@ -338,6 +365,8 @@
             this.msMainMenu.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbResult)).EndInit();
             this.cmsEditorContextMenu.ResumeLayout(false);
+            this.gbCommandLine.ResumeLayout(false);
+            this.gbCommandLine.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -376,5 +405,7 @@
         private System.Windows.Forms.ToolStripMenuItem tsmiInsertReferenceDirective;
         private System.Windows.Forms.ToolStripSeparator tssContextSeparator1;
         private System.Windows.Forms.ToolStripMenuItem tsmiInsertUsingDirective;
+        private System.Windows.Forms.GroupBox gbCommandLine;
+        private System.Windows.Forms.TextBox tbCommandLine;
     }
 }

@@ -20,8 +20,6 @@ using KeyEventArgs = System.Windows.Forms.KeyEventArgs;
 
 namespace CSharpScriptExecutor
 {
-    // TODO: Make possible to enter arguments from GUI
-
     // TODO: Insert new directive(s) along with existing ones or at the very beginning of document
 
     // TODO: Add/delete assembly reference via GUI (auto-change directives in the code)
@@ -56,6 +54,10 @@ namespace CSharpScriptExecutor
                 + "\n"
                 + "The following files are only supported: {0}.",
             string.Join(", ", s_allowedDropExtensions.Select(item => "*" + item)));
+
+        private static readonly string s_lastStartedScriptFilePath = Path.Combine(
+            Program.ProgramDataPath,
+            "~LastStartedScript" + ScriptExecutor.ScriptFileExtension);
 
         private IScriptExecutor m_scriptExecutor;
         private ScriptExecutionResult m_executionResult;
@@ -102,6 +104,9 @@ namespace CSharpScriptExecutor
             tewTextEditor.Drop += this.tewTextEditor_Drop;
 
             pbResult.Visible = false;
+
+            ofdOpenScript.CustomPlaces.Add(Program.ProgramDataPath);
+            sfdSaveScript.CustomPlaces.Add(Program.ProgramDataPath);
         }
 
         #endregion
@@ -149,8 +154,6 @@ namespace CSharpScriptExecutor
                 return;
             }
 
-            AddToHistory(script);
-
             ScriptExecutionResult executionResult = null;
 
             Cursor oldCursor = Cursor.Current;
@@ -163,7 +166,13 @@ namespace CSharpScriptExecutor
                 m_executionResult = null;
                 Application.DoEvents();
 
-                var parameters = new ScriptExecutorParameters(script, Enumerable.Empty<string>(), enableDebugging);
+                AddToHistory(script);
+                LocalHelper.TrySaveScript(s_lastStartedScriptFilePath, script);
+
+                var commandLine = tbCommandLine.Text;
+                var commandLineParameters = InternalHelper.ParseCommandLineParameters(commandLine);
+
+                var parameters = new ScriptExecutorParameters(script, commandLineParameters, enableDebugging);
 
                 try
                 {
@@ -178,22 +187,12 @@ namespace CSharpScriptExecutor
                 }
                 catch (Exception ex)
                 {
-                    executionResult = ScriptExecutionResult.CreateInternalError(
-                        ex,
-                        string.Empty,
-                        string.Empty,
-                        script,
-                        null);
+                    executionResult = ScriptExecutionResult.CreateInternalError(ex, script);
                 }
             }
             catch (Exception ex)
             {
-                executionResult = ScriptExecutionResult.CreateInternalError(
-                    ex,
-                    string.Empty,
-                    string.Empty,
-                    script,
-                    null);
+                executionResult = ScriptExecutionResult.CreateInternalError(ex, script);
             }
             finally
             {
@@ -235,9 +234,9 @@ namespace CSharpScriptExecutor
                 historyMenuItem.ShortcutKeys = Keys.None;
             }
 
-            for (int index = m_historyMenuItems.Count - 1,
-                keyIndex = 1; index >= 0 && keyIndex <= 10; index--,
-                keyIndex++)
+            for (int index = m_historyMenuItems.Count - 1, keyIndex = 1;
+                index >= 0 && keyIndex <= 10;
+                index--, keyIndex++)
             {
                 m_historyMenuItems[index].ShortcutKeys = Keys.Control | (Keys.D0 + (keyIndex % 10));
             }
@@ -251,7 +250,7 @@ namespace CSharpScriptExecutor
                 guiScript = guiScript.Substring(0, c_maxHistoryItemGuiLength);
             }
 
-            var historyMenuItem = new ToolStripMenuItem(guiScript) { Tag = script };
+            var historyMenuItem = new ToolStripMenuItem(guiScript) { Tag = script, ToolTipText = script };
             historyMenuItem.Click += this.HistoryMenuItem_Click;
 
             m_historyMenuItems.Add(historyMenuItem);
@@ -462,9 +461,15 @@ namespace CSharpScriptExecutor
         public string Script
         {
             [DebuggerNonUserCode]
-            get { return tewTextEditor.InnerEditor.Text; }
+            get
+            {
+                return tewTextEditor.InnerEditor.Text;
+            }
             [DebuggerNonUserCode]
-            set { tewTextEditor.InnerEditor.Text = value; }
+            set
+            {
+                tewTextEditor.InnerEditor.Text = value;
+            }
         }
 
         #endregion

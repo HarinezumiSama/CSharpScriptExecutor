@@ -82,9 +82,9 @@ namespace CSharpScriptExecutor.Common
                 m_executionResult = ScriptExecutionResult.CreateError(
                     ScriptExecutionResultType.InternalError,
                     ex,
-                    string.Empty,
-                    string.Empty,
                     m_scriptExecutor.Script,
+                    null,
+                    null,
                     null,
                     null,
                     null);
