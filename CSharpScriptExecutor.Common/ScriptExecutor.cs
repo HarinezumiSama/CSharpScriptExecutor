@@ -619,7 +619,7 @@ namespace CSharpScriptExecutor.Common
             compileUnit.Namespaces.Add(rootNamespace);
 
             CompilerResults compilerResults;
-            using (var codeProvider = new CSharpCodeProvider())
+            using (var codeProvider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider())
             {
                 var generatedCodeBuilder = new StringBuilder();
                 using (var sw = new StringWriter(generatedCodeBuilder))
