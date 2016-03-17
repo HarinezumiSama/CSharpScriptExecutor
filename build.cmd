@@ -1,5 +1,7 @@
 @echo off
 
+setlocal
+
 if "%~1" EQU "" goto HELP
 if "%~2" EQU "" goto HELP
 if "%~3" EQU "" goto HELP
@@ -7,12 +9,10 @@ if "%~3" EQU "" goto HELP
 set BuildConfig=%~4
 if "%BuildConfig%" EQU "" set BuildConfig=Debug
 
-set DevEnvVer=%~5
-if "%DevEnvVer%" EQU "" set DevEnvVer=10.0
+set AppDir=%ProgramFiles%
+if /i "%PROCESSOR_ARCHITECTURE%" equ "AMD64" set AppDir=%ProgramFiles(x86)%
 
-@rem TODO: if ... PROCESSOR_ARCHITEW6432=AMD64 -> `Program Files (x86)` ELSE `Program Files`
-
-set DEVENV="C:\Program Files (x86)\Microsoft Visual Studio %DevEnvVer%\Common7\IDE\devenv.exe"
+set MSBUILD=%AppDir%\MSBuild\14.0\Bin\MSBuild.exe
 
 title [Rebuild] %~2: %BuildConfig%
 echo.
@@ -24,7 +24,7 @@ if exist "%~f3" (
 )
 echo **************************************** >>"%~f3"
 echo [Rebuild] %~2: %BuildConfig% >>"%~f3"
-echo Using VS %DevEnvVer%: %DEVENV% >>"%~f3"
+echo Using MSBuild: "%MSBUILD%" >>"%~f3"
 echo **************************************** >>"%~f3"
 echo START: >>"%~f3"
 date /T >>"%~f3"
@@ -32,13 +32,8 @@ time /T >>"%~f3"
 echo **************************************** >>"%~f3"
 echo. >>"%~f3"
 
-echo * Cleaning "%~nx1"... >>"%~f3"
-@echo on
-%DEVENV% "%~f1" /Clean "%BuildConfig%"  /Out "%~f3"
-@if errorlevel 1 goto BUILD_END
-@echo. >>"%~f3"
 @echo Rebuilding "%~nx1"... >>"%~f3"
-%DEVENV% "%~f1" /Rebuild "%BuildConfig%"  /Out "%~f3"
+"%MSBUILD%" /t:Rebuild "%~f1" /p:Configuration="%BuildConfig%" /p:Platform="Any CPU" /Verbosity:minimal /fl /flp:Verbosity=diagnostic;Summary;LogFile="%~f3" || goto ERROR
 @echo off
 
 echo. >>"%~f3"
@@ -55,7 +50,7 @@ echo.
 echo * END: [Rebuild] %~2: %BuildConfig%
 echo ********************************************************************************
 echo.
-goto END
+goto :EOF
 
 :HELP
 @echo off
@@ -63,13 +58,13 @@ echo.
 echo Usage:
 echo   %~nx0 {SolutionFile} {Title} {Log} [Configuration] [VS_Version]
 echo * [Configuration] - defaults to 'Debug'
-echo * [VS_Version] - defaults to '10.0'
 echo.
-goto END
+exit /b 127
+goto :EOF
 
-:END
-@echo off
-set DevEnvVer=
-set DEVENV=
-set BuildConfig=
-exit
+:ERROR
+echo.
+echo *** ERROR has occurred ***
+pause
+exit /b 1
+goto :EOF
