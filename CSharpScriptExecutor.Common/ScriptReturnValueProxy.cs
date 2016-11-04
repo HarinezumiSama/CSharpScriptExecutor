@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -13,10 +12,10 @@ namespace CSharpScriptExecutor.Common
     {
         #region Fields
 
-        private readonly ScriptReturnValue m_scriptReturnValue;
-        private readonly string m_className;
-        private readonly string m_componentName;
-        private PropertyDescriptorCollection m_properties;
+        private readonly ScriptReturnValue _scriptReturnValue;
+        private readonly string _className;
+        private readonly string _componentName;
+        private PropertyDescriptorCollection _properties;
 
         #endregion
 
@@ -31,28 +30,25 @@ namespace CSharpScriptExecutor.Common
 
             if (scriptReturnValue == null)
             {
-                throw new ArgumentNullException("scriptReturnValue");
+                throw new ArgumentNullException(nameof(scriptReturnValue));
             }
 
             #endregion
 
-            m_scriptReturnValue = scriptReturnValue;
-            m_className = TypeDescriptor.GetClassName(scriptReturnValue, true);
-            m_componentName = TypeDescriptor.GetComponentName(scriptReturnValue, true);
+            _scriptReturnValue = scriptReturnValue;
+            _className = TypeDescriptor.GetClassName(scriptReturnValue, true);
+            _componentName = TypeDescriptor.GetComponentName(scriptReturnValue, true);
 
-            this.AsString = scriptReturnValue.AsString;
-            this.IsNull = scriptReturnValue.IsNull;
-            this.Type = scriptReturnValue.Type;
+            AsString = scriptReturnValue.AsString;
+            IsNull = scriptReturnValue.IsNull;
+            Type = scriptReturnValue.Type;
         }
 
         #endregion
 
         #region Public Methods
 
-        public override string ToString()
-        {
-            return this.AsString;
-        }
+        public override string ToString() => AsString;
 
         #endregion
 
@@ -61,89 +57,54 @@ namespace CSharpScriptExecutor.Common
         public string AsString
         {
             get;
-            private set;
         }
 
         public bool IsNull
         {
             get;
-            private set;
         }
 
         public TypeWrapper Type
         {
             get;
-            private set;
         }
 
         #endregion
 
         #region ICustomTypeDescriptor Members
 
-        AttributeCollection ICustomTypeDescriptor.GetAttributes()
-        {
-            return TypeDescriptor.GetAttributes(this, true);
-        }
+        AttributeCollection ICustomTypeDescriptor.GetAttributes() => TypeDescriptor.GetAttributes(this, true);
 
-        string ICustomTypeDescriptor.GetClassName()
-        {
-            return m_className;
-        }
+        string ICustomTypeDescriptor.GetClassName() => _className;
 
-        string ICustomTypeDescriptor.GetComponentName()
-        {
-            return m_componentName;
-        }
+        string ICustomTypeDescriptor.GetComponentName() => _componentName;
 
-        TypeConverter ICustomTypeDescriptor.GetConverter()
-        {
-            return TypeDescriptor.GetConverter(this, true);
-        }
+        TypeConverter ICustomTypeDescriptor.GetConverter() => TypeDescriptor.GetConverter(this, true);
 
-        EventDescriptor ICustomTypeDescriptor.GetDefaultEvent()
-        {
-            return TypeDescriptor.GetDefaultEvent(this, true);
-        }
+        EventDescriptor ICustomTypeDescriptor.GetDefaultEvent() => TypeDescriptor.GetDefaultEvent(this, true);
 
-        PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty()
-        {
-            return TypeDescriptor.GetDefaultProperty(this, true);
-        }
+        PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty() => TypeDescriptor.GetDefaultProperty(this, true);
 
-        object ICustomTypeDescriptor.GetEditor(Type editorBaseType)
-        {
-            return TypeDescriptor.GetEditor(this, editorBaseType, true);
-        }
+        object ICustomTypeDescriptor.GetEditor(Type editorBaseType) => TypeDescriptor.GetEditor(this, editorBaseType, true);
 
-        EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes)
-        {
-            return TypeDescriptor.GetEvents(this, attributes, true);
-        }
+        EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes) => TypeDescriptor.GetEvents(this, attributes, true);
 
-        EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
-        {
-            return TypeDescriptor.GetEvents(this, true);
-        }
+        EventDescriptorCollection ICustomTypeDescriptor.GetEvents() => TypeDescriptor.GetEvents(this, true);
 
-        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes)
-        {
-            return ((ICustomTypeDescriptor)this).GetProperties();
-        }
+        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes) => ((ICustomTypeDescriptor)this).GetProperties();
 
         PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
         {
-            if (m_properties == null)
+            if (_properties == null)
             {
-                var proxyResult = m_scriptReturnValue.GetPropertiesInternal();
-                m_properties = new PropertyDescriptorCollection(proxyResult, true);
+                var proxyResult = _scriptReturnValue.GetPropertiesInternal();
+                _properties = new PropertyDescriptorCollection(proxyResult, true);
             }
-            return m_properties;
+
+            return _properties;
         }
 
-        object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd)
-        {
-            return this;
-        }
+        object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd) => this;
 
         #endregion
     }

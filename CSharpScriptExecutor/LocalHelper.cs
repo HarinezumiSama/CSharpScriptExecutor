@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using CSharpScriptExecutor.Common;
 
 namespace CSharpScriptExecutor
 {
@@ -44,7 +45,7 @@ namespace CSharpScriptExecutor
 
             try
             {
-                var directory = Path.GetDirectoryName(scriptFilePath);
+                var directory = Path.GetDirectoryName(scriptFilePath).EnsureNotNull();
                 if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
@@ -62,7 +63,6 @@ namespace CSharpScriptExecutor
                     if (lastScriptFile.Exists)
                     {
                         lastScriptFile.Delete();
-                        lastScriptFile = null;
                     }
 
                     return true;

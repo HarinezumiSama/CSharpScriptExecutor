@@ -1,6 +1,5 @@
 ﻿using System;
 using System.CodeDom.Compiler;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -13,17 +12,17 @@ namespace CSharpScriptExecutor.Common
     {
         #region Fields
 
-        private static readonly IList<CompilerError> s_emptyCompilerErrors = new List<CompilerError>().AsReadOnly();
+        private static readonly IList<CompilerError> EmptyCompilerErrors = new List<CompilerError>().AsReadOnly();
 
-        private readonly ScriptExecutionResultType m_type;
-        private readonly IScriptReturnValue m_returnValue;
-        private readonly string m_message;
-        private readonly string m_consoleOut;
-        private readonly string m_consoleError;
-        private readonly string m_sourceCode;
-        private readonly string m_generatedCode;
-        private readonly IList<CompilerError> m_compilerErrors;
-        private readonly int? m_sourceCodeLineOffset;
+        private readonly ScriptExecutionResultType _type;
+        private readonly IScriptReturnValue _returnValue;
+        private readonly string _message;
+        private readonly string _consoleOut;
+        private readonly string _consoleError;
+        private readonly string _sourceCode;
+        private readonly string _generatedCode;
+        private readonly IList<CompilerError> _compilerErrors;
+        private readonly int? _sourceCodeLineOffset;
 
         #endregion
 
@@ -40,72 +39,75 @@ namespace CSharpScriptExecutor.Common
             string consoleError,
             string sourceCode,
             string generatedCode,
-            IEnumerable<CompilerError> compilerErrors,
+            ICollection<CompilerError> compilerErrors,
             int? sourceCodeLineOffset)
         {
             #region Argument Check
 
             if (consoleOut == null)
             {
-                throw new ArgumentNullException("consoleOut");
+                throw new ArgumentNullException(nameof(consoleOut));
             }
+
             if (consoleError == null)
             {
-                throw new ArgumentNullException("consoleError");
+                throw new ArgumentNullException(nameof(consoleError));
             }
+
             if (type != ScriptExecutionResultType.Success)
             {
                 if (returnValue != null)
                 {
                     throw new ArgumentException(
                         "Script could not return a value since it has failed to run.",
-                        "returnValue");
+                        nameof(returnValue));
                 }
             }
+
             if (type == ScriptExecutionResultType.CompilationError)
             {
                 if (compilerErrors == null)
                 {
-                    throw new ArgumentNullException("compilerErrors");
+                    throw new ArgumentNullException(nameof(compilerErrors));
                 }
                 if (!compilerErrors.Any())
                 {
                     throw new ArgumentException(
                         "There must be at least one error in the collection.",
-                        "compilerErrors");
+                        nameof(compilerErrors));
                 }
                 if (compilerErrors.Contains(null))
                 {
-                    throw new ArgumentException("The collection contains a null element.", "compilerErrors");
+                    throw new ArgumentException("The collection contains a null element.", nameof(compilerErrors));
                 }
                 if (compilerErrors.Any(item => item.IsWarning))
                 {
-                    throw new ArgumentException("The collection must contain errors only.", "compilerErrors");
+                    throw new ArgumentException("The collection must contain errors only.", nameof(compilerErrors));
                 }
                 if (sourceCodeLineOffset == null)
                 {
-                    throw new ArgumentNullException("sourceCodeLineOffset");
+                    throw new ArgumentNullException(nameof(sourceCodeLineOffset));
                 }
             }
             else
             {
                 if (compilerErrors != null)
                 {
-                    throw new ArgumentException("The value must be null.", "compilerErrors");
+                    throw new ArgumentException("The value must be null.", nameof(compilerErrors));
                 }
             }
 
             #endregion
 
-            m_type = type;
-            m_returnValue = type == ScriptExecutionResultType.Success ? ScriptReturnValue.Create(returnValue) : null;
-            m_message = message;
-            m_consoleOut = consoleOut ?? string.Empty;
-            m_consoleError = consoleError ?? string.Empty;
-            m_sourceCode = sourceCode ?? string.Empty;
-            m_generatedCode = generatedCode ?? string.Empty;
-            m_compilerErrors = compilerErrors == null ? s_emptyCompilerErrors : compilerErrors.ToList().AsReadOnly();
-            m_sourceCodeLineOffset = sourceCodeLineOffset;
+            _type = type;
+            _returnValue = type == ScriptExecutionResultType.Success ? ScriptReturnValue.Create(returnValue) : null;
+            _message = message;
+            _consoleOut = consoleOut;
+            _consoleError = consoleError;
+            _sourceCode = sourceCode ?? string.Empty;
+            _generatedCode = generatedCode ?? string.Empty;
+            _compilerErrors = compilerErrors?.ToList().AsReadOnly() ?? EmptyCompilerErrors;
+            _sourceCodeLineOffset = sourceCodeLineOffset;
         }
 
         #endregion
@@ -119,23 +121,23 @@ namespace CSharpScriptExecutor.Common
             string generatedSource,
             string consoleOut,
             string consoleError,
-            IEnumerable<CompilerError> compilerErrors,
+            ICollection<CompilerError> compilerErrors,
             int? sourceCodeLineOffset)
         {
             #region Argument Check
 
             if (exception == null)
             {
-                throw new ArgumentNullException("exception");
+                throw new ArgumentNullException(nameof(exception));
             }
             if (type == ScriptExecutionResultType.Success)
             {
-                throw new ArgumentException("Cannot create an error result from the success.", "type");
+                throw new ArgumentException("Cannot create an error result from the success.", nameof(type));
             }
 
             #endregion
 
-            if ((exception is TargetInvocationException) && (exception.InnerException != null))
+            if (exception is TargetInvocationException && (exception.InnerException != null))
             {
                 exception = exception.InnerException;
             }
@@ -191,37 +193,37 @@ namespace CSharpScriptExecutor.Common
         public ScriptExecutionResultType Type
         {
             [DebuggerStepThrough]
-            get { return m_type; }
+            get { return _type; }
         }
 
         public bool IsSuccess
         {
             [DebuggerStepThrough]
-            get { return m_type == ScriptExecutionResultType.Success; }
+            get { return _type == ScriptExecutionResultType.Success; }
         }
 
         public IScriptReturnValue ReturnValue
         {
             [DebuggerStepThrough]
-            get { return m_returnValue; }
+            get { return _returnValue; }
         }
 
         public string Message
         {
             [DebuggerStepThrough]
-            get { return m_message; }
+            get { return _message; }
         }
 
         public string ConsoleOut
         {
             [DebuggerStepThrough]
-            get { return m_consoleOut; }
+            get { return _consoleOut; }
         }
 
         public string ConsoleError
         {
             [DebuggerStepThrough]
-            get { return m_consoleError; }
+            get { return _consoleError; }
         }
 
         /// <summary>
@@ -230,7 +232,7 @@ namespace CSharpScriptExecutor.Common
         public string SourceCode
         {
             [DebuggerStepThrough]
-            get { return m_sourceCode; }
+            get { return _sourceCode; }
         }
 
         /// <summary>
@@ -239,19 +241,19 @@ namespace CSharpScriptExecutor.Common
         public string GeneratedCode
         {
             [DebuggerStepThrough]
-            get { return m_generatedCode; }
+            get { return _generatedCode; }
         }
 
         public IList<CompilerError> CompilerErrors
         {
             [DebuggerStepThrough]
-            get { return m_compilerErrors; }
+            get { return _compilerErrors; }
         }
 
         public int? SourceCodeLineOffset
         {
             [DebuggerStepThrough]
-            get { return m_sourceCodeLineOffset; }
+            get { return _sourceCodeLineOffset; }
         }
 
         #endregion

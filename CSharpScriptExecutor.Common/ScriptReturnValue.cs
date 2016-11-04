@@ -5,9 +5,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
-using System.Text;
 using System.Runtime.InteropServices;
 
 namespace CSharpScriptExecutor.Common
@@ -16,8 +13,6 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     public sealed class ScriptReturnValue : MarshalByRefObject, IScriptReturnValue
     {
-        #region Nested Types
-
         #region MemberCollection Class
 
         [Serializable]
@@ -26,9 +21,8 @@ namespace CSharpScriptExecutor.Common
         {
             #region Fields
 
-            private readonly Dictionary<MemberKey, IScriptReturnValue> m_valueMap;
-            private readonly string m_displayName;
-            private readonly IScriptReturnValue m_error;
+            private readonly Dictionary<MemberKey, IScriptReturnValue> _valueMap;
+            private readonly IScriptReturnValue _error;
 
             #endregion
 
@@ -40,17 +34,17 @@ namespace CSharpScriptExecutor.Common
 
                 if (string.IsNullOrEmpty(displayName))
                 {
-                    throw new ArgumentException("The value can be neither empty string nor null.", "displayName");
+                    throw new ArgumentException("The value can be neither empty string nor null.", nameof(displayName));
                 }
                 if (valueMap == null)
                 {
-                    throw new ArgumentNullException("valueMap");
+                    throw new ArgumentNullException(nameof(valueMap));
                 }
 
                 #endregion
 
-                m_displayName = displayName;
-                m_valueMap = valueMap;
+                DisplayName = displayName;
+                _valueMap = valueMap;
             }
 
             internal MemberCollection(string displayName, Exception error)
@@ -59,17 +53,17 @@ namespace CSharpScriptExecutor.Common
 
                 if (string.IsNullOrEmpty(displayName))
                 {
-                    throw new ArgumentException("The value can be neither empty string nor null.", "displayName");
+                    throw new ArgumentException("The value can be neither empty string nor null.", nameof(displayName));
                 }
                 if (error == null)
                 {
-                    throw new ArgumentNullException("error");
+                    throw new ArgumentNullException(nameof(error));
                 }
 
                 #endregion
 
-                m_displayName = displayName;
-                m_error = ScriptReturnValue.Create(error);
+                DisplayName = displayName;
+                _error = Create(error);
             }
 
             #endregion
@@ -79,13 +73,7 @@ namespace CSharpScriptExecutor.Common
             public string DisplayName
             {
                 [DebuggerStepThrough]
-                get { return m_displayName; }
-            }
-
-            public bool HasAnyValue
-            {
-                [DebuggerNonUserCode]
-                get { return m_error != null || (m_valueMap != null && m_valueMap.Count != 0); }
+                get;
             }
 
             #endregion
@@ -94,9 +82,9 @@ namespace CSharpScriptExecutor.Common
 
             public override string ToString()
             {
-                return m_error == null
-                    ? (m_valueMap == null ? "?" : string.Format("Count = {0}", m_valueMap.Count))
-                    : m_error.AsString;
+                return _error == null
+                    ? (_valueMap == null ? "?" : $@"Count = {_valueMap.Count}")
+                    : _error.AsString;
             }
 
             #endregion
@@ -155,21 +143,19 @@ namespace CSharpScriptExecutor.Common
 
             PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
             {
-                var properties = m_valueMap == null || m_error != null
-                    ? new[] { new ValuePropertyDescriptor(this, s_errorMemberKey, m_error, true) }
-                    : m_valueMap
+                var properties = _valueMap == null || _error != null
+                    ? new PropertyDescriptor[] { new ValuePropertyDescriptor(this, ErrorMemberKey, _error, true) }
+                    : _valueMap
                         .Select(pair => new ValuePropertyDescriptor(this, pair.Key, pair.Value, true))
                         .OrderBy(item => item.OrderIndex)
                         .ThenBy(item => item.DisplayName)
                         .ThenBy(item => item.Name)
                         .ToArray();
+
                 return new PropertyDescriptorCollection(properties, true);
             }
 
-            object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd)
-            {
-                return this;
-            }
+            object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd) => this;
 
             #endregion
         }
@@ -215,19 +201,19 @@ namespace CSharpScriptExecutor.Common
 
                 if (size.HasValue && size.Value <= 0)
                 {
-                    throw new ArgumentOutOfRangeException("size", size, "Size must be positive, if specified.");
+                    throw new ArgumentOutOfRangeException(nameof(size), size, "Size must be positive, if specified.");
                 }
 
                 #endregion
 
-                this.Type = typeof(T);
-                this.Preconvert = preconvert ?? (x => (T)x);
-                var actualSize = size.HasValue ? size.Value : Marshal.SizeOf(this.Type);
-                this.Format = string.Format("0x{{0:X{0}}}", actualSize * 2);
+                Type = typeof(T);
+                Preconvert = preconvert ?? (x => (T)x);
+                var actualSize = size ?? Marshal.SizeOf(Type);
+                Format = string.Format("0x{{0:X{0}}}", actualSize * 2);
             }
 
             internal HexInfo()
-                : this(null, null)
+                : this(null)
             {
                 // Nothing to do
             }
@@ -239,19 +225,16 @@ namespace CSharpScriptExecutor.Common
             public Type Type
             {
                 get;
-                private set;
             }
 
             public Func<object, object> Preconvert
             {
                 get;
-                private set;
             }
 
             public string Format
             {
                 get;
-                private set;
             }
 
             #endregion
@@ -259,30 +242,27 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
-        #endregion
-
         #region Constants
 
-        private const BindingFlags c_memberBindingFlags =
+        private const BindingFlags MemberBindingFlags =
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        private const int c_maxRecursionCount = 128;
 
-        private const string c_fieldsPropertyName = "Fields";
-        private const string c_propertiesPropertyName = "Properties";
-        private const string c_elementsPropertyName = "Elements";
+        internal static readonly int MaxRecursionCount = 128;
+
+        private const string FieldsPropertyName = "Fields";
+        private const string PropertiesPropertyName = "Properties";
+        private const string ElementsPropertyName = "Elements";
 
         #endregion
 
         #region Fields
 
-        #region Static Fields
-
-        private static readonly ScriptReturnValueProxy s_null =
+        private static readonly ScriptReturnValueProxy Null =
             new ScriptReturnValueProxy(new ScriptReturnValue(null));
-        private static readonly string s_toStringMethodName = new Func<string>(new object().ToString).Method.Name;
-        private static readonly string s_pointerStringFormat = GetPointerStringFormat();
+        private static readonly string ToStringMethodName = new Func<string>(new object().ToString).Method.Name;
+        private static readonly string PointerStringFormat = GetPointerStringFormat();
 
-        private static readonly Dictionary<Type, IHexInfo> s_hexInfoMap =
+        private static readonly Dictionary<Type, IHexInfo> HexInfoMap =
             new IHexInfo[]
             {
                 new HexInfo<char>(x => (ushort)(char)x, sizeof(char)),
@@ -299,32 +279,27 @@ namespace CSharpScriptExecutor.Common
             }
             .ToDictionary(item => item.Type);
 
-        private static readonly MemberKey s_isNullMemberKey = new MemberKey("(IsNull)");
-        private static readonly MemberKey s_typeMemberKey = new MemberKey("(Type)");
-        private static readonly MemberKey s_asStringMemberKey = new MemberKey("(AsString)");
-        private static readonly MemberKey s_asHexadecimalMemberKey = new MemberKey("(AsHexadecimal)");
-        private static readonly MemberKey s_errorMemberKey = new MemberKey("[Error]");
+        private static readonly MemberKey IsNullMemberKey = new MemberKey("(IsNull)");
+        private static readonly MemberKey TypeMemberKey = new MemberKey("(Type)");
+        private static readonly MemberKey AsStringMemberKey = new MemberKey("(AsString)");
+        private static readonly MemberKey AsHexadecimalMemberKey = new MemberKey("(AsHexadecimal)");
+        private static readonly MemberKey ErrorMemberKey = new MemberKey("[Error]");
 
         [ThreadStatic]
-        private static Dictionary<ReferenceWrapper, ScriptReturnValueProxy> s_objectsBeingProcessed;
-        [ThreadStatic]
-        private static int? s_recursionCount;
+        private static Dictionary<ReferenceWrapper, ScriptReturnValueProxy> _objectsBeingProcessed;
 
         [ThreadStatic]
-        private static ulong s_instanceCount;
+        private static int? _recursionCount;
 
-        #endregion
+        [ThreadStatic]
+        private static ulong _instanceCount;
 
-        #region Instance Fields
-
-        private readonly List<MemberCollection> m_memberCollections = new List<MemberCollection>();
-        private readonly bool m_isSimpleType;
-        private readonly string m_hexValue;
-        private bool m_isInitialized;
-        private Type m_systemType;
-        private object m_value;
-
-        #endregion
+        private readonly List<MemberCollection> _memberCollections = new List<MemberCollection>();
+        private readonly bool _isSimpleType;
+        private readonly string _hexValue;
+        private bool _isInitialized;
+        private Type _systemType;
+        private object _value;
 
         #endregion
 
@@ -337,67 +312,71 @@ namespace CSharpScriptExecutor.Common
         {
             checked
             {
-                s_instanceCount++;
+                _instanceCount++;
             }
-            if (s_instanceCount % 1000 == 0)
+            if (_instanceCount % 1000 == 0)
             {
-                Debug.WriteLine("{0} instances: {1}+", GetType().Name, s_instanceCount);
+                Debug.WriteLine("{0} instances: {1}+", GetType().Name, _instanceCount);
             }
 
             if (ReferenceEquals(value, null))
             {
                 IsNull = true;
-                m_isSimpleType = true;
+                _isSimpleType = true;
                 AsString = "<null>";
-                m_isInitialized = true;
+                _isInitialized = true;
                 return;
             }
 
-            m_value = value;
-            m_systemType = value.GetType();
+            _value = value;
+            _systemType = value.GetType();
 
-            this.Type = new TypeWrapper(m_systemType);
-            m_isSimpleType = m_systemType.IsPrimitive
-                || m_systemType.IsEnum
-                || m_systemType.IsPointer
-                || m_systemType == typeof(char)
-                || m_systemType == typeof(string)
-                || m_systemType == typeof(decimal)
-                || m_systemType == typeof(Pointer)
-                || typeof(Delegate).IsAssignableFrom(m_systemType);
+            Type = new TypeWrapper(_systemType);
+            _isSimpleType = _systemType.IsPrimitive
+                || _systemType.IsEnum
+                || _systemType.IsPointer
+                || _systemType == typeof(char)
+                || _systemType == typeof(string)
+                || _systemType == typeof(decimal)
+                || _systemType == typeof(Pointer)
+                || typeof(Delegate).IsAssignableFrom(_systemType);
 
-            m_hexValue = GetHexValue();
+            _hexValue = GetHexValue();
 
             try
             {
-                if (m_systemType == typeof(Pointer))
+                if (_systemType == typeof(Pointer))
                 {
                     unsafe
                     {
-                        this.AsString = string.Format(s_pointerStringFormat, (long)Pointer.Unbox(value));
+                        AsString = string.Format(PointerStringFormat, (long)Pointer.Unbox(value));
                     }
                 }
                 else
                 {
-                    this.AsString = value.ToString();
+                    AsString = value.ToString();
                 }
             }
             catch (Exception ex)
             {
-                this.AsString = string.Format(
+                AsString = string.Format(
                     "An exception {0} occurred on calling value's {1} method: {2}",
                     ex.GetType().FullName,
-                    s_toStringMethodName,
+                    ToStringMethodName,
                     ex.Message);
             }
         }
 
+        #endregion
+
+        #region Private Methods
+
         private string GetHexValue()
         {
-            var actualType = m_systemType.IsEnum ? Enum.GetUnderlyingType(m_systemType) : m_systemType;
+            var actualType = _systemType.IsEnum ? Enum.GetUnderlyingType(_systemType) : _systemType;
 
             IHexInfo hexInfo;
-            if (!s_hexInfoMap.TryGetValue(actualType, out hexInfo))
+            if (!HexInfoMap.TryGetValue(actualType, out hexInfo))
             {
                 return null;
             }
@@ -405,7 +384,7 @@ namespace CSharpScriptExecutor.Common
             string result;
             try
             {
-                var convertedValue = hexInfo.Preconvert(m_value);
+                var convertedValue = hexInfo.Preconvert(_value);
                 result = string.Format(hexInfo.Format, convertedValue);
             }
             catch (Exception)
@@ -414,10 +393,6 @@ namespace CSharpScriptExecutor.Common
             }
             return result;
         }
-
-        #endregion
-
-        #region Private Methods
 
         private static unsafe string GetPointerStringFormat()
         {
@@ -441,13 +416,13 @@ namespace CSharpScriptExecutor.Common
         {
             object result;
 
-            if (s_recursionCount.GetValueOrDefault() > c_maxRecursionCount)
+            if (_recursionCount.GetValueOrDefault() > MaxRecursionCount)
             {
                 result = ValueAccessException.FieldRecursionLimitExceeded;
                 return result;
             }
 
-            result = fieldInfo.GetValue(m_value);
+            result = fieldInfo.GetValue(_value);
             result = AutoWrapIfSpecialType(result);
             return result;
         }
@@ -457,7 +432,7 @@ namespace CSharpScriptExecutor.Common
         {
             object result;
 
-            if (s_recursionCount.GetValueOrDefault() > c_maxRecursionCount)
+            if (_recursionCount.GetValueOrDefault() > MaxRecursionCount)
             {
                 result = ValueAccessException.PropertyRecursionLimitExceeded;
                 return result;
@@ -465,7 +440,7 @@ namespace CSharpScriptExecutor.Common
 
             try
             {
-                result = propertyInfo.GetValue(m_value, null);
+                result = propertyInfo.GetValue(_value, null);
             }
             catch (Exception ex)
             {
@@ -478,17 +453,17 @@ namespace CSharpScriptExecutor.Common
 
         private void Initialize(bool allowLazy)
         {
-            if (m_isInitialized)
+            if (_isInitialized)
             {
                 return;
             }
 
-            if (m_systemType == null || m_value == null)
+            if (_systemType == null || _value == null)
             {
                 throw new InvalidOperationException("Initialization is called too late.");
             }
 
-            if (!m_isSimpleType)
+            if (!_isSimpleType)
             {
                 if (allowLazy)
                 {
@@ -496,18 +471,19 @@ namespace CSharpScriptExecutor.Common
                 }
 
                 var fieldValueMap = new Dictionary<MemberKey, IScriptReturnValue>();
-                var fieldInfos = m_systemType.GetFields(c_memberBindingFlags);
+                var fieldInfos = _systemType.GetFields(MemberBindingFlags);
                 foreach (var fieldInfo in fieldInfos)
                 {
                     var fieldValue = GetFieldValueInternal(fieldInfo);
                     var wrappedFieldValue = Create(fieldValue);
                     fieldValueMap.Add(new MemberKey(fieldInfo.Name), wrappedFieldValue);
                 }
-                m_memberCollections.Add(new MemberCollection(c_fieldsPropertyName, fieldValueMap));
+
+                _memberCollections.Add(new MemberCollection(FieldsPropertyName, fieldValueMap));
 
                 var propertyValueMap = new Dictionary<MemberKey, IScriptReturnValue>();
-                var propertyInfos = m_systemType
-                    .GetProperties(c_memberBindingFlags)
+                var propertyInfos = _systemType
+                    .GetProperties(MemberBindingFlags)
                     .Where(item => item.CanRead && !item.GetIndexParameters().Any())
                     .ToArray();
                 foreach (var propertyInfo in propertyInfos)
@@ -516,12 +492,13 @@ namespace CSharpScriptExecutor.Common
                     var wrappedPropertyValue = Create(propertyValue);
                     propertyValueMap.Add(new MemberKey(propertyInfo.Name), wrappedPropertyValue);
                 }
-                m_memberCollections.Add(new MemberCollection(c_propertiesPropertyName, propertyValueMap));
+
+                _memberCollections.Add(new MemberCollection(PropertiesPropertyName, propertyValueMap));
             }
 
-            if (!(m_value is string))
+            if (!(_value is string))
             {
-                var enumerable = m_value as IEnumerable;
+                var enumerable = _value as IEnumerable;
                 if (enumerable != null)
                 {
                     if (allowLazy)
@@ -576,32 +553,23 @@ namespace CSharpScriptExecutor.Common
                                     Value = Create(item)
                                 })
                             .ToDictionary(item => new MemberKey(item.Name, item.Index), item => item.Value);
-                        elementMemberCollection = new MemberCollection(c_elementsPropertyName, elementMap);
+                        elementMemberCollection = new MemberCollection(ElementsPropertyName, elementMap);
                     }
                     catch (Exception ex)
                     {
                         var error = new ValueAccessException(
                             "Cannot enumerate the collection.",
                             ex.GetBaseException());
-                        elementMemberCollection = new MemberCollection(c_elementsPropertyName, error);
+                        elementMemberCollection = new MemberCollection(ElementsPropertyName, error);
                     }
-                    m_memberCollections.Add(elementMemberCollection);
+
+                    _memberCollections.Add(elementMemberCollection);
                 }
             }
 
-            m_systemType = null;
-            m_value = null;
-            m_isInitialized = true;
-        }
-
-        #endregion
-
-        #region Internal Properties
-
-        internal static int MaxRecursionCount
-        {
-            [DebuggerStepThrough]
-            get { return c_maxRecursionCount; }
+            _systemType = null;
+            _value = null;
+            _isInitialized = true;
         }
 
         #endregion
@@ -612,22 +580,22 @@ namespace CSharpScriptExecutor.Common
         {
             if (ReferenceEquals(value, null))
             {
-                return s_null;
+                return Null;
             }
 
             var objectsBeingProcessedCreated = false;
             var recursionCountInitialized = false;
             try
             {
-                if (s_objectsBeingProcessed == null)
+                if (_objectsBeingProcessed == null)
                 {
                     objectsBeingProcessedCreated = true;
-                    s_objectsBeingProcessed = new Dictionary<ReferenceWrapper, ScriptReturnValueProxy>();
+                    _objectsBeingProcessed = new Dictionary<ReferenceWrapper, ScriptReturnValueProxy>();
                 }
-                if (!s_recursionCount.HasValue)
+                if (!_recursionCount.HasValue)
                 {
                     recursionCountInitialized = true;
-                    s_recursionCount = 0;
+                    _recursionCount = 0;
                 }
 
                 ScriptReturnValueProxy result;
@@ -636,7 +604,7 @@ namespace CSharpScriptExecutor.Common
                 if (isReferenceType)
                 {
                     var reference = new ReferenceWrapper(value);
-                    if (s_objectsBeingProcessed.TryGetValue(reference, out result))
+                    if (_objectsBeingProcessed.TryGetValue(reference, out result))
                     {
                         return result;
                     }
@@ -646,18 +614,18 @@ namespace CSharpScriptExecutor.Common
                 result = new ScriptReturnValueProxy(internalResult);
                 if (isReferenceType)
                 {
-                    s_objectsBeingProcessed.Add(new ReferenceWrapper(value), result);
+                    _objectsBeingProcessed.Add(new ReferenceWrapper(value), result);
                 }
 
                 // Initialization must be performed only after reference is added to processed objects map
-                s_recursionCount = s_recursionCount.Value + 1;
+                _recursionCount = _recursionCount.Value + 1;
                 try
                 {
                     internalResult.Initialize(true);
                 }
                 finally
                 {
-                    s_recursionCount = s_recursionCount.Value - 1;
+                    _recursionCount = _recursionCount.Value - 1;
                 }
 
                 return result;
@@ -666,41 +634,41 @@ namespace CSharpScriptExecutor.Common
             {
                 if (recursionCountInitialized)
                 {
-                    s_recursionCount = null;
+                    _recursionCount = null;
                 }
                 if (objectsBeingProcessedCreated)
                 {
-                    s_objectsBeingProcessed = null;
+                    _objectsBeingProcessed = null;
                 }
             }
         }
 
         internal PropertyDescriptor[] GetPropertiesInternal()
         {
-            this.Initialize(false);
-            if (!m_isInitialized)
+            Initialize(false);
+            if (!_isInitialized)
             {
                 throw new InvalidOperationException(
                     string.Format("{0}: initialization has failed.", GetType().FullName));
             }
 
             var predefinedProperties = new List<PropertyDescriptor>();
-            if (this.IsNull)
+            if (IsNull)
             {
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, s_isNullMemberKey, this.IsNull, false));
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, IsNullMemberKey, IsNull, false));
             }
             else
             {
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, s_typeMemberKey, this.Type, true));
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, s_asStringMemberKey, this.AsString, false));
-                if (!string.IsNullOrEmpty(m_hexValue))
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, TypeMemberKey, Type, true));
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, AsStringMemberKey, AsString, false));
+                if (!string.IsNullOrEmpty(_hexValue))
                 {
                     predefinedProperties.Add(
-                        new ValuePropertyDescriptor(this, s_asHexadecimalMemberKey, m_hexValue, false));
+                        new ValuePropertyDescriptor(this, AsHexadecimalMemberKey, _hexValue, false));
                 }
             }
 
-            var runTimeProperties = m_memberCollections
+            var runTimeProperties = _memberCollections
                 .Select(item => new ValuePropertyDescriptor(this, new MemberKey(item.DisplayName), item, true));
 
             return predefinedProperties.Concat(runTimeProperties).ToArray();
@@ -712,7 +680,7 @@ namespace CSharpScriptExecutor.Common
 
         public override string ToString()
         {
-            return this.AsString;
+            return AsString;
         }
 
         public override object InitializeLifetimeService()
@@ -727,19 +695,16 @@ namespace CSharpScriptExecutor.Common
         public bool IsNull
         {
             get;
-            private set;
         }
 
         public TypeWrapper Type
         {
             get;
-            private set;
         }
 
         public string AsString
         {
             get;
-            private set;
         }
 
         #endregion

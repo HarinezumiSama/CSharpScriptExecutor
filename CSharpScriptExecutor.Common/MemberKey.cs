@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -18,13 +17,13 @@ namespace CSharpScriptExecutor.Common
 
             if (name == null)
             {
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             }
 
             #endregion
 
-            this.Name = name;
-            this.OrderIndex = orderIndex;
+            Name = name;
+            OrderIndex = orderIndex;
         }
 
         #endregion

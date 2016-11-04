@@ -1,5 +1,4 @@
 ﻿using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -18,44 +17,37 @@ namespace CSharpScriptExecutor
 
     internal static class Program
     {
-        #region Constants
+        #region Constants and Fields
 
-        private const string c_parameterPrefix = "/";
-        private const string c_parameterPrefixAlt = "-";
-        private const string c_parameterStopper = "--";
+        private const string ParameterPrefix = "/";
+        private const string ParameterPrefixAlt = "-";
+        private const string ParameterStopper = "--";
 
-        private const string c_debugParameter = "Debug";
-        private const string c_pauseParameter = "Pause";
-        private const string c_guiParameter = "GUI";
+        private const string DebugParameter = "Debug";
+        private const string PauseParameter = "Pause";
+        private const string GuiParameter = "GUI";
 
-        #endregion
+        public static readonly string ProgramName = GetSoleAssemblyAttribute<AssemblyProductAttribute>().Product;
 
-        #region Fields
-
-        private static readonly string s_programName = GetSoleAssemblyAttribute<AssemblyProductAttribute>().Product;
-        private static readonly string s_programVersion =
+        private static readonly string ProgramVersion =
             GetSoleAssemblyAttribute<AssemblyFileVersionAttribute>().Version;
-        private static readonly string s_programCopyright =
+
+        private static readonly string ProgramCopyright =
             GetSoleAssemblyAttribute<AssemblyCopyrightAttribute>().Copyright;
 
-        private static readonly string s_fullProgramName = string.Format(
-            "{0} {1}. {2}",
-            s_programName,
-            s_programVersion,
-            s_programCopyright);
+        public static readonly string FullProgramName = $@"{ProgramName} {ProgramVersion}. {ProgramCopyright}";
 
-        private static readonly string s_userAppDataPath = Environment.GetFolderPath(
+        private static readonly string UserAppDataPath = Environment.GetFolderPath(
             Environment.SpecialFolder.LocalApplicationData,
             Environment.SpecialFolderOption.None);
-        private static readonly string s_programDataPath = Path.Combine(s_userAppDataPath, s_programName);
 
-        private static readonly string s_unexpectedExceptionCaption = string.Format(
-            "Unexpected Exception — {0}",
-            s_programName);
+        public static readonly string ProgramDataPath = Path.Combine(UserAppDataPath, ProgramName);
 
-        private static string[] s_switches;
-        private static bool s_makePause;
-        private static bool s_isDebugMode;
+        private static readonly string UnexpectedExceptionCaption = $@"Unexpected Exception — {ProgramName}";
+
+        private static string[] _switches;
+        private static bool _makePause;
+        private static bool _isDebugMode;
 
         #endregion
 
@@ -70,16 +62,16 @@ namespace CSharpScriptExecutor
 
         private static void ShowHelp(bool isConsoleMode)
         {
-            StringBuilder sb = new StringBuilder()
-                .AppendLine(s_fullProgramName)
+            var sb = new StringBuilder()
+                .AppendLine(FullProgramName)
                 .AppendLine("Usage:")
                 .AppendFormat(
                     "  {0} [{1}{2} | {1}{3}] [{1}{4}] <Script> [ScriptParameters...]",
-                    s_programName,
-                    c_parameterPrefix,
-                    c_debugParameter,
-                    c_guiParameter,
-                    c_pauseParameter)
+                    ProgramName,
+                    ParameterPrefix,
+                    DebugParameter,
+                    GuiParameter,
+                    PauseParameter)
                 .AppendLine();
 
             if (isConsoleMode)
@@ -90,22 +82,16 @@ namespace CSharpScriptExecutor
             }
             else
             {
-                MessageBox.Show(sb.ToString(), s_programName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(sb.ToString(), ProgramName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
         private static void ShowGuiError(string text, string caption)
-        {
-            MessageBox.Show(
-                text,
-                caption,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Exclamation);
-        }
+            => MessageBox.Show(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
 
         private static bool InitializeConsole()
         {
-            //if (!WinApi.AttachConsole(WinApi.ATTACH_PARENT_PROCESS))
+            //if (!WinApi.AttachConsole(WinApi.AttachParentProcess))
             //{
             //    if (!WinApi.AllocConsole())
             //    {
@@ -114,7 +100,7 @@ namespace CSharpScriptExecutor
             //            "Unable to switch to console mode: {0}",
             //            new Win32Exception(lastError).Message);
 
-            //        ShowGuiError(errorMessage, s_programName);
+            //        ShowGuiError(errorMessage, ProgramName);
             //        return false;
             //    }
             //}
@@ -126,25 +112,23 @@ namespace CSharpScriptExecutor
 
         private static bool InitializeGui()
         {
-            WinApi.AttachConsole(WinApi.ATTACH_PARENT_PROCESS);
+            WinApi.AttachConsole(WinApi.AttachParentProcess);
 
             if (!WinApi.FreeConsole())
             {
                 var error = Marshal.GetLastWin32Error();
-                string errorMessage = string.Format(
-                    "Unable to switch to GUI mode: {0}",
-                    new Win32Exception(error).Message);
+                var errorMessage = $@"Unable to switch to GUI mode: {new Win32Exception(error).Message}";
 
                 try
                 {
-                    Console.WriteLine("{0}: {1}", s_programName, errorMessage);
+                    Console.WriteLine(@"{0}: {1}", ProgramName, errorMessage);
                 }
                 catch (Exception)
                 {
                     // Nothing to do
                 }
 
-                ShowGuiError(errorMessage, s_programName);
+                ShowGuiError(errorMessage, ProgramName);
                 return false;
             }
 
@@ -160,28 +144,29 @@ namespace CSharpScriptExecutor
         }
 
         private static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)
-        {
-            MessageBox.Show(
+            => MessageBox.Show(
                 e.Exception.ToString(),
-                s_unexpectedExceptionCaption,
+                UnexpectedExceptionCaption,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
-        }
 
         private static void AutoWaitForKey()
         {
-            if (Debugger.IsAttached || s_makePause)
+            if (!Debugger.IsAttached && !_makePause)
             {
-                Console.WriteLine("* Press any key to exit...");
-                while (!Console.KeyAvailable)
-                {
-                    // Nothing to do
-                }
-                Console.ReadKey(true);
+                return;
             }
+
+            Console.WriteLine(@"* Press any key to exit...");
+            while (!Console.KeyAvailable)
+            {
+                // Nothing to do
+            }
+
+            Console.ReadKey(true);
         }
 
-        private static int RunInGuiMode(string[] arguments)
+        private static int RunInGuiMode()
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -237,10 +222,10 @@ namespace CSharpScriptExecutor
 
             Console.WriteLine();
 
-            string scriptFilePath = Path.GetFullPath(arguments[0]);
+            var scriptFilePath = Path.GetFullPath(arguments[0]);
             var scriptArguments = arguments.Skip(1).ToArray();
             var script = File.ReadAllText(scriptFilePath);
-            var executorParameters = new ScriptExecutorParameters(script, scriptArguments, s_isDebugMode);
+            var executorParameters = new ScriptExecutorParameters(script, scriptArguments, _isDebugMode);
 
             using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
             {
@@ -262,72 +247,50 @@ namespace CSharpScriptExecutor
                     case ScriptExecutionResultType.InternalError:
                     case ScriptExecutionResultType.CompilationError:
                     case ScriptExecutionResultType.ExecutionError:
+                    {
+                        Console.WriteLine();
+                        Console.WriteLine(@"* Error processing script file ""{0}"":", scriptFilePath);
+                        Console.WriteLine(@"* Error type: {0}", executionResult.Type);
+                        Console.WriteLine(executionResult.Message);
+                        if (executionResult.Type == ScriptExecutionResultType.CompilationError)
                         {
-                            Console.WriteLine();
-                            Console.WriteLine("* Error processing script file \"{0}\":", scriptFilePath);
-                            Console.WriteLine("* Error type: {0}", executionResult.Type.ToString());
-                            Console.WriteLine(executionResult.Message);
-                            if (executionResult.Type == ScriptExecutionResultType.CompilationError)
+                            foreach (var compilerError in executionResult.CompilerErrors)
                             {
-                                foreach (var compilerError in executionResult.CompilerErrors)
-                                {
-                                    Console.WriteLine(compilerError.ToString());
-                                }
+                                Console.WriteLine(compilerError.ToString());
                             }
-                            if (!string.IsNullOrEmpty(executionResult.SourceCode))
-                            {
-                                Console.WriteLine();
-                                Console.WriteLine(" * Source code <START");
-                                Console.WriteLine(executionResult.SourceCode);
-                                Console.WriteLine(" * Source code END>");
-                            }
-                            if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
-                            {
-                                Console.WriteLine();
-                                Console.WriteLine(" * Generated code <START");
-                                Console.WriteLine(executionResult.GeneratedCode);
-                                Console.WriteLine(" * Generated code END>");
-                            }
-                            Console.WriteLine();
-
-                            return 200;
                         }
 
+                        if (!string.IsNullOrEmpty(executionResult.SourceCode))
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine(@" * Source code <START");
+                            Console.WriteLine(executionResult.SourceCode);
+                            Console.WriteLine(@" * Source code END>");
+                        }
+                        if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine(@" * Generated code <START");
+                            Console.WriteLine(executionResult.GeneratedCode);
+                            Console.WriteLine(@" * Generated code END>");
+                        }
+                        Console.WriteLine();
+
+                        return 200;
+                    }
+
                     case ScriptExecutionResultType.Success:
+
                         // Nothing to do
                         break;
 
                     default:
                         throw new NotImplementedException(
-                            string.Format(
-                                "Not implemented script execution result type ({0}).",
-                                executionResult.Type.ToString()));
+                            $@"Not implemented script execution result type ({executionResult.Type}).");
                 }
             }
 
             return 0;
-        }
-
-        #endregion
-
-        #region Internal Properties
-
-        internal static string ProgramName
-        {
-            [DebuggerStepThrough]
-            get { return s_programName; }
-        }
-
-        internal static string FullProgramName
-        {
-            [DebuggerStepThrough]
-            get { return s_fullProgramName; }
-        }
-
-        internal static string ProgramDataPath
-        {
-            [DebuggerStepThrough]
-            get { return s_programDataPath; }
         }
 
         #endregion
@@ -342,44 +305,50 @@ namespace CSharpScriptExecutor
 
             if (arguments == null)
             {
-                throw new ArgumentNullException("arguments");
+                throw new ArgumentNullException(nameof(arguments));
             }
-            if (arguments.Contains(null))
+
+            if (arguments.Any(item => item == null))
             {
-                throw new ArgumentException("The collection contains a null element.", "arguments");
+                throw new ArgumentException(@"The collection contains a null element.", nameof(arguments));
             }
 
             #endregion
 
-            s_switches = arguments
+            _switches = arguments
                 .TakeWhile(
-                    item => (item.StartsWith(c_parameterPrefix) || item.StartsWith(c_parameterPrefixAlt))
-                        && item != c_parameterStopper)
-                .Select(item => item.Substring(c_parameterPrefix.Length))
+                    item =>
+                        (item.StartsWith(ParameterPrefix, StringComparison.Ordinal)
+                            || item.StartsWith(ParameterPrefixAlt, StringComparison.Ordinal))
+                            && item != ParameterStopper)
+                .Select(item => item.Substring(ParameterPrefix.Length))
                 .ToArray();
+
             var actualArguments = arguments
-                .SkipWhile((item, i) => i < s_switches.Length || item == c_parameterStopper)
+                .SkipWhile((item, i) => i < _switches.Length || item == ParameterStopper)
                 .ToArray();
 
             Func<string, string, bool> switchEqual =
                 (@switch, parameter) => StringComparer.OrdinalIgnoreCase.Equals(@switch, parameter);
 
             var guiMode = false;
-            foreach (var @switch in s_switches)
+            foreach (var @switch in _switches)
             {
-                if (switchEqual(@switch, c_guiParameter))
+                if (switchEqual(@switch, GuiParameter))
                 {
                     guiMode = true;
                     continue;
                 }
-                if (switchEqual(@switch, c_debugParameter))
+
+                if (switchEqual(@switch, DebugParameter))
                 {
-                    s_isDebugMode = true;
+                    _isDebugMode = true;
                     continue;
                 }
-                if (switchEqual(@switch, c_pauseParameter))
+
+                if (switchEqual(@switch, PauseParameter))
                 {
-                    s_makePause = true;
+                    _makePause = true;
                     continue;
                 }
 
@@ -396,7 +365,7 @@ namespace CSharpScriptExecutor
                         return 255;
                     }
 
-                    return RunInGuiMode(actualArguments);
+                    return RunInGuiMode();
                 }
 
                 if (!InitializeConsole())
@@ -406,24 +375,24 @@ namespace CSharpScriptExecutor
             }
             catch (Exception ex)
             {
-                ShowGuiError(ex.ToString(), s_programName);
+                ShowGuiError(ex.ToString(), ProgramName);
                 return 255;
             }
 
             try
             {
                 var consoleModeResult = RunInConsoleMode(actualArguments);
-                Program.AutoWaitForKey();
+                AutoWaitForKey();
                 return consoleModeResult;
             }
             catch (Exception ex)
             {
                 Console.WriteLine();
-                Console.WriteLine("*** ERROR ***");
+                Console.WriteLine(@"*** ERROR ***");
                 Console.WriteLine(ex.ToString());
                 Console.WriteLine();
 
-                Program.AutoWaitForKey();
+                AutoWaitForKey();
                 return 255;
             }
         }

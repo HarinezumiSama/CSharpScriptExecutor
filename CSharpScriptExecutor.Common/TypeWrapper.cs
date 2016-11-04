@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -12,76 +11,48 @@ namespace CSharpScriptExecutor.Common
     [ImmutableObject(true)]
     public sealed class TypeWrapper
     {
-        #region Fields
-
-        private readonly string m_asString;
-
-        #endregion
-
-        #region Constructors
+        private readonly string _asString;
 
         internal TypeWrapper(Type type)
         {
-            #region Argument Check
-
             if (type == null)
             {
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
             }
 
-            #endregion
-
-            this.Name = type.Name;
-            this.FullName = type.FullName;
-            this.AssemblyName = type.Assembly.GetName().Name;
-            this.AssemblyFullName = type.Assembly.GetName().FullName;
-            this.AssemblyQualifiedName = type.AssemblyQualifiedName;
-            m_asString = type.ToString();
+            Name = type.Name;
+            FullName = type.FullName;
+            AssemblyName = type.Assembly.GetName().Name;
+            AssemblyFullName = type.Assembly.GetName().FullName;
+            AssemblyQualifiedName = type.AssemblyQualifiedName;
+            _asString = type.ToString();
         }
-
-        #endregion
-
-        #region Public Properties
 
         public string Name
         {
             get;
-            private set;
         }
 
         public string FullName
         {
             get;
-            private set;
         }
 
         public string AssemblyName
         {
             get;
-            private set;
         }
 
         public string AssemblyFullName
         {
             get;
-            private set;
         }
 
         public string AssemblyQualifiedName
         {
             get;
-            private set;
         }
 
-        #endregion
-
-        #region Public Methods
-
-        public override string ToString()
-        {
-            return m_asString;
-        }
-
-        #endregion
+        public override string ToString() => _asString;
     }
 }

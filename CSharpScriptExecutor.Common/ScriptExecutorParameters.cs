@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -16,29 +15,31 @@ namespace CSharpScriptExecutor.Common
         /// </summary>
         public ScriptExecutorParameters(
             string script,
-            IEnumerable<string> scriptArguments,
+            ICollection<string> scriptArguments,
             bool isDebugMode)
         {
             #region Argument Check
 
             if (string.IsNullOrWhiteSpace(script))
             {
-                throw new ArgumentException("The value can be neither empty string nor null.", "script");
+                throw new ArgumentException("The value can be neither empty string nor null.", nameof(script));
             }
+
             if (scriptArguments == null)
             {
-                throw new ArgumentNullException("scriptArguments");
+                throw new ArgumentNullException(nameof(scriptArguments));
             }
-            if (scriptArguments.Contains(null))
+
+            if (scriptArguments.Any(item => item == null))
             {
-                throw new ArgumentException("The collection contains a null element.", "scriptArguments");
+                throw new ArgumentException(@"The collection contains a null element.", nameof(scriptArguments));
             }
 
             #endregion
 
-            this.Script = script;
-            this.ScriptArguments = new List<string>(scriptArguments).AsReadOnly();
-            this.IsDebugMode = isDebugMode;
+            Script = script;
+            ScriptArguments = new List<string>(scriptArguments).AsReadOnly();
+            IsDebugMode = isDebugMode;
         }
 
         #endregion

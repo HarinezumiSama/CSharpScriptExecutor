@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -10,52 +8,56 @@ namespace CSharpScriptExecutor.Common
 {
     internal static class InternalHelper
     {
-        #region Constants
+        #region Constants and Fields
 
-        private const RegexOptions c_defaultRegexOptions = RegexOptions.Compiled
+        private const RegexOptions DefaultRegexOptions = RegexOptions.Compiled
             | RegexOptions.IgnorePatternWhitespace
             | RegexOptions.ExplicitCapture;
 
-        private const string c_quotedStringGroupName = "value";
-        private const string c_quote = "\"";
+        private const string QuotedStringGroupName = "value";
+        private const string Quote = "\"";
 
-        private const string c_parameterGroupName = "p";
+        private const string ParameterGroupName = "p";
 
-        #endregion
-
-        #region Fields
-
-        private static readonly Regex s_quotedStringRegex = new Regex(
+        private static readonly Regex QuotedStringRegex = new Regex(
             string.Format(
                 @"^ \s* {0} (?<{1}>[^{0}]*) {0} \s* $",
-                Regex.Escape(c_quote),
-                c_quotedStringGroupName),
-            c_defaultRegexOptions | RegexOptions.Singleline);
+                Regex.Escape(Quote),
+                QuotedStringGroupName),
+            DefaultRegexOptions | RegexOptions.Singleline);
 
-        private static readonly Regex s_commandLineRegex = new Regex(
+        private static readonly Regex CommandLineRegex = new Regex(
             string.Format(
                 @"\s* (((?<{0}>[^ ""]+)? (\"" (?<{0}>[^""]*) (\"" | $))*)+) \s*",
-                c_parameterGroupName),
-            c_defaultRegexOptions | RegexOptions.Singleline);
+                ParameterGroupName),
+            DefaultRegexOptions | RegexOptions.Singleline);
 
-        private static readonly string[] s_noCommandLineParameters = new string[0];
+        private static readonly string[] NoCommandLineParameters = new string[0];
 
         #endregion
 
         #region Public Methods
 
         public static T EnsureNotNull<T>(this T value)
+            where T : class
         {
-            #region Argument Check
-
             if (value == null)
             {
-                throw new ArgumentNullException("value");
+                throw new ArgumentNullException(nameof(value));
             }
 
-            #endregion
-
             return value;
+        }
+
+        public static T EnsureNotNull<T>(this T? value)
+            where T : struct
+        {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            return value.Value;
         }
 
         public static TValue GetValueOrDefault<TKey, TValue>(
@@ -67,11 +69,12 @@ namespace CSharpScriptExecutor.Common
 
             if (dictionary == null)
             {
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
             }
-            if (key == null)
+
+            if (ReferenceEquals(key, null))
             {
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             }
 
             #endregion
@@ -81,6 +84,7 @@ namespace CSharpScriptExecutor.Common
             {
                 result = defaultValue;
             }
+
             return result;
         }
 
@@ -91,13 +95,14 @@ namespace CSharpScriptExecutor.Common
         {
             #region Argument Check
 
-            if (disposable == null)
+            if (ReferenceEquals(disposable, null))
             {
-                throw new ArgumentNullException("disposable");
+                throw new ArgumentNullException(nameof(disposable));
             }
+
             if (execute == null)
             {
-                throw new ArgumentNullException("execute");
+                throw new ArgumentNullException(nameof(execute));
             }
 
             #endregion
@@ -113,13 +118,14 @@ namespace CSharpScriptExecutor.Common
         {
             #region Argument Check
 
-            if (disposable == null)
+            if (ReferenceEquals(disposable, null))
             {
-                throw new ArgumentNullException("disposable");
+                throw new ArgumentNullException(nameof(disposable));
             }
+
             if (execute == null)
             {
-                throw new ArgumentNullException("execute");
+                throw new ArgumentNullException(nameof(execute));
             }
 
             #endregion
@@ -140,15 +146,16 @@ namespace CSharpScriptExecutor.Common
 
             var result = value;
 
-            var match = s_quotedStringRegex.Match(result);
-            if (match != null && match.Success)
+            var match = QuotedStringRegex.Match(result);
+            if (match.Success)
             {
-                result = match.Groups[c_quotedStringGroupName].Value;
+                result = match.Groups[QuotedStringGroupName].Value;
             }
 
-            errorMessage = result.IndexOf(c_quote) < 0
+            errorMessage = result.IndexOf(Quote, StringComparison.Ordinal) < 0
                 ? null
-                : string.Format("Combination of quotes is invalid in the value:\n{0}", value);
+                : $"Combination of quotes is invalid in the value:\n{value}";
+
             return result;
         }
 
@@ -158,18 +165,19 @@ namespace CSharpScriptExecutor.Common
             var result = TryExtractFromQuotes(value, out errorMessage);
             if (!string.IsNullOrWhiteSpace(errorMessage))
             {
-                throw new ArgumentException(errorMessage, "value");
+                throw new ArgumentException(errorMessage, nameof(value));
             }
+
             return result;
         }
 
         public static bool BytesEqual(this byte[] array, byte[] otherArray)
         {
-            if (object.ReferenceEquals(array, otherArray))
+            if (ReferenceEquals(array, otherArray))
             {
                 return true;
             }
-            if (object.ReferenceEquals(array, null) || object.ReferenceEquals(otherArray, null))
+            if (ReferenceEquals(array, null) || ReferenceEquals(otherArray, null))
             {
                 return false;
             }
@@ -178,7 +186,7 @@ namespace CSharpScriptExecutor.Common
                 return false;
             }
 
-            for (int index = 0; index < array.Length; index++)
+            for (var index = 0; index < array.Length; index++)
             {
                 if (array[index] != otherArray[index])
                 {
@@ -197,18 +205,19 @@ namespace CSharpScriptExecutor.Common
 
             if (customAttributeProvider == null)
             {
-                throw new ArgumentNullException("customAttributeProvider");
+                throw new ArgumentNullException(nameof(customAttributeProvider));
             }
 
             #endregion
 
-            TAttribute[] attributes = (TAttribute[])customAttributeProvider.GetCustomAttributes(
+            var attributes = (TAttribute[])customAttributeProvider.GetCustomAttributes(
                 typeof(TAttribute),
                 true);
+
             if ((attributes == null) || (attributes.Length != 1))
             {
                 throw new InvalidProgramException(
-                    string.Format("Invalid definition of the attribute '{0}'.", typeof(TAttribute).FullName));
+                    $@"Invalid definition of the attribute '{typeof(TAttribute).FullName}'.");
             }
 
             return attributes[0];
@@ -218,15 +227,15 @@ namespace CSharpScriptExecutor.Common
         {
             if (string.IsNullOrEmpty(commandLine))
             {
-                return s_noCommandLineParameters;
+                return NoCommandLineParameters;
             }
 
-            var matches = s_commandLineRegex.Matches(commandLine);
+            var matches = CommandLineRegex.Matches(commandLine);
 
             var result = matches
                 .Cast<Match>()
                 .Where(match => match.Success)
-                .Select(match => match.Groups[c_parameterGroupName])
+                .Select(match => match.Groups[ParameterGroupName])
                 .Where(group => group != null && group.Success)
                 .Select(
                     group => string.Join(

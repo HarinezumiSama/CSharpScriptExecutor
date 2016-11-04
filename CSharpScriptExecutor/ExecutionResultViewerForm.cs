@@ -1,16 +1,10 @@
 ﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Forms;
-using System.Windows.Forms.Integration;
 using System.Windows.Media;
 using CSharpScriptExecutor.Common;
 using ICSharpCode.AvalonEdit;
@@ -21,8 +15,6 @@ namespace CSharpScriptExecutor
 {
     public partial class ExecutionResultViewerForm : Form
     {
-        #region Nested Types
-
         #region ErrorColorizer Class
 
         private sealed class ErrorColorizer : DocumentColorizingTransformer
@@ -31,37 +23,39 @@ namespace CSharpScriptExecutor
 
             //private static readonly System.Windows.Media.Pen s_errorPen = CreateErrorPen();
 
-            private readonly IList<CompilerError> m_compilerErrors;
-            private readonly int m_lineOffset;
+            private readonly IList<CompilerError> _compilerErrors;
+            private readonly int _lineOffset;
 
             #endregion
 
             #region Constructors
 
-            public ErrorColorizer(IEnumerable<CompilerError> compilerErrors, int lineOffset)
+            public ErrorColorizer(ICollection<CompilerError> compilerErrors, int lineOffset)
             {
                 #region Argument Check
 
                 if (compilerErrors == null)
                 {
-                    throw new ArgumentNullException("compilerErrors");
+                    throw new ArgumentNullException(nameof(compilerErrors));
                 }
-                if (compilerErrors.Contains(null))
+
+                if (compilerErrors.Any(item => item == null))
                 {
-                    throw new ArgumentException("The collection contains a null element.", "compilerErrors");
+                    throw new ArgumentException(@"The collection contains a null element.", nameof(compilerErrors));
                 }
+
                 if (lineOffset < 0)
                 {
                     throw new ArgumentOutOfRangeException(
-                        "lineOffset",
+                        nameof(lineOffset),
                         lineOffset,
-                        "The value must be non-negative.");
+                        @"The value must be non-negative.");
                 }
 
                 #endregion
 
-                m_compilerErrors = compilerErrors.ToList().AsReadOnly();
-                m_lineOffset = lineOffset;
+                _compilerErrors = compilerErrors.ToList().AsReadOnly();
+                _lineOffset = lineOffset;
             }
 
             #endregion
@@ -77,9 +71,9 @@ namespace CSharpScriptExecutor
 
                 var errorBrush = new SolidColorBrush(Colors.LightPink);
 
-                var compiledLineNumber = line.LineNumber + m_lineOffset;
-                if (m_compilerErrors.Any(item => item.Line == compiledLineNumber)
-                    || (line.NextLine == null && m_compilerErrors.Any(item => item.Line > compiledLineNumber)))
+                var compiledLineNumber = line.LineNumber + _lineOffset;
+                if (_compilerErrors.Any(item => item.Line == compiledLineNumber)
+                    || (line.NextLine == null && _compilerErrors.Any(item => item.Line > compiledLineNumber)))
                 {
                     ChangeLinePart(
                         line.Offset,
@@ -120,13 +114,16 @@ namespace CSharpScriptExecutor
                     new SolidColorBrush(Colors.WhiteSmoke),
                     null,
                     new Rect(
-                        new System.Windows.Point(),
-                        new System.Windows.Size(textView.ActualWidth, textView.ActualHeight)));
+                        new Point(),
+                        new Size(textView.ActualWidth, textView.ActualHeight)));
             }
 
             public KnownLayer Layer
             {
-                get { return KnownLayer.Background; }
+                get
+                {
+                    return KnownLayer.Background;
+                }
             }
 
             #endregion
@@ -134,12 +131,11 @@ namespace CSharpScriptExecutor
 
         #endregion
 
-        #endregion
-
         #region Fields
 
-        private ScriptExecutionResult m_executionResult;
-        private System.Windows.Controls.ToolTip m_errorToolTip = new System.Windows.Controls.ToolTip();
+        private readonly System.Windows.Controls.ToolTip _errorToolTip = new System.Windows.Controls.ToolTip();
+
+        private ScriptExecutionResult _executionResult;
 
         #endregion
 
@@ -149,7 +145,7 @@ namespace CSharpScriptExecutor
         {
             InitializeComponent();
 
-            this.Text = string.Format("Execution Result — {0}", Program.ProgramName);
+            Text = $@"Execution Result — {Program.ProgramName}";
 
             MakeEditorReadOnly(tewSourceCode);
             MakeEditorReadOnly(tewGeneratedCode);
@@ -177,18 +173,18 @@ namespace CSharpScriptExecutor
 
             if (page == null)
             {
-                throw new ArgumentNullException("page");
+                throw new ArgumentNullException(nameof(page));
             }
 
             #endregion
 
-            bool contains = tcResults.TabPages.Contains(page);
+            var contains = tcResults.TabPages.Contains(page);
 
             if (visible)
             {
                 if (!contains)
                 {
-                    tcResults.TabPages.Add(page);  // TODO: Insert tab page at right position automatically
+                    tcResults.TabPages.Add(page); // TODO: Insert tab page at right position automatically
                 }
             }
             else
@@ -200,7 +196,7 @@ namespace CSharpScriptExecutor
             }
         }
 
-        private string FormatCompilerError(
+        private static string FormatCompilerError(
             CompilerError compilerError,
             bool indent,
             int? lineCount = null,
@@ -211,27 +207,23 @@ namespace CSharpScriptExecutor
             {
                 line = lineCount.Value;
             }
-            return string.Format(
-                "{0}Script({1},{2}): error {3}: {4}",
-                indent ? "    " : string.Empty,
-                line,
-                compilerError.Column,
-                compilerError.ErrorNumber,
-                compilerError.ErrorText);
+
+            return $@"{(indent ? "    " : string.Empty)}Script({line},{compilerError.Column}): error {compilerError
+                .ErrorNumber}: {compilerError.ErrorText}";
         }
 
-        private void SetActiveControl(System.Windows.Forms.Control control)
+        private void SetActiveControl(Control control)
         {
             #region Argument Check
 
             if (control == null)
             {
-                throw new ArgumentNullException("control");
+                throw new ArgumentNullException(nameof(control));
             }
 
             #endregion
 
-            this.ActiveControl = control;
+            ActiveControl = control;
             var textBox = control as TextBoxBase;
             if (textBox != null)
             {
@@ -242,9 +234,9 @@ namespace CSharpScriptExecutor
 
         private void ParseExecutionResult()
         {
-            if (m_executionResult == null)
+            if (_executionResult == null)
             {
-                gbResult.Text = "[Unknown Result]";
+                gbResult.Text = @"[Unknown Result]";
                 tbMessage.Text = string.Empty;
                 scDetails.Visible = false;
                 return;
@@ -252,62 +244,66 @@ namespace CSharpScriptExecutor
 
             scDetails.Visible = true;
 
-            switch (m_executionResult.Type)
+            switch (_executionResult.Type)
             {
                 case ScriptExecutionResultType.InternalError:
-                    gbResult.Text = "Internal Error";
+                    gbResult.Text = @"Internal Error";
                     break;
+
                 case ScriptExecutionResultType.CompilationError:
+                {
+                    gbResult.Text = @"Compilation Error";
+                    tewGeneratedCode.InnerEditor.TextArea.TextView.LineTransformers.Add(
+                        new ErrorColorizer(_executionResult.CompilerErrors, 0));
+                    if (_executionResult.SourceCodeLineOffset.HasValue)
                     {
-                        gbResult.Text = "Compilation Error";
-                        tewGeneratedCode.InnerEditor.TextArea.TextView.LineTransformers.Add(
-                            new ErrorColorizer(m_executionResult.CompilerErrors, 0));
-                        if (m_executionResult.SourceCodeLineOffset.HasValue)
-                        {
-                            tewSourceCode.InnerEditor.TextArea.TextView.LineTransformers.Add(
-                                new ErrorColorizer(
-                                    m_executionResult.CompilerErrors,
-                                    m_executionResult.SourceCodeLineOffset.Value));
-                        }
+                        tewSourceCode.InnerEditor.TextArea.TextView.LineTransformers.Add(
+                            new ErrorColorizer(
+                                _executionResult.CompilerErrors,
+                                _executionResult.SourceCodeLineOffset.Value));
                     }
+                }
                     break;
+
                 case ScriptExecutionResultType.ExecutionError:
-                    gbResult.Text = "Execution Error";
+                    gbResult.Text = @"Execution Error";
                     break;
+
                 case ScriptExecutionResultType.Success:
-                    gbResult.Text = "Success";
+                    gbResult.Text = @"Success";
                     break;
+
                 default:
                     throw new NotImplementedException();
             }
 
             //TODO: Recognize no-return-value case
-            var hasReturnValue = m_executionResult.IsSuccess; // && !m_executionResult.ReturnValue.IsNull();
+            var hasReturnValue = _executionResult.IsSuccess; // && !_executionResult.ReturnValue.IsNull();
 
             SetTabPageVisibility(tpReturnValue, hasReturnValue);
             pgReturnValue.PropertySort = PropertySort.NoSort;
-            pgReturnValue.SelectedObject = hasReturnValue ? m_executionResult.ReturnValue : null;
+            pgReturnValue.SelectedObject = hasReturnValue ? _executionResult.ReturnValue : null;
 
-            rtbConsoleOut.Text = m_executionResult.ConsoleOut;
-            var hasConsoleOut = !string.IsNullOrEmpty(m_executionResult.ConsoleOut);
+            rtbConsoleOut.Text = _executionResult.ConsoleOut;
+            var hasConsoleOut = !string.IsNullOrEmpty(_executionResult.ConsoleOut);
             SetTabPageVisibility(tpConsoleOut, hasConsoleOut);
 
-            rtbConsoleError.Text = m_executionResult.ConsoleError;
-            var hasConsoleError = !string.IsNullOrEmpty(m_executionResult.ConsoleError);
+            rtbConsoleError.Text = _executionResult.ConsoleError;
+            var hasConsoleError = !string.IsNullOrEmpty(_executionResult.ConsoleError);
             SetTabPageVisibility(tpConsoleError, hasConsoleError);
 
             tbMessage.Text = string.Format(
                 "{0}{1}{2}",
-                m_executionResult.Message,
+                _executionResult.Message,
                 Environment.NewLine,
                 string.Join(
                     Environment.NewLine,
-                    m_executionResult.CompilerErrors.Select(item => FormatCompilerError(item, true))));
-            scDetails.Panel1Collapsed = m_executionResult.IsSuccess;
-            tewSourceCode.InnerEditor.Text = m_executionResult.SourceCode;
-            tewGeneratedCode.InnerEditor.Text = m_executionResult.GeneratedCode;
+                    _executionResult.CompilerErrors.Select(item => FormatCompilerError(item, true))));
+            scDetails.Panel1Collapsed = _executionResult.IsSuccess;
+            tewSourceCode.InnerEditor.Text = _executionResult.SourceCode;
+            tewGeneratedCode.InnerEditor.Text = _executionResult.GeneratedCode;
 
-            if (!m_executionResult.IsSuccess)
+            if (!_executionResult.IsSuccess)
             {
                 SetActiveControl(tbMessage);
             }
@@ -329,13 +325,32 @@ namespace CSharpScriptExecutor
 
         #region Public Properties
 
+        public sealed override string Text
+        {
+            [DebuggerNonUserCode]
+            get
+            {
+                return base.Text;
+            }
+
+            [DebuggerNonUserCode]
+            set
+            {
+                base.Text = value;
+            }
+        }
+
         public ScriptExecutionResult ExecutionResult
         {
             [DebuggerStepThrough]
-            get { return m_executionResult; }
+            get
+            {
+                return _executionResult;
+            }
+
             private set
             {
-                m_executionResult = value;
+                _executionResult = value;
                 ParseExecutionResult();
             }
         }
@@ -350,11 +365,11 @@ namespace CSharpScriptExecutor
 
             if (owner == null)
             {
-                throw new ArgumentNullException("owner");
+                throw new ArgumentNullException(nameof(owner));
             }
             if (executionResult == null)
             {
-                throw new ArgumentNullException("executionResult");
+                throw new ArgumentNullException(nameof(executionResult));
             }
 
             #endregion
@@ -382,7 +397,7 @@ namespace CSharpScriptExecutor
 
         private void CodeEditor_MouseHover(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            if (m_executionResult.Type != ScriptExecutionResultType.CompilationError)
+            if (_executionResult.Type != ScriptExecutionResultType.CompilationError)
             {
                 return;
             }
@@ -397,13 +412,14 @@ namespace CSharpScriptExecutor
 
             var lineOffset = 0;
             var isSourceCodeEditor = false;
-            if (editor == tewSourceCode.InnerEditor)
+            if (ReferenceEquals(editor, tewSourceCode.InnerEditor))
             {
-                if (!m_executionResult.SourceCodeLineOffset.HasValue)
+                if (!_executionResult.SourceCodeLineOffset.HasValue)
                 {
                     return;
                 }
-                lineOffset = m_executionResult.SourceCodeLineOffset.Value;
+
+                lineOffset = _executionResult.SourceCodeLineOffset.Value;
                 isSourceCodeEditor = true;
             }
 
@@ -416,7 +432,7 @@ namespace CSharpScriptExecutor
             var compiledLineNumber = position.Value.Line + lineOffset;
             var totalLineCount = editor.LineCount;
 
-            var errors = m_executionResult
+            var errors = _executionResult
                 .CompilerErrors
                 .Where(item => item.Line == compiledLineNumber || item.Line > totalLineCount)
                 .OrderBy(item => item.Line)
@@ -436,14 +452,14 @@ namespace CSharpScriptExecutor
                         isSourceCodeEditor ? totalLineCount : (int?)null,
                         lineOffset)));
 
-            m_errorToolTip.PlacementTarget = editor;
-            m_errorToolTip.Content = errorTooltip;
-            m_errorToolTip.IsOpen = true;
+            _errorToolTip.PlacementTarget = editor;
+            _errorToolTip.Content = errorTooltip;
+            _errorToolTip.IsOpen = true;
         }
 
         private void CodeEditor_MouseHoverStopped(object sender, System.Windows.Input.MouseEventArgs e)
         {
-            m_errorToolTip.IsOpen = false;
+            _errorToolTip.IsOpen = false;
         }
 
         #endregion

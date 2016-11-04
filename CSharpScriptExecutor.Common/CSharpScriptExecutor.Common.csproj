@@ -101,7 +101,7 @@
     <Compile Include="ScriptExecutorParameters.cs" />
     <Compile Include="ScriptExecutorProxy.cs" />
     <Compile Include="ScriptReturnValue.cs" />
-    <Compile Include="IScriptReturnValueExtensions.cs" />
+    <Compile Include="ScriptReturnValueExtensions.cs" />
     <Compile Include="ScriptReturnValueProxy.cs" />
     <Compile Include="TemporaryFileList.cs" />
     <Compile Include="TypeWrapper.cs" />

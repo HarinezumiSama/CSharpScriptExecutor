@@ -7,13 +7,11 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     public sealed class ScriptExecutorException : Exception
     {
-        #region Constructors
-
         internal ScriptExecutorException(string message, string sourceCode = null, string generatedCode = null)
             : base(message)
         {
-            this.SourceCode = sourceCode ?? string.Empty;
-            this.GeneratedCode = generatedCode ?? string.Empty;
+            SourceCode = sourceCode ?? string.Empty;
+            GeneratedCode = generatedCode ?? string.Empty;
         }
 
         private ScriptExecutorException(SerializationInfo info, StreamingContext context)
@@ -22,17 +20,12 @@ namespace CSharpScriptExecutor.Common
             // Nothing to do
         }
 
-        #endregion
-
-        #region Public Properties
-
         /// <summary>
         ///     Gets the source code of a user.
         /// </summary>
         public string SourceCode
         {
             get;
-            private set;
         }
 
         /// <summary>
@@ -41,31 +34,26 @@ namespace CSharpScriptExecutor.Common
         public string GeneratedCode
         {
             get;
-            private set;
         }
-
-        #endregion
-
-        #region Public Methods
 
         public override string ToString()
         {
             var resultBuilder = new StringBuilder(base.ToString());
-            if (!string.IsNullOrEmpty(this.SourceCode))
+            if (!string.IsNullOrEmpty(SourceCode))
             {
                 resultBuilder.AppendLine();
                 resultBuilder.AppendLine("Source code:");
-                resultBuilder.AppendLine(this.SourceCode);
+                resultBuilder.AppendLine(SourceCode);
             }
-            if (!string.IsNullOrEmpty(this.GeneratedCode))
+
+            if (!string.IsNullOrEmpty(GeneratedCode))
             {
                 resultBuilder.AppendLine();
                 resultBuilder.AppendLine("Generated source:");
-                resultBuilder.AppendLine(this.GeneratedCode);
+                resultBuilder.AppendLine(GeneratedCode);
             }
+
             return resultBuilder.ToString();
         }
-
-        #endregion
     }
 }

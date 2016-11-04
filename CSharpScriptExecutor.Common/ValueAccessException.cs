@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -11,30 +10,24 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     public sealed class ValueAccessException : Exception
     {
-        #region Fields
+        private static readonly string FieldRecursionLimitExceededMessage =
+            $"Skipped reading the field: recursion limit {ScriptReturnValue.MaxRecursionCount} is reached.";
 
-        private static readonly string s_fieldRecursionLimitExceededMessage = string.Format(
-            "Skipped reading the field: recursion limit {0} is reached.",
-            ScriptReturnValue.MaxRecursionCount);
-        private static readonly string s_propertyRecursionLimitExceededMessage = string.Format(
-            "Skipped reading the property: recursion limit {0} is reached.",
-            ScriptReturnValue.MaxRecursionCount);
+        private static readonly string PropertyRecursionLimitExceededMessage =
+            $"Skipped reading the property: recursion limit {ScriptReturnValue.MaxRecursionCount} is reached.";
 
         internal static readonly ValueAccessException FieldRecursionLimitExceeded =
-            new ValueAccessException(s_fieldRecursionLimitExceededMessage, null);
+            new ValueAccessException(FieldRecursionLimitExceededMessage, null);
+
         internal static readonly ValueAccessException PropertyRecursionLimitExceeded =
-            new ValueAccessException(s_propertyRecursionLimitExceededMessage, null);
+            new ValueAccessException(PropertyRecursionLimitExceededMessage, null);
 
-        private readonly string m_asString;
-
-        #endregion
-
-        #region Constructors and Destructors
+        private readonly string _asString;
 
         internal ValueAccessException(string message, Exception innerException)
             : base(message)
         {
-            StringBuilder asStringBuilder = new StringBuilder(message);
+            var asStringBuilder = new StringBuilder(message);
 
             if (innerException != null)
             {
@@ -46,7 +39,7 @@ namespace CSharpScriptExecutor.Common
                 }
             }
 
-            m_asString = asStringBuilder.ToString();
+            _asString = asStringBuilder.ToString();
         }
 
         private ValueAccessException(SerializationInfo info, StreamingContext context)
@@ -55,31 +48,16 @@ namespace CSharpScriptExecutor.Common
             // Nothing to do
         }
 
-        #endregion
-
-        #region Public Properties
-
         public TypeWrapper InnerExceptionType
         {
             get;
-            private set;
         }
 
         public string InnerExceptionMessage
         {
             get;
-            private set;
         }
 
-        #endregion
-
-        #region Public Methods
-
-        public override string ToString()
-        {
-            return m_asString;
-        }
-
-        #endregion
+        public override string ToString() => _asString;
     }
 }

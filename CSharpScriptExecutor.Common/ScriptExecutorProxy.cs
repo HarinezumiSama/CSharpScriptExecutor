@@ -1,6 +1,4 @@
 ﻿using System;
-using System.CodeDom.Compiler;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace CSharpScriptExecutor.Common
@@ -10,79 +8,66 @@ namespace CSharpScriptExecutor.Common
     /// </summary>
     public sealed class ScriptExecutorProxy : IScriptExecutor
     {
-        #region Fields
+        private AppDomain _domain;
+        private ScriptExecutor _scriptExecutor;
 
-        private readonly Guid m_scriptId;
-        private AppDomain m_domain;
-        private ScriptExecutor m_scriptExecutor;
-
-        private ScriptExecutionResult m_executionResult;
-        private bool m_isDisposed;
-
-        #endregion
-
-        #region Constructors and Destructors
+        private ScriptExecutionResult _executionResult;
+        private bool _isDisposed;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptExecutorProxy"/> class.
         /// </summary>
         internal ScriptExecutorProxy(Guid scriptId, AppDomain domain, ScriptExecutor scriptExecutor)
         {
-            #region Argument Check
-
             if (domain == null)
             {
-                throw new ArgumentNullException("domain");
+                throw new ArgumentNullException(nameof(domain));
             }
+
             if (scriptExecutor == null)
             {
-                throw new ArgumentNullException("scriptExecutor");
+                throw new ArgumentNullException(nameof(scriptExecutor));
             }
 
-            #endregion
-
-            m_scriptId = scriptId;
-            m_domain = domain;
-            m_scriptExecutor = scriptExecutor;
+            ScriptId = scriptId;
+            _domain = domain;
+            _scriptExecutor = scriptExecutor;
         }
 
-        #endregion
-
-        #region Private Methods
+        internal Guid ScriptId
+        {
+            get;
+        }
 
         private void EnsureNotDisposed()
         {
-            if (m_isDisposed)
+            if (_isDisposed)
             {
-                throw new ObjectDisposedException(this.GetType().FullName);
+                throw new ObjectDisposedException(GetType().FullName);
             }
         }
-
-        #endregion
-
-        #region IScriptExecutor Members
 
         [MethodImpl(MethodImplOptions.Synchronized)]
         ScriptExecutionResult IScriptExecutor.Execute()
         {
             EnsureNotDisposed();
 
-            if (m_executionResult != null)
+            if (_executionResult != null)
             {
                 throw new InvalidOperationException("The script has been already executed by the current executor.");
             }
 
             try
             {
-                m_domain.DoCallBack(m_scriptExecutor.ExecuteInternal);
-                m_executionResult = m_scriptExecutor.ExecutionResult;
+                _domain.DoCallBack(_scriptExecutor.ExecuteInternal);
+                _executionResult = _scriptExecutor.ExecutionResult;
             }
             catch (Exception ex)
             {
-                m_executionResult = ScriptExecutionResult.CreateError(
+                _executionResult = ScriptExecutionResult.CreateError(
                     ScriptExecutionResultType.InternalError,
                     ex,
-                    m_scriptExecutor.Script,
+                    _scriptExecutor.Script,
                     null,
                     null,
                     null,
@@ -90,46 +75,42 @@ namespace CSharpScriptExecutor.Common
                     null);
             }
 
-            if (m_executionResult == null)
+            if (_executionResult == null)
             {
                 throw new InvalidOperationException("Execution result is not assigned after execution.");
             }
 
-            return m_executionResult;
+            return _executionResult;
         }
-
-        #endregion
-
-        #region IDisposable Members
 
         [MethodImpl(MethodImplOptions.Synchronized)]
         void IDisposable.Dispose()
         {
-            if (m_isDisposed)
+            if (_isDisposed)
             {
                 return;
             }
 
             TemporaryFileList temporaryFiles = null;
-            if (m_scriptExecutor != null)
+            if (_scriptExecutor != null)
             {
-                temporaryFiles = m_scriptExecutor.GetTemporaryFiles();
+                temporaryFiles = _scriptExecutor.GetTemporaryFiles();
 
                 try
                 {
-                    m_scriptExecutor.Dispose();
+                    _scriptExecutor.Dispose();
                 }
                 catch (Exception)
                 {
                     // Nothing to do
                 }
-                m_scriptExecutor = null;
+                _scriptExecutor = null;
             }
 
-            if (m_domain != null)
+            if (_domain != null)
             {
-                AppDomain.Unload(m_domain);
-                m_domain = null;
+                AppDomain.Unload(_domain);
+                _domain = null;
             }
 
             // After the domain is unloaded we may try to delete the temporary files
@@ -139,9 +120,7 @@ namespace CSharpScriptExecutor.Common
             }
 
             // Finally, setting the flag
-            m_isDisposed = true;
+            _isDisposed = true;
         }
-
-        #endregion
     }
 }

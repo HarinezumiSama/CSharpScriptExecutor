@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
@@ -13,7 +10,6 @@ using System.Windows.Forms;
 using System.Windows.Input;
 using CSharpScriptExecutor.Common;
 using CSharpScriptExecutor.Properties;
-using ICSharpCode.AvalonEdit;
 using Cursor = System.Windows.Forms.Cursor;
 using Cursors = System.Windows.Forms.Cursors;
 using KeyEventArgs = System.Windows.Forms.KeyEventArgs;
@@ -32,36 +28,36 @@ namespace CSharpScriptExecutor
     {
         #region Constants
 
-        private const int c_maxHistoryItemGuiLength = 100;
+        private const int MaxHistoryItemGuiLength = 100;
 
         #endregion
 
         #region Fields
 
-        private static readonly Regex s_newLineRegex = new Regex(
+        private static readonly Regex NewLineRegex = new Regex(
             @"(\r\n)+ | (\r)+ | (\n)+",
             RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
 
-        private static readonly HashSet<string> s_allowedDropExtensions =
+        private static readonly HashSet<string> AllowedDropExtensions =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 ScriptExecutor.ScriptFileExtension,
                 ScriptExecutor.SourceFileExtension
             };
 
-        private static readonly string s_invalidDroppedFileExtensionFormat = string.Format(
+        private static readonly string InvalidDroppedFileExtensionFormat = string.Format(
             "Invalid file has been dragged-and-dropped: \"{{0}}\".\n"
                 + "\n"
                 + "The following files are only supported: {0}.",
-            string.Join(", ", s_allowedDropExtensions.Select(item => "*" + item)));
+            string.Join(", ", AllowedDropExtensions.Select(item => "*" + item)));
 
-        private static readonly string s_lastStartedScriptFilePath = Path.Combine(
+        private static readonly string LastStartedScriptFilePath = Path.Combine(
             Program.ProgramDataPath,
             "~LastStartedScript" + ScriptExecutor.ScriptFileExtension);
 
-        private IScriptExecutor m_scriptExecutor;
-        private ScriptExecutionResult m_executionResult;
-        private readonly List<ToolStripMenuItem> m_historyMenuItems = new List<ToolStripMenuItem>();
+        private IScriptExecutor _scriptExecutor;
+        private ScriptExecutionResult _executionResult;
+        private readonly List<ToolStripMenuItem> _historyMenuItems = new List<ToolStripMenuItem>();
 
         #endregion
 
@@ -93,15 +89,15 @@ namespace CSharpScriptExecutor
             //        .AssertWinApiResult();
             //}
 
-            this.Text = string.Format(
+            Text = string.Format(
                 "Script — {0}{1}",
                 Program.ProgramName,
                 IsAdministrator() ? " [Administrator]" : string.Empty);
 
-            tewTextEditor.KeyDown += this.tewTextEditor_KeyDown;
+            tewTextEditor.KeyDown += tewTextEditor_KeyDown;
             tewTextEditor.AllowDrop = true;
-            tewTextEditor.DragEnter += this.tewTextEditor_DragEnter;
-            tewTextEditor.Drop += this.tewTextEditor_Drop;
+            tewTextEditor.DragEnter += tewTextEditor_DragEnter;
+            tewTextEditor.Drop += tewTextEditor_Drop;
 
             pbResult.Visible = false;
 
@@ -115,12 +111,12 @@ namespace CSharpScriptExecutor
 
         private string GetActualCaption(string caption)
         {
-            return string.IsNullOrWhiteSpace(caption) ? this.Text : caption;
+            return string.IsNullOrWhiteSpace(caption) ? Text : caption;
         }
 
         private void CloseForm(bool exit)
         {
-            this.DialogResult = exit ? DialogResult.Abort : DialogResult.Cancel;
+            DialogResult = exit ? DialogResult.Abort : DialogResult.Cancel;
             Close();
         }
 
@@ -148,7 +144,7 @@ namespace CSharpScriptExecutor
 
         private void ExecuteScript(bool enableDebugging)
         {
-            var script = this.Script;
+            var script = Script;
             if (string.IsNullOrWhiteSpace(script))
             {
                 return;
@@ -156,18 +152,18 @@ namespace CSharpScriptExecutor
 
             ScriptExecutionResult executionResult = null;
 
-            Cursor oldCursor = Cursor.Current;
+            var oldCursor = Cursor.Current;
             var oldResultImage = pbResult.Image;
-            var oldExecutionResult = m_executionResult;
+            var oldExecutionResult = _executionResult;
             try
             {
                 Cursor.Current = Cursors.WaitCursor;
                 pbResult.Image = Resources.Wait;
-                m_executionResult = null;
+                _executionResult = null;
                 Application.DoEvents();
 
                 AddToHistory(script);
-                LocalHelper.TrySaveScript(s_lastStartedScriptFilePath, script);
+                LocalHelper.TrySaveScript(LastStartedScriptFilePath, script);
 
                 var commandLine = tbCommandLine.Text;
                 var commandLineParameters = InternalHelper.ParseCommandLineParameters(commandLine);
@@ -176,14 +172,14 @@ namespace CSharpScriptExecutor
 
                 try
                 {
-                    if (m_scriptExecutor != null)
+                    if (_scriptExecutor != null)
                     {
-                        m_scriptExecutor.Dispose();
-                        m_scriptExecutor = null;
+                        _scriptExecutor.Dispose();
+                        _scriptExecutor = null;
                     }
 
-                    m_scriptExecutor = ScriptExecutor.Create(parameters);
-                    executionResult = m_scriptExecutor.Execute();
+                    _scriptExecutor = ScriptExecutor.Create(parameters);
+                    executionResult = _scriptExecutor.Execute();
                 }
                 catch (Exception ex)
                 {
@@ -199,7 +195,7 @@ namespace CSharpScriptExecutor
                 pbResult.Image = executionResult == null
                     ? oldResultImage
                     : executionResult.IsSuccess ? Resources.OKShield_32x32 : Resources.ErrorCircle_32x32;
-                m_executionResult = executionResult ?? oldExecutionResult;
+                _executionResult = executionResult ?? oldExecutionResult;
                 SetControlStates();
                 pbResult.Show();
 
@@ -221,7 +217,7 @@ namespace CSharpScriptExecutor
 
         private void SetHistoryRelatedControlStates()
         {
-            var hasHistory = m_historyMenuItems.Any();
+            var hasHistory = _historyMenuItems.Any();
             tsmiClearHistory.Enabled = hasHistory;
             tssClearHistorySeparator.Visible = hasHistory;
         }
@@ -229,31 +225,31 @@ namespace CSharpScriptExecutor
         private void ReassignHistoryItemShortcuts()
         {
             // Firstly, clearing all shortcuts in history items in order to avoid conflicts
-            foreach (var historyMenuItem in m_historyMenuItems)
+            foreach (var historyMenuItem in _historyMenuItems)
             {
                 historyMenuItem.ShortcutKeys = Keys.None;
             }
 
-            for (int index = m_historyMenuItems.Count - 1, keyIndex = 1;
+            for (int index = _historyMenuItems.Count - 1, keyIndex = 1;
                 index >= 0 && keyIndex <= 10;
                 index--, keyIndex++)
             {
-                m_historyMenuItems[index].ShortcutKeys = Keys.Control | (Keys.D0 + (keyIndex % 10));
+                _historyMenuItems[index].ShortcutKeys = Keys.Control | (Keys.D0 + keyIndex % 10);
             }
         }
 
         private void AddToHistory(string script)
         {
-            var guiScript = s_newLineRegex.Replace(script, " ");
-            if (guiScript.Length > c_maxHistoryItemGuiLength)
+            var guiScript = NewLineRegex.Replace(script, " ");
+            if (guiScript.Length > MaxHistoryItemGuiLength)
             {
-                guiScript = guiScript.Substring(0, c_maxHistoryItemGuiLength);
+                guiScript = guiScript.Substring(0, MaxHistoryItemGuiLength);
             }
 
             var historyMenuItem = new ToolStripMenuItem(guiScript) { Tag = script, ToolTipText = script };
-            historyMenuItem.Click += this.HistoryMenuItem_Click;
+            historyMenuItem.Click += HistoryMenuItem_Click;
 
-            m_historyMenuItems.Add(historyMenuItem);
+            _historyMenuItems.Add(historyMenuItem);
             tsmiHistory.DropDownItems.Insert(0, historyMenuItem);
 
             ReassignHistoryItemShortcuts();
@@ -262,7 +258,7 @@ namespace CSharpScriptExecutor
 
         private void ClearHistory(bool ask)
         {
-            if (!m_historyMenuItems.Any())
+            if (!_historyMenuItems.Any())
             {
                 return;
             }
@@ -276,12 +272,13 @@ namespace CSharpScriptExecutor
                 }
             }
 
-            foreach (var historyMenuItem in m_historyMenuItems)
+            foreach (var historyMenuItem in _historyMenuItems)
             {
                 tsmiHistory.DropDownItems.Remove(historyMenuItem);
                 historyMenuItem.Dispose();
             }
-            m_historyMenuItems.Clear();
+
+            _historyMenuItems.Clear();
 
             SetHistoryRelatedControlStates();
         }
@@ -298,13 +295,13 @@ namespace CSharpScriptExecutor
 
         private void SetControlStates()
         {
-            var canRun = !string.IsNullOrWhiteSpace(this.Script);
+            var canRun = !string.IsNullOrWhiteSpace(Script);
             btnExecute.Enabled = canRun;
             btnDebug.Enabled = canRun;
             tsmiExecute.Enabled = canRun;
             tsmiDebug.Enabled = canRun;
 
-            tsmiShowResult.Enabled = m_executionResult != null;
+            tsmiShowResult.Enabled = _executionResult != null;
         }
 
         private void CollapseSelection()
@@ -356,18 +353,18 @@ namespace CSharpScriptExecutor
 
             var filePath = filePaths.Single();
             var extension = Path.GetExtension(filePath);
-            if (!s_allowedDropExtensions.Contains(extension))
+            if (!AllowedDropExtensions.Contains(extension))
             {
                 if (isDrop)
                 {
-                    ShowError(string.Format(s_invalidDroppedFileExtensionFormat, filePath));
+                    ShowError(string.Format(InvalidDroppedFileExtensionFormat, filePath));
                 }
                 return false;
             }
 
             if (isDrop)
             {
-                string script = File.ReadAllText(filePath);
+                var script = File.ReadAllText(filePath);
                 InsertTextInEditor(script, true);
             }
 
@@ -429,15 +426,12 @@ namespace CSharpScriptExecutor
         {
             if (disposing)
             {
-                if (components != null)
-                {
-                    components.Dispose();
-                }
+                components?.Dispose();
 
-                if (m_scriptExecutor != null)
+                if (_scriptExecutor != null)
                 {
-                    m_scriptExecutor.Dispose();
-                    m_scriptExecutor = null;
+                    _scriptExecutor.Dispose();
+                    _scriptExecutor = null;
                 }
 
                 ClearHistory(false);
@@ -450,13 +444,28 @@ namespace CSharpScriptExecutor
         {
             base.OnLoad(e);
 
-            this.DialogResult = DialogResult.None;
-            tewTextEditor.InnerEditor.TextChanged += this.tewTextEditor_InnerEditor_TextChanged;
+            DialogResult = DialogResult.None;
+            tewTextEditor.InnerEditor.TextChanged += tewTextEditor_InnerEditor_TextChanged;
         }
 
         #endregion
 
         #region Public Properties
+
+        public sealed override string Text
+        {
+            [DebuggerNonUserCode]
+            get
+            {
+                return base.Text;
+            }
+
+            [DebuggerNonUserCode]
+            set
+            {
+                base.Text = value;
+            }
+        }
 
         public string Script
         {
@@ -465,6 +474,7 @@ namespace CSharpScriptExecutor
             {
                 return tewTextEditor.InnerEditor.Text;
             }
+
             [DebuggerNonUserCode]
             set
             {
@@ -497,7 +507,7 @@ namespace CSharpScriptExecutor
 
             SetControlStates();
             SetHistoryRelatedControlStates();
-            this.Activate();
+            Activate();
 
             // If the caller did set non-default cursor, resetting it
             Cursor.Current = Cursors.Default;
@@ -540,7 +550,7 @@ namespace CSharpScriptExecutor
 
         private void pbResult_Click(object sender, EventArgs e)
         {
-            ShowExecutionResult(m_executionResult);
+            ShowExecutionResult(_executionResult);
         }
 
         private void ScriptForm_KeyDown(object sender, KeyEventArgs e)
@@ -563,7 +573,7 @@ namespace CSharpScriptExecutor
 
         private void tsmiShowResult_Click(object sender, EventArgs e)
         {
-            ShowExecutionResult(m_executionResult);
+            ShowExecutionResult(_executionResult);
         }
 
         private void tsmiInsertReturn_Click(object sender, EventArgs e)
@@ -638,7 +648,7 @@ namespace CSharpScriptExecutor
             var filePath = sfdSaveScript.FileName;
             try
             {
-                File.WriteAllText(filePath, this.Script, Encoding.UTF8);
+                File.WriteAllText(filePath, Script, Encoding.UTF8);
             }
             catch (Exception ex)
             {
@@ -648,7 +658,6 @@ namespace CSharpScriptExecutor
                             + "{1}",
                         filePath,
                         ex.Message));
-                return;
             }
         }
 
@@ -663,17 +672,16 @@ namespace CSharpScriptExecutor
             try
             {
                 var script = File.ReadAllText(filePath);
-                this.Script = script;
+                Script = script;
             }
             catch (Exception ex)
             {
                 ShowError(
-                   string.Format(
-                       "Cannot open a script from \"{0}\":\n"
-                           + "{1}",
-                       filePath,
-                       ex.Message));
-                return;
+                    string.Format(
+                        "Cannot open a script from \"{0}\":\n"
+                            + "{1}",
+                        filePath,
+                        ex.Message));
             }
         }
 

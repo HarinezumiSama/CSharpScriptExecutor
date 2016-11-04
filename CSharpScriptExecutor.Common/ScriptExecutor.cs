@@ -1,11 +1,9 @@
 ﻿using System;
 using System.CodeDom;
 using System.CodeDom.Compiler;
-using System.Collections;
 using System.Collections.Generic;
-using System.Configuration.Assemblies;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
@@ -26,152 +24,60 @@ namespace CSharpScriptExecutor.Common
 
     public sealed class ScriptExecutor : MarshalByRefObject, IScriptExecutor
     {
-        #region Nested Types
+        #region Constants and Fields
 
-        #region ScriptOptions Class
+        private const string CustomDirectivePrefix = "//##";
+        private const string CustomDirectiveNameGroupName = "Name";
+        private const string CustomDirectiveValueGroupName = "Value";
+        private const string ReferenceDirective = "Ref";
+        private const string UsingDirective = "Using";
 
-        private sealed class ScriptOptions
-        {
-            #region Fields
-
-            private readonly Dictionary<string, string> m_assemblyReferences;
-
-            #endregion
-
-            #region Constructors
-
-            internal ScriptOptions()
-            {
-                m_assemblyReferences = s_predefinedReferences
-                    .Select(
-                        item => new
-                        {
-                            Name = Path.GetFileNameWithoutExtension(item),
-                            Path = item
-                        })
-                    .ToDictionary(item => item.Name, item => item.Path, StringComparer.OrdinalIgnoreCase);
-
-                this.NamespaceImports = new HashSet<string>(s_predefinedImports);  // Case-sensitive
-            }
-
-            #endregion
-
-            #region Public Properties
-
-            public HashSet<string> NamespaceImports
-            {
-                get;
-                private set;
-            }
-
-            #endregion
-
-            #region Public Methods
-
-            public void AddAssemblyReferencePath(string assemblyPath)
-            {
-                #region Argument Check
-
-                if (string.IsNullOrEmpty(assemblyPath))
-                {
-                    throw new ArgumentException("The value can be neither empty string nor null.", "assemblyPath");
-                }
-
-                #endregion
-
-                var name = Path.GetFileNameWithoutExtension(assemblyPath);
-                m_assemblyReferences[name] = assemblyPath;
-            }
-
-            public string[] GetAllAssemblyReferencePaths()
-            {
-                return m_assemblyReferences.Values.ToArray();
-            }
-
-            public string GetAssemblyReferencePath(string name)
-            {
-                #region Argument Check
-
-                if (string.IsNullOrEmpty(name))
-                {
-                    throw new ArgumentException("The value can be neither empty string nor null.", "name");
-                }
-
-                #endregion
-
-                return m_assemblyReferences.GetValueOrDefault(name);
-            }
-
-            #endregion
-        }
-
-        #endregion
-
-        #endregion
-
-        #region Constants
-
-        private const string c_customDirectivePrefix = "//##";
-        private const string c_customDirectiveNameGroupName = "Name";
-        private const string c_customDirectiveValueGroupName = "Value";
-        private const string c_referenceDirective = "Ref";
-        private const string c_usingDirective = "Using";
-
-        private const BindingFlags c_anyMemberBindingFlags = BindingFlags.Static | BindingFlags.Instance
+        private const BindingFlags AnyMemberBindingFlags = BindingFlags.Static | BindingFlags.Instance
             | BindingFlags.Public | BindingFlags.NonPublic;
-        private const BindingFlags c_predefinedConstructorBindingFlags = BindingFlags.Instance | BindingFlags.Public
+
+        private const BindingFlags PredefinedConstructorBindingFlags = BindingFlags.Instance | BindingFlags.Public
             | BindingFlags.NonPublic;
-        private const BindingFlags c_predefinedMembersBindingFlags = BindingFlags.Static | BindingFlags.Public
+
+        private const BindingFlags PredefinedMembersBindingFlags = BindingFlags.Static | BindingFlags.Public
             | BindingFlags.NonPublic;
 
-        private const string c_wrapperTypeName = "ScriptExecutorWrapper";
-        private const string c_wrapperMethodName = "Main";
-        private const string c_wrapperMethodParameterName = "arguments";
-        private const string c_debugMethodName = "Debug";
+        private const string WrapperTypeName = "ScriptExecutorWrapper";
+        private const string WrapperMethodName = "Main";
+        private const string WrapperMethodParameterName = "arguments";
+        private const string DebugMethodName = "Debug";
 
-        private const BindingFlags c_allDeclaredMembersBindingFlags =
-            BindingFlags.DeclaredOnly | c_anyMemberBindingFlags;
+        private const BindingFlags AllDeclaredMembersBindingFlags =
+            BindingFlags.DeclaredOnly | AnyMemberBindingFlags;
 
-        private const string c_bracingStyle = "C";
-
-        private const string c_assemblyFileExtension = ".dll";
+        private const string BracingStyle = "C";
 
         //TODO: Check max script size
         //private const ulong c_maxScriptFileSize = 8 * Constants.Megabyte;
 
-        #endregion
+        private static readonly string SourceFileExtensionValue = GetSourceFileExtension();
+        private const string ScriptFileExtensionValue = ".cssx";
+        private static readonly string IndentString = new string(' ', 4);
+        private static readonly string UserCodeIndentation = new string(' ', 8);
 
-        #region Fields
-
-        #region Static
-
-        private static readonly string s_sourceFileExtension = GetSourceFileExtension();
-        private static readonly string s_scriptFileExtension = ".cssx";
-        private static readonly string s_indentString = new string(' ', 4);
-        private static readonly string s_userCodeIndentation = new string(' ', 8);
-
-        private static readonly Regex s_prohibitedDirectiveRegex = new Regex(
+        private static readonly Regex ProhibitedDirectiveRegex = new Regex(
             @"^ \s* \# \s* line \b",
             RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
 
-        private static readonly Regex s_customDirectiveRegex = new Regex(
-            string.Format(
-                @"^ \s* {0}(?<{1}>\S*) \s+ (?<{2}>.*?) \s* $",
-                Regex.Escape(c_customDirectivePrefix),
-                c_customDirectiveNameGroupName,
-                c_customDirectiveValueGroupName),
+        private static readonly Regex CustomDirectiveRegex = new Regex(
+            $@"^ \s* {Regex.Escape(CustomDirectivePrefix)}(?<{CustomDirectiveNameGroupName}>\S*) \s+ (?<{
+                CustomDirectiveValueGroupName}>.*?) \s* $",
             RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.Singleline);
 
-        private static readonly Dictionary<string, Func<ScriptOptions, string, string>> s_customDirectiveActionMap =
+        private static readonly Dictionary<string, Func<ScriptOptions, string, string>> CustomDirectiveActionMap =
             new Dictionary<string, Func<ScriptOptions, string, string>>(StringComparer.OrdinalIgnoreCase)
             {
-                { c_referenceDirective, AddCustomAssemblyReference },
-                { c_usingDirective, AddCustomNamespaceImport }
+                { ReferenceDirective, AddCustomAssemblyReference },
+                { UsingDirective, AddCustomNamespaceImport }
             };
 
-        private static readonly char[] s_specialNameChars = new[] { '<', '>' };
+        private static readonly char[] SpecialNameChars = { '<', '>' };
 
-        private static readonly string[] s_predefinedImports = new string[]
+        private static readonly string[] PredefinedImports =
         {
             "System",
             "System.Collections",
@@ -194,35 +100,31 @@ namespace CSharpScriptExecutor.Common
             "System.Xml"
         };
 
-        private static readonly IList<string> s_predefinedReferences =
-            new List<string>
-            {
-                "System.dll",
-                Assembly.GetAssembly(typeof(Enumerable)).Location,  // System.Linq.dll
-                "System.Data.dll",
-                Assembly.GetAssembly(typeof(System.Data.Linq.DataContext)).Location,  // System.Data.Linq.dll
-                "System.Web.dll",
-                "System.Windows.Forms.dll",
-                "System.Xml.dll",
-                Assembly.GetAssembly(typeof(RuntimeBinderException)).Location  // Microsoft.CSharp.dll, for 'dynamic'
-            }
-                .AsReadOnly();
+        private static readonly ReadOnlyCollection<string> PredefinedReferences =
+            new ReadOnlyCollection<string>(
+                new[]
+                {
+                    "System.dll",
+                    Assembly.GetAssembly(typeof(Enumerable)).Location, // System.Linq.dll
+                    "System.Data.dll",
+                    Assembly.GetAssembly(typeof(System.Data.Linq.DataContext)).Location, // System.Data.Linq.dll
+                    "System.Web.dll",
+                    "System.Windows.Forms.dll",
+                    "System.Xml.dll",
+                    Assembly.GetAssembly(typeof(RuntimeBinderException)).Location
 
-        #endregion
+                    // Microsoft.CSharp.dll, for 'dynamic'
+                });
 
-        #region Instance
+        private readonly Guid _scriptId;
+        private readonly string _script;
+        private readonly string[] _arguments;
+        private readonly bool _isDebugMode;
+        private readonly List<string> _scriptLines;
+        private readonly ScriptOptions _options = new ScriptOptions();
+        private readonly TemporaryFileList _tempFiles = new TemporaryFileList();
 
-        private readonly Guid m_scriptId;
-        private readonly string m_script;
-        private readonly string[] m_arguments;
-        private readonly bool m_isDebugMode;
-        private readonly List<string> m_scriptLines;
-        private readonly ScriptOptions m_options = new ScriptOptions();
-        private readonly TemporaryFileList m_tempFiles = new TemporaryFileList();
-
-        private ScriptExecutionResult m_executionResult;
-
-        #endregion
+        private ScriptExecutionResult _executionResult;
 
         #endregion
 
@@ -237,27 +139,27 @@ namespace CSharpScriptExecutor.Common
 
             if (Guid.Empty.Equals(scriptId))
             {
-                throw new ArgumentException("Script ID cannot be empty.", "scriptId");
+                throw new ArgumentException("Script ID cannot be empty.", nameof(scriptId));
             }
             if (domain == null)
             {
-                throw new ArgumentNullException("domain");
+                throw new ArgumentNullException(nameof(domain));
             }
             if (parameters == null)
             {
-                throw new ArgumentNullException("parameters");
+                throw new ArgumentNullException(nameof(parameters));
             }
 
             #endregion
 
-            m_scriptId = scriptId;
-            m_script = parameters.Script;
-            m_arguments = parameters.ScriptArguments.ToArray();
-            m_isDebugMode = parameters.IsDebugMode;
+            _scriptId = scriptId;
+            _script = parameters.Script;
+            _arguments = parameters.ScriptArguments.ToArray();
+            _isDebugMode = parameters.IsDebugMode;
 
-            domain.AssemblyResolve += this.Domain_AssemblyResolve;
+            domain.AssemblyResolve += Domain_AssemblyResolve;
 
-            LoadData(m_script, m_options, out m_scriptLines);
+            LoadData(_script, _options, out _scriptLines);
         }
 
         #endregion
@@ -267,17 +169,15 @@ namespace CSharpScriptExecutor.Common
         private static string GetSourceFileExtension()
         {
             var result = new CSharpCodeProvider().UseDisposable(obj => obj.FileExtension);
-            if (!result.StartsWith("."))
+            if (!result.StartsWith(".", StringComparison.Ordinal))
             {
                 result = "." + result;
             }
+
             return result;
         }
 
-        private static string GetLineNumberPrefix(int lineNumber)
-        {
-            return string.Format("Line {0}: ", lineNumber);
-        }
+        private static string GetLineNumberPrefix(int lineNumber) => $@"Line {lineNumber}: ";
 
         private static string AddCustomAssemblyReference(ScriptOptions options, string value)
         {
@@ -287,7 +187,7 @@ namespace CSharpScriptExecutor.Common
             }
 
             string errorMessage;
-            string fixedValue = value.TryExtractFromQuotes(out errorMessage);
+            var fixedValue = value.TryExtractFromQuotes(out errorMessage);
             if (!string.IsNullOrWhiteSpace(errorMessage))
             {
                 return "[Reference Directive] " + errorMessage;
@@ -317,16 +217,16 @@ namespace CSharpScriptExecutor.Common
 
             if (script == null)
             {
-                throw new ArgumentNullException("script");
+                throw new ArgumentNullException(nameof(script));
             }
             if (options == null)
             {
-                throw new ArgumentNullException("options");
+                throw new ArgumentNullException(nameof(options));
             }
 
             #endregion
 
-            List<string> scriptLines = new List<string>();
+            var scriptLines = new List<string>();
             using (var reader = new StringReader(script))
             {
                 var customDirectiveAllowed = true;
@@ -338,40 +238,36 @@ namespace CSharpScriptExecutor.Common
                     {
                         break;
                     }
+
                     lineNumber++;
 
-                    if (s_prohibitedDirectiveRegex.IsMatch(line))
+                    if (ProhibitedDirectiveRegex.IsMatch(line))
                     {
                         throw new ScriptExecutorException(
-                            string.Format(
-                                "{0}Directive '#line' is prohibited to use in a script"
-                                    + " (even in the multiline comment block).",
-                                GetLineNumberPrefix(lineNumber)));
+                            $@"{GetLineNumberPrefix(lineNumber)}Directive '#line' is prohibited to use in a script (even in the multiline comment block).");
                     }
 
                     var isCustomDirective = false;
                     if (customDirectiveAllowed)
                     {
-                        var customDirectiveMatch = s_customDirectiveRegex.Match(line);
-                        if (customDirectiveMatch != null && customDirectiveMatch.Success)
+                        var customDirectiveMatch = CustomDirectiveRegex.Match(line);
+                        if (customDirectiveMatch.Success)
                         {
                             isCustomDirective = true;
 
                             var customDirectiveName = customDirectiveMatch
-                                .Groups[c_customDirectiveNameGroupName]
+                                .Groups[CustomDirectiveNameGroupName]
                                 .Value;
                             var customDirectiveValue = customDirectiveMatch
-                                .Groups[c_customDirectiveValueGroupName]
+                                .Groups[CustomDirectiveValueGroupName]
                                 .Value;
 
-                            var action = s_customDirectiveActionMap.GetValueOrDefault(customDirectiveName);
+                            var action = CustomDirectiveActionMap.GetValueOrDefault(customDirectiveName);
                             if (action == null)
                             {
                                 throw new ScriptExecutorException(
-                                    string.Format(
-                                        "{0}Unknown custom directive \"{1}\".",
-                                        GetLineNumberPrefix(lineNumber),
-                                        customDirectiveName));
+                                    $@"{GetLineNumberPrefix(lineNumber)}Unknown custom directive ""{
+                                        customDirectiveName}"".");
                             }
 
                             var errorMessage = action(options, customDirectiveValue);
@@ -398,7 +294,7 @@ namespace CSharpScriptExecutor.Common
         private Assembly Domain_AssemblyResolve(object sender, ResolveEventArgs e)
         {
             var assemblyName = new AssemblyName(e.Name);
-            var assemblyPath = m_options.GetAssemblyReferencePath(assemblyName.Name);
+            var assemblyPath = _options.GetAssemblyReferencePath(assemblyName.Name);
 
             try
             {
@@ -413,7 +309,7 @@ namespace CSharpScriptExecutor.Common
                 if (assembly != null && assembly.GetName().Version == assemblyName.Version)
                 {
                     var loadedAssemblyName = assembly.GetName();
-                    if (assembly != null && loadedAssemblyName.Version == assemblyName.Version
+                    if (loadedAssemblyName.Version == assemblyName.Version
                         && publicKeyToken.BytesEqual(loadedAssemblyName.GetPublicKeyToken()))
                     {
                         return assembly;
@@ -443,14 +339,14 @@ namespace CSharpScriptExecutor.Common
                     new CodeRegionDirective(CodeRegionMode.Start, "Auto-generated code")
                 }
             };
-            if (!m_isDebugMode)
+            if (!_isDebugMode)
             {
                 result.EndDirectives.Add(new CodeRegionDirective(CodeRegionMode.End, string.Empty));
             }
             return result;
         }
 
-        private CodeMemberMethod CreateDebugMethod()
+        private static CodeMemberMethod CreateDebugMethod()
         {
             var isAttachedName =
                 ((MemberExpression)((Expression<Func<bool>>)(() => Debugger.IsAttached)).Body).Member.Name;
@@ -468,7 +364,8 @@ namespace CSharpScriptExecutor.Common
 
             return new CodeMemberMethod
             {
-                Name = c_debugMethodName,
+                Name = DebugMethodName,
+                //// ReSharper disable once BitwiseOperatorOnEnumWithoutFlags - Microsoft design
                 Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
                 CustomAttributes =
                 {
@@ -483,26 +380,28 @@ namespace CSharpScriptExecutor.Common
                         new CodePropertyReferenceExpression(
                             new CodeTypeReferenceExpression(typeof(Debugger)),
                             isAttachedName),
-                            new[] { debuggerBreakStatement },
-                            new[] { debuggerLaunchStatement })
+                        new CodeStatement[] { debuggerBreakStatement },
+                        new CodeStatement[] { debuggerLaunchStatement })
                 }
             };
         }
 
-        private CodeMemberMethod CreateUserCodeWrapperMethod(CodeTypeDeclaration declaringType, string offsetWarningId)
+        private CodeMemberMethod CreateUserCodeWrapperMethod(
+            CodeTypeDeclaration declaringType,
+            string offsetWarningId)
         {
             #region Argument Check
 
             if (declaringType == null)
             {
-                throw new ArgumentNullException("declaringType");
+                throw new ArgumentNullException(nameof(declaringType));
             }
 
             #endregion
 
             var formattedScriptLinesString = string.Join(
                 Environment.NewLine,
-                m_scriptLines.Select(line => s_userCodeIndentation + line));
+                _scriptLines.Select(line => UserCodeIndentation + line));
 
             var userCodeSnippetStatement = new CodeSnippetStatement(
                 string.Format(
@@ -513,16 +412,17 @@ namespace CSharpScriptExecutor.Common
                     Environment.NewLine,
                     offsetWarningId,
                     formattedScriptLinesString,
-                    s_userCodeIndentation));
+                    UserCodeIndentation));
 
             var result = new CodeMemberMethod
             {
-                Name = c_wrapperMethodName,
+                Name = WrapperMethodName,
+                //// ReSharper disable once BitwiseOperatorOnEnumWithoutFlags - Microsoft design
                 Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
                 ReturnType = new CodeTypeReference(typeof(object)),
                 Parameters =
                 {
-                    new CodeParameterDeclarationExpression(typeof(string[]), c_wrapperMethodParameterName)
+                    new CodeParameterDeclarationExpression(typeof(string[]), WrapperMethodParameterName)
                     {
                         CustomAttributes =
                         {
@@ -532,22 +432,20 @@ namespace CSharpScriptExecutor.Common
                 }
             };
 
-            if (m_isDebugMode)
+            if (_isDebugMode)
             {
                 result.Statements.Add(
                     new CodeExpressionStatement(
                         new CodeMethodInvokeExpression(
                             new CodeMethodReferenceExpression(
                                 null,
-                                c_debugMethodName)))
+                                DebugMethodName)))
                     {
                         StartDirectives =
                         {
                             new CodeRegionDirective(
                                 CodeRegionMode.Start,
-                                string.Format(
-                                    "This statement is generated by {0} since the debug mode is active.",
-                                    this.GetType().FullName))
+                                $@"This statement is generated by {GetType().FullName} since the debug mode is active.")
                         },
                         EndDirectives =
                         {
@@ -563,34 +461,33 @@ namespace CSharpScriptExecutor.Common
 
         private void GenerateAndRunScript()
         {
-            bool isDebuggable = Debugger.IsAttached || m_isDebugMode;
+            var isDebuggable = Debugger.IsAttached || _isDebugMode;
 
-            var compilerParameters = new CompilerParameters()
+            var compilerParameters = new CompilerParameters
             {
                 GenerateExecutable = false,
                 GenerateInMemory = !isDebuggable,
                 IncludeDebugInformation = isDebuggable,
                 TreatWarningsAsErrors = false,
+
                 // TODO: Implement `unsafe` option
-                CompilerOptions = string.Format("/unsafe- /optimize{0}", isDebuggable ? "-" : "+")
+                CompilerOptions = $@"/unsafe- /optimize{(isDebuggable ? "-" : "+")}"
             };
+
             if (isDebuggable)
             {
                 compilerParameters.OutputAssembly = Path.Combine(
                     Path.GetTempPath(),
-                    string.Format(
-                        "{0}__{1:yyyy'-'MM'-'dd__HH'-'mm'-'ss}__{2}.dll",
-                        typeof(ScriptExecutor).Name,
-                        DateTime.Now,
-                        m_scriptId.GetHashCode().ToString("X8").ToLowerInvariant()));
+                    $@"{typeof(ScriptExecutor).Name}__{DateTime.Now:yyyy'-'MM'-'dd__HH'-'mm'-'ss}__{
+                        _scriptId.GetHashCode().ToString("X8").ToLowerInvariant()}.dll");
             }
 
-            compilerParameters.ReferencedAssemblies.AddRange(m_options.GetAllAssemblyReferencePaths());
+            compilerParameters.ReferencedAssemblies.AddRange(_options.GetAllAssemblyReferencePaths());
 
             Func<string> generateRandomId = () => Guid.NewGuid().ToString("N");
             var offsetWarningId = string.Join(string.Empty, Enumerable.Range(0, 4).Select(i => generateRandomId()));
 
-            var wrapperCodeType = new CodeTypeDeclaration(c_wrapperTypeName)
+            var wrapperCodeType = new CodeTypeDeclaration(WrapperTypeName)
             {
                 Attributes = MemberAttributes.Public,
                 TypeAttributes = TypeAttributes.Class | TypeAttributes.Sealed | TypeAttributes.NotPublic
@@ -600,7 +497,7 @@ namespace CSharpScriptExecutor.Common
             var userCodeWrapperMethod = CreateUserCodeWrapperMethod(wrapperCodeType, offsetWarningId);
 
             wrapperCodeType.Members.Add(predefinedConstructor);
-            if (m_isDebugMode)
+            if (_isDebugMode)
             {
                 var debugMethod = CreateDebugMethod();
                 wrapperCodeType.Members.Add(debugMethod);
@@ -609,7 +506,7 @@ namespace CSharpScriptExecutor.Common
 
             var rootNamespace = new CodeNamespace(string.Empty);
             rootNamespace.Imports.AddRange(
-                m_options
+                _options
                     .NamespaceImports
                     .Select(item => new CodeNamespaceImport(item))
                     .ToArray());
@@ -618,18 +515,17 @@ namespace CSharpScriptExecutor.Common
             var compileUnit = new CodeCompileUnit();
             compileUnit.Namespaces.Add(rootNamespace);
 
-            CompilerResults compilerResults;
             using (var codeProvider = new Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider())
             {
                 var generatedCodeBuilder = new StringBuilder();
                 using (var sw = new StringWriter(generatedCodeBuilder))
                 {
-                    var options = new CodeGeneratorOptions()
+                    var options = new CodeGeneratorOptions
                     {
                         BlankLinesBetweenMembers = true,
-                        BracingStyle = c_bracingStyle,
+                        BracingStyle = BracingStyle,
                         ElseOnClosing = false,
-                        IndentString = s_indentString,
+                        IndentString = IndentString,
                         VerbatimOrder = true
                     };
                     codeProvider.GenerateCodeFromCompileUnit(compileUnit, sw, options);
@@ -637,9 +533,10 @@ namespace CSharpScriptExecutor.Common
 
                 var generatedCode = generatedCodeBuilder.ToString();
 
+                CompilerResults compilerResults;
                 if (isDebuggable)
                 {
-                    var filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, s_sourceFileExtension);
+                    var filePath = Path.ChangeExtension(compilerParameters.OutputAssembly, SourceFileExtensionValue);
                     File.WriteAllText(filePath, generatedCode, Encoding.UTF8);
 
                     compilerResults = codeProvider.CompileAssemblyFromFile(compilerParameters, filePath);
@@ -660,14 +557,14 @@ namespace CSharpScriptExecutor.Common
                     var offsetWarning = compilerResults
                         .Errors
                         .Cast<CompilerError>()
-                        .Where(item => item.IsWarning && item.ErrorText.Contains(offsetWarningId))
-                        .SingleOrDefault();
-                    var sourceCodeLineOffset = offsetWarning == null ? 0 : offsetWarning.Line;
+                        .SingleOrDefault(item => item.IsWarning && item.ErrorText.Contains(offsetWarningId));
 
-                    m_executionResult = ScriptExecutionResult.CreateError(
+                    var sourceCodeLineOffset = offsetWarning?.Line ?? 0;
+
+                    _executionResult = ScriptExecutionResult.CreateError(
                         ScriptExecutionResultType.CompilationError,
                         new ScriptExecutorException("Error compiling script"),
-                        m_script,
+                        _script,
                         generatedCode,
                         string.Empty,
                         string.Empty,
@@ -676,86 +573,78 @@ namespace CSharpScriptExecutor.Common
                     return;
                 }
 
-                string outputAssembly = compilerParameters.OutputAssembly;
+                var outputAssembly = compilerParameters.OutputAssembly;
                 if (!string.IsNullOrEmpty(outputAssembly))
                 {
                     var files = Directory.GetFiles(
-                        Path.GetDirectoryName(outputAssembly),
+                        Path.GetDirectoryName(outputAssembly).EnsureNotNull(),
                         Path.ChangeExtension(Path.GetFileName(outputAssembly), ".*"),
                         SearchOption.TopDirectoryOnly);
-                    foreach (string file in files)
+                    foreach (var file in files)
                     {
-                        m_tempFiles.Add(file);
+                        _tempFiles.Add(file);
                     }
                 }
 
-                var compiledWrapperType = compilerResults.CompiledAssembly.GetType(c_wrapperTypeName);
+                var compiledWrapperType = compilerResults.CompiledAssembly.GetType(WrapperTypeName);
                 if (compiledWrapperType == null)
                 {
                     throw new ScriptExecutorException(
-                        string.Format("Cannot obtain the wrapper type \"{0}\".", c_wrapperTypeName),
-                        m_script,
+                        $@"Cannot obtain the wrapper type ""{WrapperTypeName}"".",
+                        _script,
                         generatedCode);
                 }
 
                 var compiledPredefinedConstructor = compiledWrapperType.GetConstructor(
-                    c_predefinedConstructorBindingFlags,
+                    PredefinedConstructorBindingFlags,
                     null,
                     Type.EmptyTypes,
                     null);
                 if (compiledPredefinedConstructor == null)
                 {
                     throw new ScriptExecutorException(
-                        string.Format(
-                            "Cannot obtain the predefined parameterless constructor in the type \"{0}\".",
-                            c_wrapperTypeName),
-                        m_script,
+                        $@"Cannot obtain the predefined parameterless constructor in the type ""{WrapperTypeName}"".",
+                        _script,
                         generatedCode);
                 }
 
                 MethodInfo compiledDebugMethod = null;
-                if (m_isDebugMode)
+                if (_isDebugMode)
                 {
                     compiledDebugMethod = compiledWrapperType.GetMethod(
-                        c_debugMethodName,
-                        c_predefinedMembersBindingFlags);
+                        DebugMethodName,
+                        PredefinedMembersBindingFlags);
                     if (compiledDebugMethod == null)
                     {
                         throw new ScriptExecutorException(
-                            string.Format(
-                                "Cannot obtain the debug method \"{0}\" in the type \"{1}\".",
-                                c_debugMethodName,
-                                c_wrapperTypeName),
-                            m_script,
+                            $@"Cannot obtain the debug method ""{DebugMethodName}"" in the type ""{WrapperTypeName}"".",
+                            _script,
                             generatedCode);
                     }
                 }
 
                 var compiledWrapperMethod = compiledWrapperType.GetMethod(
-                    c_wrapperMethodName,
-                    c_predefinedMembersBindingFlags);
+                    WrapperMethodName,
+                    PredefinedMembersBindingFlags);
                 if (compiledWrapperMethod == null)
                 {
                     throw new ScriptExecutorException(
-                        string.Format(
-                            "Cannot obtain the wrapper method \"{0}\" in the type \"{1}\".",
-                            c_wrapperMethodName,
-                            c_wrapperTypeName),
-                        m_script,
+                        $@"Cannot obtain the wrapper method ""{WrapperMethodName}"" in the type ""{WrapperTypeName}"".",
+                        _script,
                         generatedCode);
                 }
 
-                var allDeclaredMembers = compiledWrapperType.GetMembers(c_allDeclaredMembersBindingFlags).ToList();
+                var allDeclaredMembers = compiledWrapperType.GetMembers(AllDeclaredMembersBindingFlags).ToList();
                 var unexpectedMembers = allDeclaredMembers
                     .Where(
                         item => item != compiledWrapperMethod && item != compiledPredefinedConstructor
-                            && item != compiledDebugMethod && item.Name.IndexOfAny(s_specialNameChars) < 0)
+                            && item != compiledDebugMethod && item.Name.IndexOfAny(SpecialNameChars) < 0)
                     .ToList();
                 if (unexpectedMembers.Any())
                 {
                     throw new ScriptExecutorException(
                         "The script must not contain any members and must be just a code snippet.",
-                        m_script,
+                        _script,
                         generatedCode);
                 }
 
@@ -766,12 +655,10 @@ namespace CSharpScriptExecutor.Common
                 if (methodDelegate == null)
                 {
                     throw new ScriptExecutorException(
-                        string.Format(
-                            "Cannot create a delegate from the wrapper method \"{0}{1}{2}\".",
-                            compiledWrapperMethod.DeclaringType.FullName,
-                            Type.Delimiter,
-                            compiledWrapperMethod.Name),
-                        m_script,
+                        $@"Cannot create a delegate from the wrapper method ""{
+                            compiledWrapperMethod.DeclaringType.EnsureNotNull().FullName}{Type.Delimiter}{
+                            compiledWrapperMethod.Name}"".",
+                        _script,
                         generatedCode);
                 }
 
@@ -791,14 +678,14 @@ namespace CSharpScriptExecutor.Common
 
                         try
                         {
-                            scriptReturnValue = methodDelegate(m_arguments);
+                            scriptReturnValue = methodDelegate(_arguments);
                         }
                         catch (Exception ex)
                         {
-                            m_executionResult = ScriptExecutionResult.CreateError(
+                            _executionResult = ScriptExecutionResult.CreateError(
                                 ScriptExecutionResultType.ExecutionError,
                                 ex,
-                                m_script,
+                                _script,
                                 generatedCode,
                                 consoleOutBuilder.ToString(),
                                 consoleErrorBuilder.ToString(),
@@ -810,10 +697,10 @@ namespace CSharpScriptExecutor.Common
                 }
                 catch (Exception ex)
                 {
-                    m_executionResult = ScriptExecutionResult.CreateError(
+                    _executionResult = ScriptExecutionResult.CreateError(
                         ScriptExecutionResultType.InternalError,
                         ex,
-                        m_script,
+                        _script,
                         generatedCode,
                         null,
                         null,
@@ -827,9 +714,9 @@ namespace CSharpScriptExecutor.Common
                     Console.SetError(originalConsoleError);
                 }
 
-                m_executionResult = ScriptExecutionResult.CreateSuccess(
+                _executionResult = ScriptExecutionResult.CreateSuccess(
                     scriptReturnValue,
-                    m_script,
+                    _script,
                     generatedCode,
                     consoleOutBuilder.ToString(),
                     consoleErrorBuilder.ToString());
@@ -843,7 +730,10 @@ namespace CSharpScriptExecutor.Common
         internal ScriptExecutionResult ExecutionResult
         {
             [DebuggerStepThrough]
-            get { return m_executionResult; }
+            get
+            {
+                return _executionResult;
+            }
         }
 
         #endregion
@@ -852,9 +742,9 @@ namespace CSharpScriptExecutor.Common
 
         internal void ExecuteInternal()
         {
-            if (m_executionResult != null)
+            if (_executionResult != null)
             {
-                throw new InvalidOperationException(string.Format("'{0}' cannot be reused.", GetType().FullName));
+                throw new InvalidOperationException($@"'{GetType().FullName}' cannot be reused.");
             }
 
             try
@@ -863,10 +753,10 @@ namespace CSharpScriptExecutor.Common
             }
             catch (Exception ex)
             {
-                m_executionResult = ScriptExecutionResult.CreateError(
+                _executionResult = ScriptExecutionResult.CreateError(
                     ScriptExecutionResultType.InternalError,
                     ex,
-                    m_script,
+                    _script,
                     null,
                     null,
                     null,
@@ -874,16 +764,13 @@ namespace CSharpScriptExecutor.Common
                     null);
             }
 
-            if (m_executionResult == null)
+            if (_executionResult == null)
             {
                 throw new InvalidOperationException("Execution result is not assigned after execution.");
             }
         }
 
-        internal TemporaryFileList GetTemporaryFiles()
-        {
-            return m_tempFiles.Copy();
-        }
+        internal TemporaryFileList GetTemporaryFiles() => _tempFiles.Copy();
 
         #endregion
 
@@ -892,19 +779,28 @@ namespace CSharpScriptExecutor.Common
         public static string SourceFileExtension
         {
             [DebuggerStepThrough]
-            get { return s_sourceFileExtension; }
+            get
+            {
+                return SourceFileExtensionValue;
+            }
         }
 
         public static string ScriptFileExtension
         {
             [DebuggerStepThrough]
-            get { return s_scriptFileExtension; }
+            get
+            {
+                return ScriptFileExtensionValue;
+            }
         }
 
         public string Script
         {
             [DebuggerStepThrough]
-            get { return m_script; }
+            get
+            {
+                return _script;
+            }
         }
 
         #endregion
@@ -917,7 +813,7 @@ namespace CSharpScriptExecutor.Common
 
             if (parameters == null)
             {
-                throw new ArgumentNullException("parameters");
+                throw new ArgumentNullException(nameof(parameters));
             }
 
             #endregion
@@ -925,20 +821,21 @@ namespace CSharpScriptExecutor.Common
             ScriptExecutorProxy result;
 
             var scriptId = Guid.NewGuid();
-            var domainName = string.Format("{0}_Domain_{1:N}", typeof(ScriptExecutor).Name, scriptId);
+            var domainName = $@"{typeof(ScriptExecutor).Name}_Domain_{scriptId:N}";
             var domain = AppDomain.CreateDomain(domainName);
             try
             {
                 var scriptExecutorType = typeof(ScriptExecutor);
+
                 var scriptExecutor = (ScriptExecutor)domain.CreateInstanceAndUnwrap(
                     scriptExecutorType.Assembly.FullName,
                     scriptExecutorType.FullName,
                     false,
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    (System.Reflection.Binder)null,
+                    null,
                     new object[] { scriptId, domain, parameters },
-                    (CultureInfo)null,
-                    (object[])null);
+                    null,
+                    null);
 
                 result = new ScriptExecutorProxy(scriptId, domain, scriptExecutor);
             }
@@ -951,10 +848,7 @@ namespace CSharpScriptExecutor.Common
             return result;
         }
 
-        public override object InitializeLifetimeService()
-        {
-            return null;
-        }
+        public override object InitializeLifetimeService() => null;
 
         #endregion
 
@@ -975,6 +869,83 @@ namespace CSharpScriptExecutor.Common
         public void Dispose()
         {
             // Nothing to do
+        }
+
+        #endregion
+
+        #region ScriptOptions Class
+
+        private sealed class ScriptOptions
+        {
+            #region Fields
+
+            private readonly Dictionary<string, string> _assemblyReferences;
+
+            #endregion
+
+            #region Constructors
+
+            internal ScriptOptions()
+            {
+                _assemblyReferences = PredefinedReferences
+                    .Select(
+                        item => new
+                        {
+                            Name = Path.GetFileNameWithoutExtension(item),
+                            Path = item
+                        })
+                    .ToDictionary(item => item.Name, item => item.Path, StringComparer.OrdinalIgnoreCase);
+
+                NamespaceImports = new HashSet<string>(PredefinedImports); // Case-sensitive
+            }
+
+            #endregion
+
+            #region Public Properties
+
+            public HashSet<string> NamespaceImports
+            {
+                get;
+            }
+
+            #endregion
+
+            #region Public Methods
+
+            public void AddAssemblyReferencePath(string assemblyPath)
+            {
+                #region Argument Check
+
+                if (string.IsNullOrEmpty(assemblyPath))
+                {
+                    throw new ArgumentException(
+                        "The value can be neither empty string nor null.",
+                        nameof(assemblyPath));
+                }
+
+                #endregion
+
+                var name = Path.GetFileNameWithoutExtension(assemblyPath);
+                _assemblyReferences[name] = assemblyPath;
+            }
+
+            public string[] GetAllAssemblyReferencePaths() => _assemblyReferences.Values.ToArray();
+
+            public string GetAssemblyReferencePath(string name)
+            {
+                #region Argument Check
+
+                if (string.IsNullOrEmpty(name))
+                {
+                    throw new ArgumentException("The value can be neither empty string nor null.", nameof(name));
+                }
+
+                #endregion
+
+                return _assemblyReferences.GetValueOrDefault(name);
+            }
+
+            #endregion
         }
 
         #endregion

@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using CSharpScriptExecutor.Common;
 using CSharpScriptExecutor.Properties;
@@ -17,14 +15,14 @@ namespace CSharpScriptExecutor
     {
         #region Fields
 
-        private static readonly string s_lastScriptFilePath = Path.Combine(
+        private static readonly string LastScriptFilePath = Path.Combine(
             Program.ProgramDataPath,
             "~LastScript" + ScriptExecutor.ScriptFileExtension);
 
-        private bool m_isScriptFormActive;
-        private ScriptForm m_scriptForm;
-        private Size m_lastScriptFormSize;
-        private string m_lastScriptFormScript;
+        private bool _isScriptFormActive;
+        private ScriptForm _scriptForm;
+        private Size _lastScriptFormSize;
+        private string _lastScriptFormScript;
 
         #endregion
 
@@ -34,13 +32,32 @@ namespace CSharpScriptExecutor
         {
             InitializeComponent();
 
-            this.Text = Program.ProgramName;
+            Text = Program.ProgramName;
             labAbout.Text = Program.FullProgramName;
-            this.Icon = Resources.MainIcon;
+            Icon = Resources.MainIcon;
 
-            niTrayIcon.Icon = this.Icon;
+            niTrayIcon.Icon = Icon;
             niTrayIcon.Text = Program.ProgramName;
             niTrayIcon.Visible = true;
+        }
+
+        #endregion
+
+        #region Public Properties
+
+        public sealed override string Text
+        {
+            [DebuggerNonUserCode]
+            get
+            {
+                return base.Text;
+            }
+
+            [DebuggerNonUserCode]
+            set
+            {
+                base.Text = value;
+            }
         }
 
         #endregion
@@ -49,25 +66,25 @@ namespace CSharpScriptExecutor
 
         private void DoShow()
         {
-            this.Visible = true;
-            this.ShowInTaskbar = true;
+            Visible = true;
+            ShowInTaskbar = true;
             tsmiAbout.Visible = false;
         }
 
         private void DoHide()
         {
-            this.ShowInTaskbar = false;
-            this.Visible = false;
+            ShowInTaskbar = false;
+            Visible = false;
             tsmiAbout.Visible = true;
         }
 
         private void ShowScriptForm()
         {
-            if (m_isScriptFormActive)
+            if (_isScriptFormActive)
             {
-                if (m_scriptForm != null && m_scriptForm.Enabled)
+                if (_scriptForm != null && _scriptForm.Enabled)
                 {
-                    m_scriptForm.Activate();
+                    _scriptForm.Activate();
                 }
                 return;
             }
@@ -75,33 +92,33 @@ namespace CSharpScriptExecutor
             bool exit;
             var workingArea = Screen.FromControl(this).WorkingArea;
 
-            Cursor oldCursor = Cursor.Current;
+            var oldCursor = Cursor.Current;
             var oldRunEnabled = tsmiRun.Enabled;
             var oldAboutEnabled = tsmiAbout.Enabled;
             try
             {
-                m_isScriptFormActive = true;
+                _isScriptFormActive = true;
                 Cursor.Current = Cursors.AppStarting;
                 tsmiRun.Enabled = false;
                 tsmiAbout.Enabled = false;
 
-                using (m_scriptForm = new ScriptForm())
+                using (_scriptForm = new ScriptForm())
                 {
-                    m_scriptForm.Icon = this.Icon;
+                    _scriptForm.Icon = Icon;
 
-                    m_scriptForm.Size = m_lastScriptFormSize.IsEmpty
+                    _scriptForm.Size = _lastScriptFormSize.IsEmpty
                         ? new Size(workingArea.Width * 3 / 5, workingArea.Height * 3 / 5)
-                        : m_lastScriptFormSize;
-                    m_scriptForm.Location = new Point(
-                        workingArea.Width - m_scriptForm.Size.Width,
-                        workingArea.Height - m_scriptForm.Size.Height);
-                    m_scriptForm.Script = m_lastScriptFormScript;
+                        : _lastScriptFormSize;
+                    _scriptForm.Location = new Point(
+                        workingArea.Width - _scriptForm.Size.Width,
+                        workingArea.Height - _scriptForm.Size.Height);
+                    _scriptForm.Script = _lastScriptFormScript;
 
-                    exit = m_scriptForm.ShowDialog(this) == DialogResult.Abort;
+                    exit = _scriptForm.ShowDialog(this) == DialogResult.Abort;
                     Cursor.Current = Cursors.AppStarting;
 
-                    m_lastScriptFormSize = m_scriptForm.Size;
-                    m_lastScriptFormScript = m_scriptForm.Script;
+                    _lastScriptFormSize = _scriptForm.Size;
+                    _lastScriptFormScript = _scriptForm.Script;
                 }
             }
             finally
@@ -110,8 +127,8 @@ namespace CSharpScriptExecutor
                 tsmiAbout.Enabled = oldAboutEnabled;
                 Cursor.Current = oldCursor;
 
-                m_scriptForm = null;
-                m_isScriptFormActive = false;
+                _scriptForm = null;
+                _isScriptFormActive = false;
             }
 
             if (exit)
@@ -121,7 +138,7 @@ namespace CSharpScriptExecutor
         }
 
         [DebuggerStepThrough]
-        private void DoAttachDebuggerNow()
+        private static void DoAttachDebuggerNow()
         {
             if (!Debugger.IsAttached)
             {
@@ -129,17 +146,14 @@ namespace CSharpScriptExecutor
             }
         }
 
-        private void TryLoadLastScript()
-        {
-            m_lastScriptFormScript = LocalHelper.TryLoadScript(s_lastScriptFilePath);
-        }
+        private void TryLoadLastScript() => _lastScriptFormScript = LocalHelper.TryLoadScript(LastScriptFilePath);
 
         private void TrySaveLastScript()
         {
-            var lastScript = m_isScriptFormActive && m_scriptForm != null
-                ? m_scriptForm.Script
-                : m_lastScriptFormScript;
-            LocalHelper.TrySaveScript(s_lastScriptFilePath, lastScript);
+            var lastScript = _isScriptFormActive && _scriptForm != null
+                ? _scriptForm.Script
+                : _lastScriptFormScript;
+            LocalHelper.TrySaveScript(LastScriptFilePath, lastScript);
         }
 
         #endregion

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -11,26 +10,24 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     internal sealed class ValuePropertyDescriptor : PropertyDescriptor, ISerializable
     {
-        #region Constants
+        #region Constants and Fields
 
-        private const string c_ownerTypeKey = "ownerType";
-        private const string c_nameKey = "name";
-        private const string c_orderIndexKey = "orderIndex";
-        private const string c_propertyValueKey = "propertyValue";
-        private const string c_expandableKey = "expandable";
+        private const string OwnerTypeKey = "ownerType";
+        private const string NameKey = "name";
+        private const string OrderIndexKey = "orderIndex";
+        private const string PropertyValueKey = "propertyValue";
+        private const string ExpandableKey = "expandable";
 
-        #endregion
+        private static readonly Attribute[] EmptyAttributes = new Attribute[0];
 
-        #region Fields
+        private static readonly Attribute[] ExpandableAttributes =
+        {
+            new TypeConverterAttribute(typeof(ExpandableObjectConverter))
+        };
 
-        private static readonly Attribute[] s_emptyAttributes = new Attribute[0];
-
-        private static readonly Attribute[] s_expandableAttributes =
-            new Attribute[] { new TypeConverterAttribute(typeof(ExpandableObjectConverter)) };
-
-        private readonly Type m_ownerType;
-        private readonly object m_propertyValue;
-        private readonly bool m_expandable;
+        private readonly Type _ownerType;
+        private readonly object _propertyValue;
+        private readonly bool _expandable;
 
         #endregion
 
@@ -41,55 +38,56 @@ namespace CSharpScriptExecutor.Common
             MemberKey memberKey,
             object propertyValue,
             bool expandable)
-            : base(memberKey.Name, expandable ? s_expandableAttributes : s_emptyAttributes)
+            : base(memberKey.Name, expandable ? ExpandableAttributes : EmptyAttributes)
         {
             #region Argument Check
 
             if (owner == null)
             {
-                throw new ArgumentNullException("owner");
+                throw new ArgumentNullException(nameof(owner));
             }
+
             if (owner is MarshalByRefObject && !(owner is ScriptReturnValue))
             {
                 throw new ArgumentException(
-                    string.Format(
-                        "The specified value must not be marshalled by reference unless it is '{0}'.",
-                        typeof(ScriptReturnValue).FullName),
-                    "owner");
+                    $@"The specified value must not be marshalled by reference unless it is '{
+                        typeof(ScriptReturnValue).FullName}'.",
+                    nameof(owner));
             }
+
             if (propertyValue is MarshalByRefObject)
             {
                 throw new ArgumentException(
                     "The specified value must not be marshalled by reference.",
-                    "propertyValue");
+                    nameof(propertyValue));
             }
 
             #endregion
 
-            m_ownerType = owner.GetType();
-            m_propertyValue = propertyValue;
-            this.OrderIndex = memberKey.OrderIndex;
-            m_expandable = expandable;
+            _ownerType = owner.GetType();
+            _propertyValue = propertyValue;
+            OrderIndex = memberKey.OrderIndex;
+            _expandable = expandable;
         }
 
         private ValuePropertyDescriptor(SerializationInfo info, StreamingContext context)
             : base(
-                info.EnsureNotNull().GetString(c_nameKey),
-                info.EnsureNotNull().GetBoolean(c_expandableKey) ? s_expandableAttributes : s_emptyAttributes)
+                info.EnsureNotNull().GetString(NameKey),
+                info.EnsureNotNull().GetBoolean(ExpandableKey) ? ExpandableAttributes : EmptyAttributes)
         {
             #region Argument Check
 
             if (info == null)
             {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
 
             #endregion
 
-            m_ownerType = (Type)info.GetValue(c_ownerTypeKey, typeof(Type));
-            m_propertyValue = info.GetValue(c_propertyValueKey, typeof(object));
-            this.OrderIndex = info.GetInt32(c_orderIndexKey);
-            m_expandable = info.GetBoolean(c_expandableKey);
+            _ownerType = (Type)info.GetValue(OwnerTypeKey, typeof(Type));
+            _propertyValue = info.GetValue(PropertyValueKey, typeof(object));
+            OrderIndex = info.GetInt32(OrderIndexKey);
+            _expandable = info.GetBoolean(ExpandableKey);
         }
 
         #endregion
@@ -99,25 +97,33 @@ namespace CSharpScriptExecutor.Common
         public override Type ComponentType
         {
             [DebuggerNonUserCode]
-            get { return m_ownerType; }
+            get
+            {
+                return _ownerType;
+            }
         }
 
         public override bool IsReadOnly
         {
             [DebuggerStepThrough]
-            get { return true; }
+            get
+            {
+                return true;
+            }
         }
 
         public override Type PropertyType
         {
             [DebuggerNonUserCode]
-            get { return m_propertyValue == null ? null : m_propertyValue.GetType(); }
+            get
+            {
+                return _propertyValue?.GetType();
+            }
         }
 
         public int OrderIndex
         {
             get;
-            private set;
         }
 
         #endregion
@@ -133,7 +139,7 @@ namespace CSharpScriptExecutor.Common
         [DebuggerNonUserCode]
         public override object GetValue(object component)
         {
-            return m_propertyValue;
+            return _propertyValue;
         }
 
         [DebuggerNonUserCode]
@@ -164,16 +170,16 @@ namespace CSharpScriptExecutor.Common
 
             if (info == null)
             {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
 
             #endregion
 
-            info.AddValue(c_ownerTypeKey, m_ownerType);
-            info.AddValue(c_nameKey, this.Name);
-            info.AddValue(c_orderIndexKey, this.OrderIndex);
-            info.AddValue(c_propertyValueKey, m_propertyValue);
-            info.AddValue(c_expandableKey, m_expandable);
+            info.AddValue(OwnerTypeKey, _ownerType);
+            info.AddValue(NameKey, Name);
+            info.AddValue(OrderIndexKey, OrderIndex);
+            info.AddValue(PropertyValueKey, _propertyValue);
+            info.AddValue(ExpandableKey, _expandable);
         }
 
         #endregion
