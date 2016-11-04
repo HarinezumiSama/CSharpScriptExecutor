@@ -6,20 +6,12 @@ namespace CSharpScriptExecutor
 {
     public static class WinApi
     {
-        #region Messages
-
         public static class Messages
         {
-            #region Constants
-
             public const uint WmCopydata = 0x004A;
             public const uint WmDropfiles = 0x0233;
             public const uint WmDropFilesInternalRelated = 0x0049;
-
-            #endregion
         }
-
-        #endregion
 
         public enum MessageFilterInfo : uint
         {
@@ -39,23 +31,13 @@ namespace CSharpScriptExecutor
         [StructLayout(LayoutKind.Sequential)]
         public struct ChangeFilterStruct
         {
-            public uint size;
-            public MessageFilterInfo info;
+            public uint Size;
+            public MessageFilterInfo Info;
         }
-
-        #region Constants
 
         private const string Kernel32 = "kernel32.dll";
 
         public const uint AttachParentProcess = 0xFFFFFFFF;
-
-        #endregion
-
-        #region Fields
-
-        #endregion
-
-        #region Public Methods
 
         public static void AssertWinApiResult(this bool callResult)
         {
@@ -72,23 +54,21 @@ namespace CSharpScriptExecutor
         public static extern bool FreeConsole();
 
         [DllImport(Kernel32, SetLastError = true)]
-        public static extern bool AttachConsole(uint dwProcessId);
+        public static extern bool AttachConsole(uint processId);
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern unsafe bool ChangeWindowMessageFilterEx(
-            IntPtr hWnd,
+            IntPtr windowHandle,
             uint msg,
             ChangeWindowMessageFilterExAction action,
             ChangeFilterStruct* changeInfo);
 
         public static unsafe bool ChangeWindowMessageFilterEx(
-            IntPtr hWnd,
+            IntPtr windowHandle,
             uint msg,
             ChangeWindowMessageFilterExAction action)
         {
-            return ChangeWindowMessageFilterEx(hWnd, msg, action, null);
+            return ChangeWindowMessageFilterEx(windowHandle, msg, action, null);
         }
-
-        #endregion
     }
 }

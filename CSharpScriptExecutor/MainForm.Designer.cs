@@ -47,7 +47,7 @@
             // 
             this.niTrayIcon.ContextMenuStrip = this.cmsTrayIconMenu;
             this.niTrayIcon.Visible = true;
-            this.niTrayIcon.DoubleClick += new System.EventHandler(this.niTrayIcon_DoubleClick);
+            this.niTrayIcon.DoubleClick += new System.EventHandler(this.TrayIcon_DoubleClick);
             // 
             // cmsTrayIconMenu
             // 
@@ -60,7 +60,7 @@
             this.tsmiExit});
             this.cmsTrayIconMenu.Name = "TrayIconMenu";
             this.cmsTrayIconMenu.Size = new System.Drawing.Size(199, 126);
-            this.cmsTrayIconMenu.Opening += new System.ComponentModel.CancelEventHandler(this.cmsTrayIconMenu_Opening);
+            this.cmsTrayIconMenu.Opening += new System.ComponentModel.CancelEventHandler(this.TrayIconMenu_Opening);
             // 
             // tsmiRun
             // 
@@ -68,14 +68,14 @@
             this.tsmiRun.Name = "tsmiRun";
             this.tsmiRun.Size = new System.Drawing.Size(198, 22);
             this.tsmiRun.Text = "&Run...";
-            this.tsmiRun.Click += new System.EventHandler(this.tsmiRun_Click);
+            this.tsmiRun.Click += new System.EventHandler(this.RunMenuItem_Click);
             // 
             // tsmiAttachDebuggerNow
             // 
             this.tsmiAttachDebuggerNow.Name = "tsmiAttachDebuggerNow";
             this.tsmiAttachDebuggerNow.Size = new System.Drawing.Size(198, 22);
             this.tsmiAttachDebuggerNow.Text = "Attach &debugger now...";
-            this.tsmiAttachDebuggerNow.Click += new System.EventHandler(this.tsmiAttachDebuggerNow_Click);
+            this.tsmiAttachDebuggerNow.Click += new System.EventHandler(this.AttachDebuggerNowMenuItem_Click);
             // 
             // toolStripSeparator2
             // 
@@ -87,7 +87,7 @@
             this.tsmiAbout.Name = "tsmiAbout";
             this.tsmiAbout.Size = new System.Drawing.Size(198, 22);
             this.tsmiAbout.Text = "&About";
-            this.tsmiAbout.Click += new System.EventHandler(this.tsmiAbout_Click);
+            this.tsmiAbout.Click += new System.EventHandler(this.AboutMenuItem_Click);
             // 
             // toolStripSeparator1
             // 
@@ -99,7 +99,7 @@
             this.tsmiExit.Name = "tsmiExit";
             this.tsmiExit.Size = new System.Drawing.Size(198, 22);
             this.tsmiExit.Text = "E&xit";
-            this.tsmiExit.Click += new System.EventHandler(this.tsmiExit_Click);
+            this.tsmiExit.Click += new System.EventHandler(this.ExitMenuItem_Click);
             // 
             // labAbout
             // 
@@ -122,7 +122,7 @@
             this.btnOK.TabIndex = 2;
             this.btnOK.Text = "OK";
             this.btnOK.UseVisualStyleBackColor = true;
-            this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
+            this.btnOK.Click += new System.EventHandler(this.OKButton_Click);
             // 
             // lblThanks
             // 

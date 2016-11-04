@@ -62,7 +62,35 @@ namespace CSharpScriptExecutor
 
         #endregion
 
-        #region Private Methods
+        #region Protected Methods
+
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+
+            DoHide();
+            TryLoadLastScript();
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            TrySaveLastScript();
+
+            base.OnFormClosing(e);
+        }
+
+        #endregion
+
+        #region Private Methods: General
+
+        [DebuggerStepThrough]
+        private static void DoAttachDebuggerNow()
+        {
+            if (!Debugger.IsAttached)
+            {
+                Debugger.Launch();
+            }
+        }
 
         private void DoShow()
         {
@@ -86,6 +114,7 @@ namespace CSharpScriptExecutor
                 {
                     _scriptForm.Activate();
                 }
+
                 return;
             }
 
@@ -137,15 +166,6 @@ namespace CSharpScriptExecutor
             }
         }
 
-        [DebuggerStepThrough]
-        private static void DoAttachDebuggerNow()
-        {
-            if (!Debugger.IsAttached)
-            {
-                Debugger.Launch();
-            }
-        }
-
         private void TryLoadLastScript() => _lastScriptFormScript = LocalHelper.TryLoadScript(LastScriptFilePath);
 
         private void TrySaveLastScript()
@@ -158,62 +178,23 @@ namespace CSharpScriptExecutor
 
         #endregion
 
-        #region Protected Methods
+        #region Private Methods: Event Handlers
 
-        protected override void OnLoad(EventArgs e)
-        {
-            base.OnLoad(e);
+        private void ExitMenuItem_Click(object sender, EventArgs e) => Close();
 
-            DoHide();
-            TryLoadLastScript();
-        }
+        private void AboutMenuItem_Click(object sender, EventArgs e) => DoShow();
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            TrySaveLastScript();
+        private void OKButton_Click(object sender, EventArgs e) => DoHide();
 
-            base.OnFormClosing(e);
-        }
+        private void TrayIcon_DoubleClick(object sender, EventArgs e) => ShowScriptForm();
 
-        #endregion
-
-        #region Event Handlers
-
-        private void tsmiExit_Click(object sender, EventArgs e)
-        {
-            Close();
-        }
-
-        private void tsmiAbout_Click(object sender, EventArgs e)
-        {
-            DoShow();
-        }
-
-        private void btnOK_Click(object sender, EventArgs e)
-        {
-            DoHide();
-        }
-
-        private void niTrayIcon_DoubleClick(object sender, EventArgs e)
-        {
-            ShowScriptForm();
-        }
-
-        private void tsmiRun_Click(object sender, EventArgs e)
-        {
-            ShowScriptForm();
-        }
+        private void RunMenuItem_Click(object sender, EventArgs e) => ShowScriptForm();
 
         [DebuggerStepThrough]
-        private void tsmiAttachDebuggerNow_Click(object sender, EventArgs e)
-        {
-            DoAttachDebuggerNow();
-        }
+        private void AttachDebuggerNowMenuItem_Click(object sender, EventArgs e) => DoAttachDebuggerNow();
 
-        private void cmsTrayIconMenu_Opening(object sender, CancelEventArgs e)
-        {
-            tsmiAttachDebuggerNow.Enabled = !Debugger.IsAttached;
-        }
+        private void TrayIconMenu_Opening(object sender, CancelEventArgs e)
+            => tsmiAttachDebuggerNow.Enabled = !Debugger.IsAttached;
 
         #endregion
     }

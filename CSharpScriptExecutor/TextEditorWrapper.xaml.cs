@@ -11,8 +11,6 @@ namespace CSharpScriptExecutor
 {
     public partial class TextEditorWrapper
     {
-        #region Constructors
-
         public TextEditorWrapper()
         {
             InitializeComponent();
@@ -26,28 +24,8 @@ namespace CSharpScriptExecutor
             InnerEditorValue.ShowLineNumbers = true;
         }
 
-        #endregion
+        public TextEditor InnerEditor => InnerEditorValue;
 
-        #region Public Properties
-
-        public TextEditor InnerEditor
-        {
-            [DebuggerStepThrough]
-            get
-            {
-                return InnerEditorValue;
-            }
-        }
-
-        #endregion
-
-        #region Event Handlers
-
-        private void InnerEditorValue_KeyDown(object sender, KeyEventArgs e)
-        {
-            OnKeyDown(e);
-        }
-
-        #endregion
+        private void InnerEditorValue_KeyDown(object sender, KeyEventArgs e) => OnKeyDown(e);
     }
 }

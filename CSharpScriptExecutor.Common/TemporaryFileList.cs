@@ -9,36 +9,8 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     internal sealed class TemporaryFileList : IDisposable
     {
-        #region Fields
-
         private readonly object _syncLock = new object();
         private readonly HashSet<string> _filePaths;
-
-        #endregion
-
-        #region Constructors and Destructors
-
-        /// <summary>
-        ///     Initializes a new instance of the <see cref="TemporaryFileList"/> class.
-        /// </summary>
-        private TemporaryFileList(ICollection<string> filePaths)
-        {
-            #region Argument Check
-
-            if (filePaths == null)
-            {
-                throw new ArgumentNullException(nameof(filePaths));
-            }
-
-            if (filePaths.Contains(null))
-            {
-                throw new ArgumentException("The collection contains a null element.", nameof(filePaths));
-            }
-
-            #endregion
-
-            _filePaths = new HashSet<string>(filePaths, StringComparer.OrdinalIgnoreCase);
-        }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="TemporaryFileList"/> class.
@@ -49,9 +21,23 @@ namespace CSharpScriptExecutor.Common
             // Nothing to do
         }
 
-        #endregion
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="TemporaryFileList"/> class.
+        /// </summary>
+        private TemporaryFileList(ICollection<string> filePaths)
+        {
+            if (filePaths == null)
+            {
+                throw new ArgumentNullException(nameof(filePaths));
+            }
 
-        #region Public Properties
+            if (filePaths.Contains(null))
+            {
+                throw new ArgumentException("The collection contains a null element.", nameof(filePaths));
+            }
+
+            _filePaths = new HashSet<string>(filePaths, StringComparer.OrdinalIgnoreCase);
+        }
 
         public object SyncLock
         {
@@ -62,20 +48,12 @@ namespace CSharpScriptExecutor.Common
             }
         }
 
-        #endregion
-
-        #region Public Methods
-
         public void Add(string filePath)
         {
-            #region Argument Check
-
             if (string.IsNullOrEmpty(filePath))
             {
                 throw new ArgumentException("The value can be neither empty string nor null.", nameof(filePath));
             }
-
-            #endregion
 
             lock (SyncLock)
             {
@@ -110,20 +88,8 @@ namespace CSharpScriptExecutor.Common
             }
         }
 
-        public TemporaryFileList Copy()
-        {
-            return new TemporaryFileList(_filePaths);
-        }
+        public TemporaryFileList Copy() => new TemporaryFileList(_filePaths);
 
-        #endregion
-
-        #region IDisposable Members
-
-        public void Dispose()
-        {
-            Delete();
-        }
-
-        #endregion
+        public void Dispose() => Delete();
     }
 }

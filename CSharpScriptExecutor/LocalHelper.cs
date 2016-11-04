@@ -10,8 +10,6 @@ namespace CSharpScriptExecutor
 {
     internal static class LocalHelper
     {
-        #region Public Methods
-
         [DebuggerNonUserCode]
         public static string TryLoadScript(string scriptFilePath)
         {
@@ -77,7 +75,5 @@ namespace CSharpScriptExecutor
 
             return true;
         }
-
-        #endregion
     }
 }

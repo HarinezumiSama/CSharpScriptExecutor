@@ -5,8 +5,6 @@ namespace CSharpScriptExecutor.Common
 {
     public interface IScriptReturnValue : ICustomTypeDescriptor
     {
-        #region Properties
-
         string AsString
         {
             get;
@@ -21,7 +19,5 @@ namespace CSharpScriptExecutor.Common
         {
             get;
         }
-
-        #endregion
     }
 }

@@ -16,11 +16,11 @@ using Microsoft.CSharp.RuntimeBinder;
 
 namespace CSharpScriptExecutor.Common
 {
-    // TODO: Implement Compile feature (compile only without execution)
+    //// TODO: Implement Compile feature (compile only without execution)
 
-    // TODO: Implement Referenced .cs files (allowed to contain types) that can be referenced and used from main code
+    //// TODO: Implement Referenced .cs files (allowed to contain types) that can be referenced and used from main code
 
-    // TODO: Add public API to ScriptExecutor for parsing and using custom directives (to use in GUI)
+    //// TODO: Add public API to ScriptExecutor for parsing and using custom directives (to use in GUI)
 
     public sealed class ScriptExecutor : MarshalByRefObject, IScriptExecutor
     {
@@ -51,11 +51,12 @@ namespace CSharpScriptExecutor.Common
 
         private const string BracingStyle = "C";
 
-        //TODO: Check max script size
-        //private const ulong c_maxScriptFileSize = 8 * Constants.Megabyte;
+        private const string ScriptFileExtensionValue = ".cssx";
+
+        ////TODO: Check max script size
+        ////private const ulong c_maxScriptFileSize = 8 * Constants.Megabyte;
 
         private static readonly string SourceFileExtensionValue = GetSourceFileExtension();
-        private const string ScriptFileExtensionValue = ".cssx";
         private static readonly string IndentString = new string(' ', 4);
         private static readonly string UserCodeIndentation = new string(' ', 8);
 
@@ -141,10 +142,12 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentException("Script ID cannot be empty.", nameof(scriptId));
             }
+
             if (domain == null)
             {
                 throw new ArgumentNullException(nameof(domain));
             }
+
             if (parameters == null)
             {
                 throw new ArgumentNullException(nameof(parameters));
@@ -161,6 +164,154 @@ namespace CSharpScriptExecutor.Common
 
             LoadData(_script, _options, out _scriptLines);
         }
+
+        #endregion
+
+        #region Public Properties
+
+        public static string SourceFileExtension
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return SourceFileExtensionValue;
+            }
+        }
+
+        public static string ScriptFileExtension
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return ScriptFileExtensionValue;
+            }
+        }
+
+        public string Script
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _script;
+            }
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        public static IScriptExecutor Create(ScriptExecutorParameters parameters)
+        {
+            #region Argument Check
+
+            if (parameters == null)
+            {
+                throw new ArgumentNullException(nameof(parameters));
+            }
+
+            #endregion
+
+            ScriptExecutorProxy result;
+
+            var scriptId = Guid.NewGuid();
+            var domainName = $@"{typeof(ScriptExecutor).Name}_Domain_{scriptId:N}";
+            var domain = AppDomain.CreateDomain(domainName);
+            try
+            {
+                var scriptExecutorType = typeof(ScriptExecutor);
+
+                var scriptExecutor = (ScriptExecutor)domain.CreateInstanceAndUnwrap(
+                    scriptExecutorType.Assembly.FullName,
+                    scriptExecutorType.FullName,
+                    false,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new object[] { scriptId, domain, parameters },
+                    null,
+                    null);
+
+                result = new ScriptExecutorProxy(scriptId, domain, scriptExecutor);
+            }
+            catch (Exception)
+            {
+                AppDomain.Unload(domain);
+                throw;
+            }
+
+            return result;
+        }
+
+        public override object InitializeLifetimeService() => null;
+
+        #endregion
+
+        #region IScriptExecutor Members
+
+        [MethodImpl(MethodImplOptions.Synchronized)]
+        public ScriptExecutionResult Execute()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        #endregion
+
+        #region IDisposable Members
+
+        [MethodImpl(MethodImplOptions.Synchronized)]
+        public void Dispose()
+        {
+            // Nothing to do
+        }
+
+        #endregion
+
+        #region Internal Properties
+
+        internal ScriptExecutionResult ExecutionResult
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _executionResult;
+            }
+        }
+
+        #endregion
+
+        #region Internal Methods
+
+        internal void ExecuteInternal()
+        {
+            if (_executionResult != null)
+            {
+                throw new InvalidOperationException($@"'{GetType().FullName}' cannot be reused.");
+            }
+
+            try
+            {
+                GenerateAndRunScript();
+            }
+            catch (Exception ex)
+            {
+                _executionResult = ScriptExecutionResult.CreateError(
+                    ScriptExecutionResultType.InternalError,
+                    ex,
+                    _script,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
+            }
+
+            if (_executionResult == null)
+            {
+                throw new InvalidOperationException("Execution result is not assigned after execution.");
+            }
+        }
+
+        internal TemporaryFileList GetTemporaryFiles() => _tempFiles.Copy();
 
         #endregion
 
@@ -219,6 +370,7 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentNullException(nameof(script));
             }
+
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
@@ -291,6 +443,46 @@ namespace CSharpScriptExecutor.Common
             outputScriptLines.TrimExcess();
         }
 
+        private static CodeMemberMethod CreateDebugMethod()
+        {
+            var isAttachedName =
+                ((MemberExpression)((Expression<Func<bool>>)(() => Debugger.IsAttached)).Body).Member.Name;
+
+            var debuggerBreakStatement = new CodeExpressionStatement(
+                new CodeMethodInvokeExpression(
+                    new CodeMethodReferenceExpression(
+                        new CodeTypeReferenceExpression(typeof(Debugger)),
+                        new Action(Debugger.Break).Method.Name)));
+            var debuggerLaunchStatement = new CodeExpressionStatement(
+                new CodeMethodInvokeExpression(
+                    new CodeMethodReferenceExpression(
+                        new CodeTypeReferenceExpression(typeof(Debugger)),
+                        new Func<bool>(Debugger.Launch).Method.Name)));
+
+            return new CodeMemberMethod
+            {
+                Name = DebugMethodName,
+                //// ReSharper disable once BitwiseOperatorOnEnumWithoutFlags - Microsoft design
+                Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
+                CustomAttributes =
+                {
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(DebuggerStepThroughAttribute))),
+                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(CompilerGeneratedAttribute)))
+                },
+                EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) },
+                ReturnType = new CodeTypeReference(typeof(void)),
+                Statements =
+                {
+                    new CodeConditionStatement(
+                        new CodePropertyReferenceExpression(
+                            new CodeTypeReferenceExpression(typeof(Debugger)),
+                            isAttachedName),
+                        new CodeStatement[] { debuggerBreakStatement },
+                        new CodeStatement[] { debuggerLaunchStatement })
+                }
+            };
+        }
+
         private Assembly Domain_AssemblyResolve(object sender, ResolveEventArgs e)
         {
             var assemblyName = new AssemblyName(e.Name);
@@ -339,51 +531,13 @@ namespace CSharpScriptExecutor.Common
                     new CodeRegionDirective(CodeRegionMode.Start, "Auto-generated code")
                 }
             };
+
             if (!_isDebugMode)
             {
                 result.EndDirectives.Add(new CodeRegionDirective(CodeRegionMode.End, string.Empty));
             }
+
             return result;
-        }
-
-        private static CodeMemberMethod CreateDebugMethod()
-        {
-            var isAttachedName =
-                ((MemberExpression)((Expression<Func<bool>>)(() => Debugger.IsAttached)).Body).Member.Name;
-
-            var debuggerBreakStatement = new CodeExpressionStatement(
-                new CodeMethodInvokeExpression(
-                    new CodeMethodReferenceExpression(
-                        new CodeTypeReferenceExpression(typeof(Debugger)),
-                        new Action(Debugger.Break).Method.Name)));
-            var debuggerLaunchStatement = new CodeExpressionStatement(
-                new CodeMethodInvokeExpression(
-                    new CodeMethodReferenceExpression(
-                        new CodeTypeReferenceExpression(typeof(Debugger)),
-                        new Func<bool>(Debugger.Launch).Method.Name)));
-
-            return new CodeMemberMethod
-            {
-                Name = DebugMethodName,
-                //// ReSharper disable once BitwiseOperatorOnEnumWithoutFlags - Microsoft design
-                Attributes = MemberAttributes.Assembly | MemberAttributes.Static,
-                CustomAttributes =
-                {
-                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(DebuggerStepThroughAttribute))),
-                    new CodeAttributeDeclaration(new CodeTypeReference(typeof(CompilerGeneratedAttribute)))
-                },
-                EndDirectives = { new CodeRegionDirective(CodeRegionMode.End, string.Empty) },
-                ReturnType = new CodeTypeReference(typeof(void)),
-                Statements =
-                {
-                    new CodeConditionStatement(
-                        new CodePropertyReferenceExpression(
-                            new CodeTypeReferenceExpression(typeof(Debugger)),
-                            isAttachedName),
-                        new CodeStatement[] { debuggerBreakStatement },
-                        new CodeStatement[] { debuggerLaunchStatement })
-                }
-            };
         }
 
         private CodeMemberMethod CreateUserCodeWrapperMethod(
@@ -452,8 +606,10 @@ namespace CSharpScriptExecutor.Common
                             new CodeRegionDirective(CodeRegionMode.End, string.Empty)
                         }
                     });
+
                 result.Statements.Add(new CodeSnippetStatement(Environment.NewLine));
             }
+
             result.Statements.Add(userCodeSnippetStatement);
 
             return result;
@@ -485,6 +641,7 @@ namespace CSharpScriptExecutor.Common
             compilerParameters.ReferencedAssemblies.AddRange(_options.GetAllAssemblyReferencePaths());
 
             Func<string> generateRandomId = () => Guid.NewGuid().ToString("N");
+
             var offsetWarningId = string.Join(string.Empty, Enumerable.Range(0, 4).Select(i => generateRandomId()));
 
             var wrapperCodeType = new CodeTypeDeclaration(WrapperTypeName)
@@ -502,6 +659,7 @@ namespace CSharpScriptExecutor.Common
                 var debugMethod = CreateDebugMethod();
                 wrapperCodeType.Members.Add(debugMethod);
             }
+
             wrapperCodeType.Members.Add(userCodeWrapperMethod);
 
             var rootNamespace = new CodeNamespace(string.Empty);
@@ -691,6 +849,7 @@ namespace CSharpScriptExecutor.Common
                                 consoleErrorBuilder.ToString(),
                                 null,
                                 null);
+
                             return;
                         }
                     }
@@ -721,154 +880,6 @@ namespace CSharpScriptExecutor.Common
                     consoleOutBuilder.ToString(),
                     consoleErrorBuilder.ToString());
             }
-        }
-
-        #endregion
-
-        #region Internal Properties
-
-        internal ScriptExecutionResult ExecutionResult
-        {
-            [DebuggerStepThrough]
-            get
-            {
-                return _executionResult;
-            }
-        }
-
-        #endregion
-
-        #region Internal Methods
-
-        internal void ExecuteInternal()
-        {
-            if (_executionResult != null)
-            {
-                throw new InvalidOperationException($@"'{GetType().FullName}' cannot be reused.");
-            }
-
-            try
-            {
-                GenerateAndRunScript();
-            }
-            catch (Exception ex)
-            {
-                _executionResult = ScriptExecutionResult.CreateError(
-                    ScriptExecutionResultType.InternalError,
-                    ex,
-                    _script,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null);
-            }
-
-            if (_executionResult == null)
-            {
-                throw new InvalidOperationException("Execution result is not assigned after execution.");
-            }
-        }
-
-        internal TemporaryFileList GetTemporaryFiles() => _tempFiles.Copy();
-
-        #endregion
-
-        #region Public Properties
-
-        public static string SourceFileExtension
-        {
-            [DebuggerStepThrough]
-            get
-            {
-                return SourceFileExtensionValue;
-            }
-        }
-
-        public static string ScriptFileExtension
-        {
-            [DebuggerStepThrough]
-            get
-            {
-                return ScriptFileExtensionValue;
-            }
-        }
-
-        public string Script
-        {
-            [DebuggerStepThrough]
-            get
-            {
-                return _script;
-            }
-        }
-
-        #endregion
-
-        #region Public Methods
-
-        public static IScriptExecutor Create(ScriptExecutorParameters parameters)
-        {
-            #region Argument Check
-
-            if (parameters == null)
-            {
-                throw new ArgumentNullException(nameof(parameters));
-            }
-
-            #endregion
-
-            ScriptExecutorProxy result;
-
-            var scriptId = Guid.NewGuid();
-            var domainName = $@"{typeof(ScriptExecutor).Name}_Domain_{scriptId:N}";
-            var domain = AppDomain.CreateDomain(domainName);
-            try
-            {
-                var scriptExecutorType = typeof(ScriptExecutor);
-
-                var scriptExecutor = (ScriptExecutor)domain.CreateInstanceAndUnwrap(
-                    scriptExecutorType.Assembly.FullName,
-                    scriptExecutorType.FullName,
-                    false,
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                    null,
-                    new object[] { scriptId, domain, parameters },
-                    null,
-                    null);
-
-                result = new ScriptExecutorProxy(scriptId, domain, scriptExecutor);
-            }
-            catch (Exception)
-            {
-                AppDomain.Unload(domain);
-                throw;
-            }
-
-            return result;
-        }
-
-        public override object InitializeLifetimeService() => null;
-
-        #endregion
-
-        #region IScriptExecutor Members
-
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        public ScriptExecutionResult Execute()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
-
-        #endregion
-
-        #region IDisposable Members
-
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        public void Dispose()
-        {
-            // Nothing to do
         }
 
         #endregion

@@ -177,10 +177,12 @@ namespace CSharpScriptExecutor.Common
             {
                 return true;
             }
+
             if (ReferenceEquals(array, null) || ReferenceEquals(otherArray, null))
             {
                 return false;
             }
+
             if (array.Length != otherArray.Length)
             {
                 return false;

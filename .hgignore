@@ -22,3 +22,5 @@ glob:data.new/
 glob:*.GhostDoc.xml
 glob:*/.vs/*
 glob:*.sln.vsext.disable
+syntax: glob
+packages/

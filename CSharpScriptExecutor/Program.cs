@@ -13,11 +13,25 @@ using CSharpScriptExecutor.Common;
 
 namespace CSharpScriptExecutor
 {
-    // TODO: Split UI application into GUI and Console applications
+    //// TODO: Split UI application into GUI and Console applications
 
     internal static class Program
     {
-        #region Constants and Fields
+        public static readonly string ProgramName = GetSoleAssemblyAttribute<AssemblyProductAttribute>().Product;
+
+        public static readonly string ProgramVersion =
+            GetSoleAssemblyAttribute<AssemblyFileVersionAttribute>().Version;
+
+        public static readonly string ProgramCopyright =
+            GetSoleAssemblyAttribute<AssemblyCopyrightAttribute>().Copyright;
+
+        public static readonly string FullProgramName = $@"{ProgramName} {ProgramVersion}. {ProgramCopyright}";
+
+        public static readonly string UserAppDataPath = Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData,
+            Environment.SpecialFolderOption.None);
+
+        public static readonly string ProgramDataPath = Path.Combine(UserAppDataPath, ProgramName);
 
         private const string ParameterPrefix = "/";
         private const string ParameterPrefixAlt = "-";
@@ -27,282 +41,16 @@ namespace CSharpScriptExecutor
         private const string PauseParameter = "Pause";
         private const string GuiParameter = "GUI";
 
-        public static readonly string ProgramName = GetSoleAssemblyAttribute<AssemblyProductAttribute>().Product;
-
-        private static readonly string ProgramVersion =
-            GetSoleAssemblyAttribute<AssemblyFileVersionAttribute>().Version;
-
-        private static readonly string ProgramCopyright =
-            GetSoleAssemblyAttribute<AssemblyCopyrightAttribute>().Copyright;
-
-        public static readonly string FullProgramName = $@"{ProgramName} {ProgramVersion}. {ProgramCopyright}";
-
-        private static readonly string UserAppDataPath = Environment.GetFolderPath(
-            Environment.SpecialFolder.LocalApplicationData,
-            Environment.SpecialFolderOption.None);
-
-        public static readonly string ProgramDataPath = Path.Combine(UserAppDataPath, ProgramName);
-
         private static readonly string UnexpectedExceptionCaption = $@"Unexpected Exception — {ProgramName}";
 
         private static string[] _switches;
         private static bool _makePause;
         private static bool _isDebugMode;
 
-        #endregion
-
-        #region Private Methods
-
-        private static TAttribute GetSoleAssemblyAttribute<TAttribute>()
-            where TAttribute : Attribute
-        {
-            var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
-            return assembly.GetSoleAttribute<TAttribute>();
-        }
-
-        private static void ShowHelp(bool isConsoleMode)
-        {
-            var sb = new StringBuilder()
-                .AppendLine(FullProgramName)
-                .AppendLine("Usage:")
-                .AppendFormat(
-                    "  {0} [{1}{2} | {1}{3}] [{1}{4}] <Script> [ScriptParameters...]",
-                    ProgramName,
-                    ParameterPrefix,
-                    DebugParameter,
-                    GuiParameter,
-                    PauseParameter)
-                .AppendLine();
-
-            if (isConsoleMode)
-            {
-                Console.WriteLine();
-                Console.WriteLine(sb.ToString());
-                Console.WriteLine();
-            }
-            else
-            {
-                MessageBox.Show(sb.ToString(), ProgramName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
-
-        private static void ShowGuiError(string text, string caption)
-            => MessageBox.Show(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-
-        private static bool InitializeConsole()
-        {
-            //if (!WinApi.AttachConsole(WinApi.AttachParentProcess))
-            //{
-            //    if (!WinApi.AllocConsole())
-            //    {
-            //        var lastError = Marshal.GetLastWin32Error();
-            //        string errorMessage = string.Format(
-            //            "Unable to switch to console mode: {0}",
-            //            new Win32Exception(lastError).Message);
-
-            //        ShowGuiError(errorMessage, ProgramName);
-            //        return false;
-            //    }
-            //}
-
-            Console.CancelKeyPress += Console_CancelKeyPress;
-
-            return true;
-        }
-
-        private static bool InitializeGui()
-        {
-            WinApi.AttachConsole(WinApi.AttachParentProcess);
-
-            if (!WinApi.FreeConsole())
-            {
-                var error = Marshal.GetLastWin32Error();
-                var errorMessage = $@"Unable to switch to GUI mode: {new Win32Exception(error).Message}";
-
-                try
-                {
-                    Console.WriteLine(@"{0}: {1}", ProgramName, errorMessage);
-                }
-                catch (Exception)
-                {
-                    // Nothing to do
-                }
-
-                ShowGuiError(errorMessage, ProgramName);
-                return false;
-            }
-
-            return true;
-        }
-
-        private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
-        {
-            if (e.SpecialKey == ConsoleSpecialKey.ControlC)
-            {
-                e.Cancel = true;
-            }
-        }
-
-        private static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)
-            => MessageBox.Show(
-                e.Exception.ToString(),
-                UnexpectedExceptionCaption,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
-
-        private static void AutoWaitForKey()
-        {
-            if (!Debugger.IsAttached && !_makePause)
-            {
-                return;
-            }
-
-            Console.WriteLine(@"* Press any key to exit...");
-            while (!Console.KeyAvailable)
-            {
-                // Nothing to do
-            }
-
-            Console.ReadKey(true);
-        }
-
-        private static int RunInGuiMode()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.ThreadException += Application_ThreadException;
-
-            // TODO: Use pre-load of AvalonEdit's editor in background thread to speed up first load on user request
-
-            // Preloading causes InvalidOperationException with the message:
-            // 'The calling thread cannot access this object because a different thread owns it.' from time to time.
-            // It seems that ElementHost is the reason for that.
-
-            #region Preloading form and its components in background since AvalonEdit is a heavy component
-
-            //            Thread preloadThread = new Thread(
-            //                () =>
-            //                {
-            //#pragma warning disable 618
-            //Debugger.Log(0, "", string.Format("Preload thread ID: {0}\n", AppDomain.GetCurrentThreadId()));
-            //#pragma warning restore 618
-
-            //                    using (var form = new ScriptForm())
-            //                    {
-            //                        // Nothing to do
-            //                    }
-            //                })
-            //            {
-            //                Name = "Preload thread",
-            //                IsBackground = true,
-            //                Priority = ThreadPriority.Lowest
-            //            };
-
-            //#pragma warning disable 618
-            //            Debugger.Log(0, "", string.Format("Main thread ID: {0}\n", AppDomain.GetCurrentThreadId()));
-            //#pragma warning restore 618
-
-            //            preloadThread.SetApartmentState(ApartmentState.STA);
-            //            preloadThread.Start();
-
-            #endregion
-
-            Application.Run(new MainForm());
-            return 0;
-        }
-
-        private static int RunInConsoleMode(string[] arguments)
-        {
-            if (arguments.Length <= 0)
-            {
-                //Console.WriteLine();
-                ShowHelp(true);
-                return 1;
-            }
-
-            Console.WriteLine();
-
-            var scriptFilePath = Path.GetFullPath(arguments[0]);
-            var scriptArguments = arguments.Skip(1).ToArray();
-            var script = File.ReadAllText(scriptFilePath);
-            var executorParameters = new ScriptExecutorParameters(script, scriptArguments, _isDebugMode);
-
-            using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
-            {
-                ScriptExecutionResult executionResult;
-                try
-                {
-                    executionResult = scriptExecutor.Execute();
-                }
-                catch (Exception ex)
-                {
-                    executionResult = ScriptExecutionResult.CreateInternalError(ex, script);
-                }
-
-                Console.WriteLine(executionResult.ConsoleOut);
-                Console.WriteLine(executionResult.ConsoleError);
-
-                switch (executionResult.Type)
-                {
-                    case ScriptExecutionResultType.InternalError:
-                    case ScriptExecutionResultType.CompilationError:
-                    case ScriptExecutionResultType.ExecutionError:
-                    {
-                        Console.WriteLine();
-                        Console.WriteLine(@"* Error processing script file ""{0}"":", scriptFilePath);
-                        Console.WriteLine(@"* Error type: {0}", executionResult.Type);
-                        Console.WriteLine(executionResult.Message);
-                        if (executionResult.Type == ScriptExecutionResultType.CompilationError)
-                        {
-                            foreach (var compilerError in executionResult.CompilerErrors)
-                            {
-                                Console.WriteLine(compilerError.ToString());
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(executionResult.SourceCode))
-                        {
-                            Console.WriteLine();
-                            Console.WriteLine(@" * Source code <START");
-                            Console.WriteLine(executionResult.SourceCode);
-                            Console.WriteLine(@" * Source code END>");
-                        }
-                        if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
-                        {
-                            Console.WriteLine();
-                            Console.WriteLine(@" * Generated code <START");
-                            Console.WriteLine(executionResult.GeneratedCode);
-                            Console.WriteLine(@" * Generated code END>");
-                        }
-                        Console.WriteLine();
-
-                        return 200;
-                    }
-
-                    case ScriptExecutionResultType.Success:
-
-                        // Nothing to do
-                        break;
-
-                    default:
-                        throw new NotImplementedException(
-                            $@"Not implemented script execution result type ({executionResult.Type}).");
-                }
-            }
-
-            return 0;
-        }
-
-        #endregion
-
-        #region Public Methods
-
         [STAThread]
         [LoaderOptimization(LoaderOptimization.MultiDomainHost)]
         internal static int Main(string[] arguments)
         {
-            #region Argument Check
-
             if (arguments == null)
             {
                 throw new ArgumentNullException(nameof(arguments));
@@ -312,8 +60,6 @@ namespace CSharpScriptExecutor
             {
                 throw new ArgumentException(@"The collection contains a null element.", nameof(arguments));
             }
-
-            #endregion
 
             _switches = arguments
                 .TakeWhile(
@@ -397,6 +143,242 @@ namespace CSharpScriptExecutor
             }
         }
 
-        #endregion
+        private static TAttribute GetSoleAssemblyAttribute<TAttribute>()
+            where TAttribute : Attribute
+        {
+            var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+            return assembly.GetSoleAttribute<TAttribute>();
+        }
+
+        private static void ShowHelp(bool isConsoleMode)
+        {
+            var sb = new StringBuilder()
+                .AppendLine(FullProgramName)
+                .AppendLine("Usage:")
+                .AppendFormat(
+                    "  {0} [{1}{2} | {1}{3}] [{1}{4}] <Script> [ScriptParameters...]",
+                    ProgramName,
+                    ParameterPrefix,
+                    DebugParameter,
+                    GuiParameter,
+                    PauseParameter)
+                .AppendLine();
+
+            if (isConsoleMode)
+            {
+                Console.WriteLine();
+                Console.WriteLine(sb.ToString());
+                Console.WriteLine();
+            }
+            else
+            {
+                MessageBox.Show(sb.ToString(), ProgramName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private static void ShowGuiError(string text, string caption)
+            => MessageBox.Show(text, caption, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+
+        private static bool InitializeConsole()
+        {
+            ////if (!WinApi.AttachConsole(WinApi.AttachParentProcess))
+            ////{
+            ////    if (!WinApi.AllocConsole())
+            ////    {
+            ////        var lastError = Marshal.GetLastWin32Error();
+            ////        string errorMessage = string.Format(
+            ////            "Unable to switch to console mode: {0}",
+            ////            new Win32Exception(lastError).Message);
+
+            ////        ShowGuiError(errorMessage, ProgramName);
+            ////        return false;
+            ////    }
+            ////}
+
+            Console.CancelKeyPress += Console_CancelKeyPress;
+
+            return true;
+        }
+
+        private static bool InitializeGui()
+        {
+            WinApi.AttachConsole(WinApi.AttachParentProcess);
+
+            if (!WinApi.FreeConsole())
+            {
+                var error = Marshal.GetLastWin32Error();
+                var errorMessage = $@"Unable to switch to GUI mode: {new Win32Exception(error).Message}";
+
+                try
+                {
+                    Console.WriteLine(@"{0}: {1}", ProgramName, errorMessage);
+                }
+                catch (Exception)
+                {
+                    // Nothing to do
+                }
+
+                ShowGuiError(errorMessage, ProgramName);
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            if (e.SpecialKey == ConsoleSpecialKey.ControlC)
+            {
+                e.Cancel = true;
+            }
+        }
+
+        private static void Application_ThreadException(object sender, ThreadExceptionEventArgs e)
+            => MessageBox.Show(
+                e.Exception.ToString(),
+                UnexpectedExceptionCaption,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+
+        private static void AutoWaitForKey()
+        {
+            if (!Debugger.IsAttached && !_makePause)
+            {
+                return;
+            }
+
+            Console.WriteLine(@"* Press any key to exit...");
+            while (!Console.KeyAvailable)
+            {
+                // Nothing to do
+            }
+
+            Console.ReadKey(true);
+        }
+
+        private static int RunInGuiMode()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.ThreadException += Application_ThreadException;
+
+            //// TODO: Use pre-load of AvalonEdit's editor in background thread to speed up first load on user request
+
+            //// Preloading causes InvalidOperationException with the message:
+            //// 'The calling thread cannot access this object because a different thread owns it.' from time to time.
+            //// It seems that ElementHost is the reason for that.
+
+            ////            Thread preloadThread = new Thread(
+            ////                () =>
+            ////                {
+            ////#pragma warning disable 618
+            ////Debugger.Log(0, "", string.Format("Preload thread ID: {0}\n", AppDomain.GetCurrentThreadId()));
+            ////#pragma warning restore 618
+
+            ////                    using (var form = new ScriptForm())
+            ////                    {
+            ////                        // Nothing to do
+            ////                    }
+            ////                })
+            ////            {
+            ////                Name = "Preload thread",
+            ////                IsBackground = true,
+            ////                Priority = ThreadPriority.Lowest
+            ////            };
+
+            ////#pragma warning disable 618
+            ////            Debugger.Log(0, "", string.Format("Main thread ID: {0}\n", AppDomain.GetCurrentThreadId()));
+            ////#pragma warning restore 618
+
+            ////            preloadThread.SetApartmentState(ApartmentState.STA);
+            ////            preloadThread.Start();
+
+            Application.Run(new MainForm());
+            return 0;
+        }
+
+        private static int RunInConsoleMode(string[] arguments)
+        {
+            if (arguments.Length <= 0)
+            {
+                ////Console.WriteLine();
+                ShowHelp(true);
+                return 1;
+            }
+
+            Console.WriteLine();
+
+            var scriptFilePath = Path.GetFullPath(arguments[0]);
+            var scriptArguments = arguments.Skip(1).ToArray();
+            var script = File.ReadAllText(scriptFilePath);
+            var executorParameters = new ScriptExecutorParameters(script, scriptArguments, _isDebugMode);
+
+            using (var scriptExecutor = ScriptExecutor.Create(executorParameters))
+            {
+                ScriptExecutionResult executionResult;
+                try
+                {
+                    executionResult = scriptExecutor.Execute();
+                }
+                catch (Exception ex)
+                {
+                    executionResult = ScriptExecutionResult.CreateInternalError(ex, script);
+                }
+
+                Console.WriteLine(executionResult.ConsoleOut);
+                Console.WriteLine(executionResult.ConsoleError);
+
+                switch (executionResult.Type)
+                {
+                    case ScriptExecutionResultType.InternalError:
+                    case ScriptExecutionResultType.CompilationError:
+                    case ScriptExecutionResultType.ExecutionError:
+                    {
+                        Console.WriteLine();
+                        Console.WriteLine(@"* Error processing script file ""{0}"":", scriptFilePath);
+                        Console.WriteLine(@"* Error type: {0}", executionResult.Type);
+                        Console.WriteLine(executionResult.Message);
+                        if (executionResult.Type == ScriptExecutionResultType.CompilationError)
+                        {
+                            foreach (var compilerError in executionResult.CompilerErrors)
+                            {
+                                Console.WriteLine(compilerError.ToString());
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(executionResult.SourceCode))
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine(@" * Source code <START");
+                            Console.WriteLine(executionResult.SourceCode);
+                            Console.WriteLine(@" * Source code END>");
+                        }
+
+                        if (!string.IsNullOrEmpty(executionResult.GeneratedCode))
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine(@" * Generated code <START");
+                            Console.WriteLine(executionResult.GeneratedCode);
+                            Console.WriteLine(@" * Generated code END>");
+                        }
+
+                        Console.WriteLine();
+
+                        return 200;
+                    }
+
+                    case ScriptExecutionResultType.Success:
+
+                        // Nothing to do
+                        break;
+
+                    default:
+                        throw new NotImplementedException(
+                            $@"Not implemented script execution result type ({executionResult.Type}).");
+                }
+            }
+
+            return 0;
+        }
     }
 }

@@ -70,20 +70,24 @@ namespace CSharpScriptExecutor.Common
                 {
                     throw new ArgumentNullException(nameof(compilerErrors));
                 }
+
                 if (!compilerErrors.Any())
                 {
                     throw new ArgumentException(
                         "There must be at least one error in the collection.",
                         nameof(compilerErrors));
                 }
+
                 if (compilerErrors.Contains(null))
                 {
                     throw new ArgumentException("The collection contains a null element.", nameof(compilerErrors));
                 }
+
                 if (compilerErrors.Any(item => item.IsWarning))
                 {
                     throw new ArgumentException("The collection must contain errors only.", nameof(compilerErrors));
                 }
+
                 if (sourceCodeLineOffset == null)
                 {
                     throw new ArgumentNullException(nameof(sourceCodeLineOffset));
@@ -112,6 +116,123 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
+        #region Public Properties
+
+        public ScriptExecutionResultType Type
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _type;
+            }
+        }
+
+        public bool IsSuccess
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _type == ScriptExecutionResultType.Success;
+            }
+        }
+
+        public IScriptReturnValue ReturnValue
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _returnValue;
+            }
+        }
+
+        public string Message
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _message;
+            }
+        }
+
+        public string ConsoleOut
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _consoleOut;
+            }
+        }
+
+        public string ConsoleError
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _consoleError;
+            }
+        }
+
+        /// <summary>
+        ///     Gets the source code of a user.
+        /// </summary>
+        public string SourceCode
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _sourceCode;
+            }
+        }
+
+        /// <summary>
+        ///     Gets the code generated from the source script.
+        /// </summary>
+        public string GeneratedCode
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _generatedCode;
+            }
+        }
+
+        public IList<CompilerError> CompilerErrors
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _compilerErrors;
+            }
+        }
+
+        public int? SourceCodeLineOffset
+        {
+            [DebuggerStepThrough]
+            get
+            {
+                return _sourceCodeLineOffset;
+            }
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        public static ScriptExecutionResult CreateInternalError(Exception exception, string sourceCode)
+        {
+            return CreateError(
+                ScriptExecutionResultType.InternalError,
+                exception,
+                sourceCode,
+                null,
+                null,
+                null,
+                null,
+                null);
+        }
+
+        #endregion
+
         #region Internal Methods
 
         internal static ScriptExecutionResult CreateError(
@@ -130,6 +251,7 @@ namespace CSharpScriptExecutor.Common
             {
                 throw new ArgumentNullException(nameof(exception));
             }
+
             if (type == ScriptExecutionResultType.Success)
             {
                 throw new ArgumentException("Cannot create an error result from the success.", nameof(type));
@@ -149,6 +271,7 @@ namespace CSharpScriptExecutor.Common
                 {
                     sourceCode = scriptExecutorException.SourceCode;
                 }
+
                 if (generatedSource == null)
                 {
                     generatedSource = scriptExecutorException.GeneratedCode;
@@ -182,93 +305,6 @@ namespace CSharpScriptExecutor.Common
                 consoleError,
                 sourceCode,
                 generatedSource,
-                null,
-                null);
-        }
-
-        #endregion
-
-        #region Public Properties
-
-        public ScriptExecutionResultType Type
-        {
-            [DebuggerStepThrough]
-            get { return _type; }
-        }
-
-        public bool IsSuccess
-        {
-            [DebuggerStepThrough]
-            get { return _type == ScriptExecutionResultType.Success; }
-        }
-
-        public IScriptReturnValue ReturnValue
-        {
-            [DebuggerStepThrough]
-            get { return _returnValue; }
-        }
-
-        public string Message
-        {
-            [DebuggerStepThrough]
-            get { return _message; }
-        }
-
-        public string ConsoleOut
-        {
-            [DebuggerStepThrough]
-            get { return _consoleOut; }
-        }
-
-        public string ConsoleError
-        {
-            [DebuggerStepThrough]
-            get { return _consoleError; }
-        }
-
-        /// <summary>
-        ///     Gets the source code of a user.
-        /// </summary>
-        public string SourceCode
-        {
-            [DebuggerStepThrough]
-            get { return _sourceCode; }
-        }
-
-        /// <summary>
-        ///     Gets the code generated from the source script.
-        /// </summary>
-        public string GeneratedCode
-        {
-            [DebuggerStepThrough]
-            get { return _generatedCode; }
-        }
-
-        public IList<CompilerError> CompilerErrors
-        {
-            [DebuggerStepThrough]
-            get { return _compilerErrors; }
-        }
-
-        public int? SourceCodeLineOffset
-        {
-            [DebuggerStepThrough]
-            get { return _sourceCodeLineOffset; }
-        }
-
-        #endregion
-
-        #region Public Methods
-
-        public static ScriptExecutionResult CreateInternalError(Exception exception, string sourceCode)
-        {
-            return CreateError(
-                ScriptExecutionResultType.InternalError,
-                exception,
-                sourceCode,
-                null,
-                null,
-                null,
                 null,
                 null);
         }

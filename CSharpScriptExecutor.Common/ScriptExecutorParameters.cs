@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 
@@ -8,8 +9,6 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     public sealed class ScriptExecutorParameters
     {
-        #region Constructors and Destructors
-
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptExecutorParameters"/> class.
         /// </summary>
@@ -18,8 +17,6 @@ namespace CSharpScriptExecutor.Common
             ICollection<string> scriptArguments,
             bool isDebugMode)
         {
-            #region Argument Check
-
             if (string.IsNullOrWhiteSpace(script))
             {
                 throw new ArgumentException("The value can be neither empty string nor null.", nameof(script));
@@ -35,16 +32,10 @@ namespace CSharpScriptExecutor.Common
                 throw new ArgumentException(@"The collection contains a null element.", nameof(scriptArguments));
             }
 
-            #endregion
-
             Script = script;
-            ScriptArguments = new List<string>(scriptArguments).AsReadOnly();
+            ScriptArguments = new ReadOnlyCollection<string>(scriptArguments.ToArray());
             IsDebugMode = isDebugMode;
         }
-
-        #endregion
-
-        #region Public Properties
 
         public string Script
         {
@@ -52,7 +43,7 @@ namespace CSharpScriptExecutor.Common
             private set;
         }
 
-        public IList<string> ScriptArguments
+        public ReadOnlyCollection<string> ScriptArguments
         {
             get;
             private set;
@@ -63,7 +54,5 @@ namespace CSharpScriptExecutor.Common
             get;
             private set;
         }
-
-        #endregion
     }
 }

@@ -39,14 +39,6 @@ namespace CSharpScriptExecutor.Common
             get;
         }
 
-        private void EnsureNotDisposed()
-        {
-            if (_isDisposed)
-            {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
-        }
-
         [MethodImpl(MethodImplOptions.Synchronized)]
         ScriptExecutionResult IScriptExecutor.Execute()
         {
@@ -104,6 +96,7 @@ namespace CSharpScriptExecutor.Common
                 {
                     // Nothing to do
                 }
+
                 _scriptExecutor = null;
             }
 
@@ -121,6 +114,14 @@ namespace CSharpScriptExecutor.Common
 
             // Finally, setting the flag
             _isDisposed = true;
+        }
+
+        private void EnsureNotDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException(GetType().FullName);
+            }
         }
     }
 }

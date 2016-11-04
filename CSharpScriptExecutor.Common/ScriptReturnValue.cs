@@ -13,253 +13,22 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     public sealed class ScriptReturnValue : MarshalByRefObject, IScriptReturnValue
     {
-        #region MemberCollection Class
+        #region Constants and Fields
 
-        [Serializable]
-        [ImmutableObject(true)]
-        private sealed class MemberCollection : ICustomTypeDescriptor
-        {
-            #region Fields
-
-            private readonly Dictionary<MemberKey, IScriptReturnValue> _valueMap;
-            private readonly IScriptReturnValue _error;
-
-            #endregion
-
-            #region Constructors
-
-            internal MemberCollection(string displayName, Dictionary<MemberKey, IScriptReturnValue> valueMap)
-            {
-                #region Argument Check
-
-                if (string.IsNullOrEmpty(displayName))
-                {
-                    throw new ArgumentException("The value can be neither empty string nor null.", nameof(displayName));
-                }
-                if (valueMap == null)
-                {
-                    throw new ArgumentNullException(nameof(valueMap));
-                }
-
-                #endregion
-
-                DisplayName = displayName;
-                _valueMap = valueMap;
-            }
-
-            internal MemberCollection(string displayName, Exception error)
-            {
-                #region Argument Check
-
-                if (string.IsNullOrEmpty(displayName))
-                {
-                    throw new ArgumentException("The value can be neither empty string nor null.", nameof(displayName));
-                }
-                if (error == null)
-                {
-                    throw new ArgumentNullException(nameof(error));
-                }
-
-                #endregion
-
-                DisplayName = displayName;
-                _error = Create(error);
-            }
-
-            #endregion
-
-            #region Public Properties
-
-            public string DisplayName
-            {
-                [DebuggerStepThrough]
-                get;
-            }
-
-            #endregion
-
-            #region Public Methods
-
-            public override string ToString()
-            {
-                return _error == null
-                    ? (_valueMap == null ? "?" : $@"Count = {_valueMap.Count}")
-                    : _error.AsString;
-            }
-
-            #endregion
-
-            #region ICustomTypeDescriptor Members
-
-            AttributeCollection ICustomTypeDescriptor.GetAttributes()
-            {
-                return TypeDescriptor.GetAttributes(this, true);
-            }
-
-            string ICustomTypeDescriptor.GetClassName()
-            {
-                return TypeDescriptor.GetClassName(this, true);
-            }
-
-            string ICustomTypeDescriptor.GetComponentName()
-            {
-                return TypeDescriptor.GetComponentName(this, true);
-            }
-
-            TypeConverter ICustomTypeDescriptor.GetConverter()
-            {
-                return TypeDescriptor.GetConverter(this, true);
-            }
-
-            EventDescriptor ICustomTypeDescriptor.GetDefaultEvent()
-            {
-                return TypeDescriptor.GetDefaultEvent(this, true);
-            }
-
-            PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty()
-            {
-                return TypeDescriptor.GetDefaultProperty(this, true);
-            }
-
-            object ICustomTypeDescriptor.GetEditor(Type editorBaseType)
-            {
-                return TypeDescriptor.GetEditor(this, editorBaseType, true);
-            }
-
-            EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes)
-            {
-                return TypeDescriptor.GetEvents(this, attributes, true);
-            }
-
-            EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
-            {
-                return TypeDescriptor.GetEvents(this, true);
-            }
-
-            PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes)
-            {
-                return ((ICustomTypeDescriptor)this).GetProperties();
-            }
-
-            PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
-            {
-                var properties = _valueMap == null || _error != null
-                    ? new PropertyDescriptor[] { new ValuePropertyDescriptor(this, ErrorMemberKey, _error, true) }
-                    : _valueMap
-                        .Select(pair => new ValuePropertyDescriptor(this, pair.Key, pair.Value, true))
-                        .OrderBy(item => item.OrderIndex)
-                        .ThenBy(item => item.DisplayName)
-                        .ThenBy(item => item.Name)
-                        .ToArray();
-
-                return new PropertyDescriptorCollection(properties, true);
-            }
-
-            object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd) => this;
-
-            #endregion
-        }
-
-        #endregion
-
-        #region IHexInfo Interface
-
-        private interface IHexInfo
-        {
-            #region Public
-
-            Type Type
-            {
-                get;
-            }
-
-            Func<object, object> Preconvert
-            {
-                get;
-            }
-
-            string Format
-            {
-                get;
-            }
-
-            #endregion
-        }
-
-        #endregion
-
-        #region HexInfo Class
-
-        private sealed class HexInfo<T> : IHexInfo
-            where T : struct
-        {
-            #region Constructors
-
-            internal HexInfo(Func<object, object> preconvert = null, int? size = null)
-            {
-                #region Argument Check
-
-                if (size.HasValue && size.Value <= 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(size), size, "Size must be positive, if specified.");
-                }
-
-                #endregion
-
-                Type = typeof(T);
-                Preconvert = preconvert ?? (x => (T)x);
-                var actualSize = size ?? Marshal.SizeOf(Type);
-                Format = string.Format("0x{{0:X{0}}}", actualSize * 2);
-            }
-
-            internal HexInfo()
-                : this(null)
-            {
-                // Nothing to do
-            }
-
-            #endregion
-
-            #region IHexInfo Members
-
-            public Type Type
-            {
-                get;
-            }
-
-            public Func<object, object> Preconvert
-            {
-                get;
-            }
-
-            public string Format
-            {
-                get;
-            }
-
-            #endregion
-        }
-
-        #endregion
-
-        #region Constants
+        internal static readonly int MaxRecursionCount = 128;
 
         private const BindingFlags MemberBindingFlags =
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
-        internal static readonly int MaxRecursionCount = 128;
 
         private const string FieldsPropertyName = "Fields";
         private const string PropertiesPropertyName = "Properties";
         private const string ElementsPropertyName = "Elements";
 
-        #endregion
-
-        #region Fields
-
         private static readonly ScriptReturnValueProxy Null =
             new ScriptReturnValueProxy(new ScriptReturnValue(null));
+
         private static readonly string ToStringMethodName = new Func<string>(new object().ToString).Method.Name;
+
         private static readonly string PointerStringFormat = GetPointerStringFormat();
 
         private static readonly Dictionary<Type, IHexInfo> HexInfoMap =
@@ -277,7 +46,7 @@ namespace CSharpScriptExecutor.Common
                 new HexInfo<IntPtr>(x => ((IntPtr)x).ToInt64(), IntPtr.Size),
                 new HexInfo<UIntPtr>(x => ((UIntPtr)x).ToUInt64(), UIntPtr.Size)
             }
-            .ToDictionary(item => item.Type);
+                .ToDictionary(item => item.Type);
 
         private static readonly MemberKey IsNullMemberKey = new MemberKey("(IsNull)");
         private static readonly MemberKey TypeMemberKey = new MemberKey("(Type)");
@@ -303,7 +72,7 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
-        #region Constructors and Destructors
+        #region Constructors
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ScriptReturnValue"/> class.
@@ -314,6 +83,7 @@ namespace CSharpScriptExecutor.Common
             {
                 _instanceCount++;
             }
+
             if (_instanceCount % 1000 == 0)
             {
                 Debug.WriteLine("{0} instances: {1}+", GetType().Name, _instanceCount);
@@ -359,17 +129,229 @@ namespace CSharpScriptExecutor.Common
             }
             catch (Exception ex)
             {
-                AsString = string.Format(
-                    "An exception {0} occurred on calling value's {1} method: {2}",
-                    ex.GetType().FullName,
-                    ToStringMethodName,
-                    ex.Message);
+                AsString = $@"An exception {ex.GetType().FullName} occurred on calling value's {
+                    ToStringMethodName} method: {ex.Message}";
             }
         }
 
         #endregion
 
+        #region Public Methods
+
+        public override string ToString() => AsString;
+
+        public override object InitializeLifetimeService() => null;
+
+        #endregion
+
+        #region IScriptReturnValue Members
+
+        public bool IsNull
+        {
+            get;
+        }
+
+        public TypeWrapper Type
+        {
+            get;
+        }
+
+        public string AsString
+        {
+            get;
+        }
+
+        #endregion
+
+        #region ICustomTypeDescriptor Members
+
+        AttributeCollection ICustomTypeDescriptor.GetAttributes()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        string ICustomTypeDescriptor.GetClassName()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        string ICustomTypeDescriptor.GetComponentName()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        TypeConverter ICustomTypeDescriptor.GetConverter()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        EventDescriptor ICustomTypeDescriptor.GetDefaultEvent()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        object ICustomTypeDescriptor.GetEditor(Type editorBaseType)
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes)
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes)
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd)
+        {
+            // This method must not be called
+            throw new NotSupportedException();
+        }
+
+        #endregion
+
+        #region Internal Methods
+
+        internal static IScriptReturnValue Create(object value)
+        {
+            if (ReferenceEquals(value, null))
+            {
+                return Null;
+            }
+
+            var objectsBeingProcessedCreated = false;
+            var recursionCountInitialized = false;
+            try
+            {
+                if (_objectsBeingProcessed == null)
+                {
+                    objectsBeingProcessedCreated = true;
+                    _objectsBeingProcessed = new Dictionary<ReferenceWrapper, ScriptReturnValueProxy>();
+                }
+
+                if (!_recursionCount.HasValue)
+                {
+                    recursionCountInitialized = true;
+                    _recursionCount = 0;
+                }
+
+                ScriptReturnValueProxy result;
+
+                var isReferenceType = !value.GetType().IsValueType;
+                if (isReferenceType)
+                {
+                    var reference = new ReferenceWrapper(value);
+                    if (_objectsBeingProcessed.TryGetValue(reference, out result))
+                    {
+                        return result;
+                    }
+                }
+
+                var internalResult = new ScriptReturnValue(value);
+                result = new ScriptReturnValueProxy(internalResult);
+                if (isReferenceType)
+                {
+                    _objectsBeingProcessed.Add(new ReferenceWrapper(value), result);
+                }
+
+                // Initialization must be performed only after reference is added to processed objects map
+                _recursionCount = _recursionCount.Value + 1;
+                try
+                {
+                    internalResult.Initialize(true);
+                }
+                finally
+                {
+                    _recursionCount = _recursionCount.Value - 1;
+                }
+
+                return result;
+            }
+            finally
+            {
+                if (recursionCountInitialized)
+                {
+                    _recursionCount = null;
+                }
+
+                if (objectsBeingProcessedCreated)
+                {
+                    _objectsBeingProcessed = null;
+                }
+            }
+        }
+
+        internal PropertyDescriptor[] GetPropertiesInternal()
+        {
+            Initialize(false);
+            if (!_isInitialized)
+            {
+                throw new InvalidOperationException($@"{GetType().FullName}: initialization has failed.");
+            }
+
+            var predefinedProperties = new List<PropertyDescriptor>();
+            if (IsNull)
+            {
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, IsNullMemberKey, IsNull, false));
+            }
+            else
+            {
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, TypeMemberKey, Type, true));
+                predefinedProperties.Add(new ValuePropertyDescriptor(this, AsStringMemberKey, AsString, false));
+                if (!string.IsNullOrEmpty(_hexValue))
+                {
+                    predefinedProperties.Add(
+                        new ValuePropertyDescriptor(this, AsHexadecimalMemberKey, _hexValue, false));
+                }
+            }
+
+            var runTimeProperties = _memberCollections
+                .Select(item => new ValuePropertyDescriptor(this, new MemberKey(item.DisplayName), item, true));
+
+            return predefinedProperties.Concat(runTimeProperties).ToArray();
+        }
+
+        #endregion
+
         #region Private Methods
+
+        private static unsafe string GetPointerStringFormat() => $@"0x{{0:X{sizeof(IntPtr) * 2}}}";
+
+        [DebuggerStepThrough]
+        private static object AutoWrapIfSpecialType(object value)
+        {
+            var type = value as Type;
+            return type == null ? value : new TypeWrapper(type);
+        }
 
         private string GetHexValue()
         {
@@ -391,24 +373,8 @@ namespace CSharpScriptExecutor.Common
             {
                 result = null;
             }
+
             return result;
-        }
-
-        private static unsafe string GetPointerStringFormat()
-        {
-            return string.Format("0x{{0:X{0}}}", sizeof(IntPtr) * 2);
-        }
-
-        [DebuggerStepThrough]
-        private static object AutoWrapIfSpecialType(object value)
-        {
-            var type = value as Type;
-            if (type != null)
-            {
-                return new TypeWrapper(type);
-            }
-
-            return value;
         }
 
         [DebuggerNonUserCode]
@@ -546,12 +512,12 @@ namespace CSharpScriptExecutor.Common
                         var elementMap = items
                             .Select(
                                 (item, index) =>
-                                new
-                                {
-                                    Index = index,
-                                    Name = string.Format("[{0}]", index),
-                                    Value = Create(item)
-                                })
+                                    new
+                                    {
+                                        Index = index,
+                                        Name = $@"[{index}]",
+                                        Value = Create(item)
+                                    })
                             .ToDictionary(item => new MemberKey(item.Name, item.Index), item => item.Value);
                         elementMemberCollection = new MemberCollection(ElementsPropertyName, elementMap);
                     }
@@ -574,213 +540,207 @@ namespace CSharpScriptExecutor.Common
 
         #endregion
 
-        #region Internal Methods
+        #region MemberCollection Class
 
-        internal static IScriptReturnValue Create(object value)
+        [Serializable]
+        [ImmutableObject(true)]
+        private sealed class MemberCollection : ICustomTypeDescriptor
         {
-            if (ReferenceEquals(value, null))
+            #region Fields
+
+            private readonly Dictionary<MemberKey, IScriptReturnValue> _valueMap;
+            private readonly IScriptReturnValue _error;
+
+            #endregion
+
+            #region Constructors
+
+            internal MemberCollection(string displayName, Dictionary<MemberKey, IScriptReturnValue> valueMap)
             {
-                return Null;
+                #region Argument Check
+
+                if (string.IsNullOrEmpty(displayName))
+                {
+                    throw new ArgumentException(
+                        "The value can be neither empty string nor null.",
+                        nameof(displayName));
+                }
+
+                if (valueMap == null)
+                {
+                    throw new ArgumentNullException(nameof(valueMap));
+                }
+
+                #endregion
+
+                DisplayName = displayName;
+                _valueMap = valueMap;
             }
 
-            var objectsBeingProcessedCreated = false;
-            var recursionCountInitialized = false;
-            try
+            internal MemberCollection(string displayName, Exception error)
             {
-                if (_objectsBeingProcessed == null)
+                #region Argument Check
+
+                if (string.IsNullOrEmpty(displayName))
                 {
-                    objectsBeingProcessedCreated = true;
-                    _objectsBeingProcessed = new Dictionary<ReferenceWrapper, ScriptReturnValueProxy>();
-                }
-                if (!_recursionCount.HasValue)
-                {
-                    recursionCountInitialized = true;
-                    _recursionCount = 0;
+                    throw new ArgumentException(
+                        "The value can be neither empty string nor null.",
+                        nameof(displayName));
                 }
 
-                ScriptReturnValueProxy result;
-
-                var isReferenceType = !value.GetType().IsValueType;
-                if (isReferenceType)
+                if (error == null)
                 {
-                    var reference = new ReferenceWrapper(value);
-                    if (_objectsBeingProcessed.TryGetValue(reference, out result))
-                    {
-                        return result;
-                    }
+                    throw new ArgumentNullException(nameof(error));
                 }
 
-                var internalResult = new ScriptReturnValue(value);
-                result = new ScriptReturnValueProxy(internalResult);
-                if (isReferenceType)
-                {
-                    _objectsBeingProcessed.Add(new ReferenceWrapper(value), result);
-                }
+                #endregion
 
-                // Initialization must be performed only after reference is added to processed objects map
-                _recursionCount = _recursionCount.Value + 1;
-                try
-                {
-                    internalResult.Initialize(true);
-                }
-                finally
-                {
-                    _recursionCount = _recursionCount.Value - 1;
-                }
-
-                return result;
-            }
-            finally
-            {
-                if (recursionCountInitialized)
-                {
-                    _recursionCount = null;
-                }
-                if (objectsBeingProcessedCreated)
-                {
-                    _objectsBeingProcessed = null;
-                }
-            }
-        }
-
-        internal PropertyDescriptor[] GetPropertiesInternal()
-        {
-            Initialize(false);
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException(
-                    string.Format("{0}: initialization has failed.", GetType().FullName));
+                DisplayName = displayName;
+                _error = Create(error);
             }
 
-            var predefinedProperties = new List<PropertyDescriptor>();
-            if (IsNull)
+            #endregion
+
+            #region Public Properties
+
+            public string DisplayName
             {
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, IsNullMemberKey, IsNull, false));
-            }
-            else
-            {
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, TypeMemberKey, Type, true));
-                predefinedProperties.Add(new ValuePropertyDescriptor(this, AsStringMemberKey, AsString, false));
-                if (!string.IsNullOrEmpty(_hexValue))
-                {
-                    predefinedProperties.Add(
-                        new ValuePropertyDescriptor(this, AsHexadecimalMemberKey, _hexValue, false));
-                }
+                [DebuggerStepThrough]
+                get;
             }
 
-            var runTimeProperties = _memberCollections
-                .Select(item => new ValuePropertyDescriptor(this, new MemberKey(item.DisplayName), item, true));
+            #endregion
 
-            return predefinedProperties.Concat(runTimeProperties).ToArray();
+            #region Public Methods
+
+            public override string ToString()
+                => _error == null ? (_valueMap == null ? "?" : $@"Count = {_valueMap.Count}") : _error.AsString;
+
+            #endregion
+
+            #region ICustomTypeDescriptor Members
+
+            AttributeCollection ICustomTypeDescriptor.GetAttributes() => TypeDescriptor.GetAttributes(this, true);
+
+            string ICustomTypeDescriptor.GetClassName() => TypeDescriptor.GetClassName(this, true);
+
+            string ICustomTypeDescriptor.GetComponentName() => TypeDescriptor.GetComponentName(this, true);
+
+            TypeConverter ICustomTypeDescriptor.GetConverter() => TypeDescriptor.GetConverter(this, true);
+
+            EventDescriptor ICustomTypeDescriptor.GetDefaultEvent() => TypeDescriptor.GetDefaultEvent(this, true);
+
+            PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty()
+                => TypeDescriptor.GetDefaultProperty(this, true);
+
+            object ICustomTypeDescriptor.GetEditor(Type editorBaseType)
+                => TypeDescriptor.GetEditor(this, editorBaseType, true);
+
+            EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes)
+                => TypeDescriptor.GetEvents(this, attributes, true);
+
+            EventDescriptorCollection ICustomTypeDescriptor.GetEvents() => TypeDescriptor.GetEvents(this, true);
+
+            PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes)
+                => ((ICustomTypeDescriptor)this).GetProperties();
+
+            PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
+            {
+                var properties = _valueMap == null || _error != null
+                    ? new PropertyDescriptor[] { new ValuePropertyDescriptor(this, ErrorMemberKey, _error, true) }
+                    : _valueMap
+                        .Select(pair => new ValuePropertyDescriptor(this, pair.Key, pair.Value, true))
+                        .OrderBy(item => item.OrderIndex)
+                        .ThenBy(item => item.DisplayName)
+                        .ThenBy(item => item.Name)
+                        .ToArray();
+
+                return new PropertyDescriptorCollection(properties, true);
+            }
+
+            object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd) => this;
+
+            #endregion
         }
 
         #endregion
 
-        #region Public Methods
+        #region IHexInfo Interface
 
-        public override string ToString()
+        private interface IHexInfo
         {
-            return AsString;
-        }
+            #region Public
 
-        public override object InitializeLifetimeService()
-        {
-            return null;
-        }
+            Type Type
+            {
+                get;
+            }
 
-        #endregion
+            Func<object, object> Preconvert
+            {
+                get;
+            }
 
-        #region IScriptReturnValue Members
+            string Format
+            {
+                get;
+            }
 
-        public bool IsNull
-        {
-            get;
-        }
-
-        public TypeWrapper Type
-        {
-            get;
-        }
-
-        public string AsString
-        {
-            get;
+            #endregion
         }
 
         #endregion
 
-        #region ICustomTypeDescriptor Members
+        #region HexInfo Class
 
-        AttributeCollection ICustomTypeDescriptor.GetAttributes()
+        private sealed class HexInfo<T> : IHexInfo
+            where T : struct
         {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            #region Constructors
 
-        string ICustomTypeDescriptor.GetClassName()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            internal HexInfo(Func<object, object> preconvert, int? size)
+            {
+                #region Argument Check
 
-        string ICustomTypeDescriptor.GetComponentName()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+                if (size.HasValue && size.Value <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(size), size, "Size must be positive, if specified.");
+                }
 
-        TypeConverter ICustomTypeDescriptor.GetConverter()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+                #endregion
 
-        EventDescriptor ICustomTypeDescriptor.GetDefaultEvent()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+                Type = typeof(T);
+                Preconvert = preconvert ?? (x => (T)x);
+                var actualSize = size ?? Marshal.SizeOf(Type);
+                Format = $@"0x{{0:X{actualSize * 2}}}";
+            }
 
-        PropertyDescriptor ICustomTypeDescriptor.GetDefaultProperty()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            internal HexInfo()
+                : this(null, null)
+            {
+                // Nothing to do
+            }
 
-        object ICustomTypeDescriptor.GetEditor(Type editorBaseType)
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            #endregion
 
-        EventDescriptorCollection ICustomTypeDescriptor.GetEvents(Attribute[] attributes)
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            #region IHexInfo Members
 
-        EventDescriptorCollection ICustomTypeDescriptor.GetEvents()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            public Type Type
+            {
+                get;
+            }
 
-        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties(Attribute[] attributes)
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            public Func<object, object> Preconvert
+            {
+                get;
+            }
 
-        PropertyDescriptorCollection ICustomTypeDescriptor.GetProperties()
-        {
-            // This method must not be called
-            throw new NotSupportedException();
-        }
+            public string Format
+            {
+                get;
+            }
 
-        object ICustomTypeDescriptor.GetPropertyOwner(PropertyDescriptor pd)
-        {
-            // This method must not be called
-            throw new NotSupportedException();
+            #endregion
         }
 
         #endregion

@@ -10,8 +10,6 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     internal sealed class ValuePropertyDescriptor : PropertyDescriptor, ISerializable
     {
-        #region Constants and Fields
-
         private const string OwnerTypeKey = "ownerType";
         private const string NameKey = "name";
         private const string OrderIndexKey = "orderIndex";
@@ -29,10 +27,6 @@ namespace CSharpScriptExecutor.Common
         private readonly object _propertyValue;
         private readonly bool _expandable;
 
-        #endregion
-
-        #region Constructors
-
         internal ValuePropertyDescriptor(
             object owner,
             MemberKey memberKey,
@@ -40,8 +34,6 @@ namespace CSharpScriptExecutor.Common
             bool expandable)
             : base(memberKey.Name, expandable ? ExpandableAttributes : EmptyAttributes)
         {
-            #region Argument Check
-
             if (owner == null)
             {
                 throw new ArgumentNullException(nameof(owner));
@@ -62,8 +54,6 @@ namespace CSharpScriptExecutor.Common
                     nameof(propertyValue));
             }
 
-            #endregion
-
             _ownerType = owner.GetType();
             _propertyValue = propertyValue;
             OrderIndex = memberKey.OrderIndex;
@@ -75,24 +65,16 @@ namespace CSharpScriptExecutor.Common
                 info.EnsureNotNull().GetString(NameKey),
                 info.EnsureNotNull().GetBoolean(ExpandableKey) ? ExpandableAttributes : EmptyAttributes)
         {
-            #region Argument Check
-
             if (info == null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
-
-            #endregion
 
             _ownerType = (Type)info.GetValue(OwnerTypeKey, typeof(Type));
             _propertyValue = info.GetValue(PropertyValueKey, typeof(object));
             OrderIndex = info.GetInt32(OrderIndexKey);
             _expandable = info.GetBoolean(ExpandableKey);
         }
-
-        #endregion
-
-        #region Public Properties
 
         public override Type ComponentType
         {
@@ -126,21 +108,11 @@ namespace CSharpScriptExecutor.Common
             get;
         }
 
-        #endregion
-
-        #region Public Methods
+        [DebuggerNonUserCode]
+        public override bool CanResetValue(object component) => false;
 
         [DebuggerNonUserCode]
-        public override bool CanResetValue(object component)
-        {
-            return false;
-        }
-
-        [DebuggerNonUserCode]
-        public override object GetValue(object component)
-        {
-            return _propertyValue;
-        }
+        public override object GetValue(object component) => _propertyValue;
 
         [DebuggerNonUserCode]
         public override void ResetValue(object component)
@@ -155,25 +127,14 @@ namespace CSharpScriptExecutor.Common
         }
 
         [DebuggerNonUserCode]
-        public override bool ShouldSerializeValue(object component)
-        {
-            return false;
-        }
-
-        #endregion
-
-        #region ISerializable Members
+        public override bool ShouldSerializeValue(object component) => false;
 
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            #region Argument Check
-
             if (info == null)
             {
                 throw new ArgumentNullException(nameof(info));
             }
-
-            #endregion
 
             info.AddValue(OwnerTypeKey, _ownerType);
             info.AddValue(NameKey, Name);
@@ -181,7 +142,5 @@ namespace CSharpScriptExecutor.Common
             info.AddValue(PropertyValueKey, _propertyValue);
             info.AddValue(ExpandableKey, _expandable);
         }
-
-        #endregion
     }
 }

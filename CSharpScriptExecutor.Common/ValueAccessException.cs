@@ -10,17 +10,15 @@ namespace CSharpScriptExecutor.Common
     [Serializable]
     public sealed class ValueAccessException : Exception
     {
-        private static readonly string FieldRecursionLimitExceededMessage =
-            $"Skipped reading the field: recursion limit {ScriptReturnValue.MaxRecursionCount} is reached.";
-
-        private static readonly string PropertyRecursionLimitExceededMessage =
-            $"Skipped reading the property: recursion limit {ScriptReturnValue.MaxRecursionCount} is reached.";
-
         internal static readonly ValueAccessException FieldRecursionLimitExceeded =
-            new ValueAccessException(FieldRecursionLimitExceededMessage, null);
+            new ValueAccessException(
+                $"Skipped reading the field: recursion limit {ScriptReturnValue.MaxRecursionCount} is reached.",
+                null);
 
         internal static readonly ValueAccessException PropertyRecursionLimitExceeded =
-            new ValueAccessException(PropertyRecursionLimitExceededMessage, null);
+            new ValueAccessException(
+                $"Skipped reading the property: recursion limit {ScriptReturnValue.MaxRecursionCount} is reached.",
+                null);
 
         private readonly string _asString;
 
